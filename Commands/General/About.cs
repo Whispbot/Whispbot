@@ -13,6 +13,9 @@ namespace Whispbot.Commands.General
     {
         public override string Name => "About";
         public override string Description => "View information about the bot.";
+        public override Module Module => Module.General;
+        public override bool GuildOnly => false;
+        public override List<RateLimit> Ratelimits => [];
         public override List<string> Aliases => ["about", "info", "botinfo"];
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)

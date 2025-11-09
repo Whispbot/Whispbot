@@ -6,9 +6,12 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Whispbot.Commands.ERLC;
 using Whispbot.Commands.General;
 using Whispbot.Commands.Shifts;
 using Whispbot.Commands.Staff;
+using Whispbot.Extensions;
+using Whispbot.Tools;
 using YellowMacaroni.Discord.Cache;
 using YellowMacaroni.Discord.Core;
 using YellowMacaroni.Discord.Extentions;
@@ -18,8 +21,10 @@ namespace Whispbot.Commands
 {
     public class CommandManager
     {
-        private readonly List<Command> _commands = [];
-        private readonly List<Command> _staffCommands = [];
+        public readonly List<Command> commands = [];
+        public readonly List<Command> staffCommands = [];
+
+        public readonly Dictionary<string, RatelimitData> ratelimits = [];
 
         public CommandManager()
         {
@@ -29,28 +34,38 @@ namespace Whispbot.Commands
             RegisterCommand(new Ping());
             RegisterCommand(new About());
             RegisterCommand(new Support());
+            RegisterCommand(new Connections());
 
             RegisterCommand(new Clockin());
             RegisterCommand(new Clockout());
+            RegisterCommand(new ShiftManage());
+            RegisterCommand(new ShiftAdmin());
+
+            RegisterCommand(new ERLC_ServerInfo());
+            RegisterCommand(new ERLC_Players());
+            RegisterCommand(new ERLC_Queue());
+            RegisterCommand(new ERLC_Vehicles());
 
             RegisterStaffCommand(new Test());
             RegisterStaffCommand(new SQL());
             RegisterStaffCommand(new UpdateLanguages());
+            RegisterStaffCommand(new AIRequest());
 
             #endregion
 
+            if (Config.IsDev) Log.Debug($"[Debug] Loaded {commands.Count} commands");
         }
 
         public void RegisterCommand(Command command)
         {
-            if (_commands.Any(c => c.Name == command.Name)) return;
-            _commands.Add(command);
+            if (commands.Any(c => c.Name == command.Name)) return;
+            commands.Add(command);
         }
 
         public void RegisterStaffCommand(Command command)
         {
-            if (_staffCommands.Any(c => c.Name == command.Name)) return;
-            _staffCommands.Add(command);
+            if (staffCommands.Any(c => c.Name == command.Name)) return;
+            staffCommands.Add(command);
         }
 
         private int? _maxLength = null;
@@ -58,12 +73,12 @@ namespace Whispbot.Commands
         {
             get
             {
-                _maxLength ??= _commands.Max(c => c.Aliases.Max(a => a.Split(" ").Length));
+                _maxLength ??= commands.Max(c => c.Aliases.Max(a => a.Split(" ").Length));
                 return _maxLength ?? 0;
             }
         }
 
-        public void HandleMessage(Client client, Message message)
+        public async Task HandleMessage(Client client, Message message)
         {
             string prefix = Config.IsDev ? "a!" : "b!";
             string mention = $"<@{client.readyData?.user.id}>";
@@ -80,7 +95,7 @@ namespace Whispbot.Commands
                 Command? command = null;
                 for (int len = MaxLength; len > 0; len--)
                 {
-                    Command? activeCommand = _commands.Find(c =>
+                    Command? activeCommand = commands.Find(c =>
                     {
                         foreach (string alias in c.Aliases)
                         {
@@ -100,11 +115,106 @@ namespace Whispbot.Commands
                     }
                 }
 
+                if (command is null) return;
+
                 MatchCollection matches = Regex.Matches(args.Join(" "), @"--(\w+)");
                 List<string> flags = [.. matches.Select(m => m.Groups[1].Value)];
-                args = [..args.Where(a => !flags.Contains(a))];
+                args = [.. args.Where(a => !flags.Contains(a))];
 
-                command?.ExecuteAsync(new CommandContext(client, message, args, flags));
+                var ctx = new CommandContext(client, message, args, flags);
+
+                if (ctx.UserConfig?.ack_required ?? false)
+                {
+                    await ctx.Reply(Actions.GenerateAcknowledgeMessage(long.Parse(ctx.UserId ?? "0")));
+
+                    return;
+                }
+
+                if (command.Ratelimits.Count > 0)
+                {
+                    foreach (var rl in command!.Ratelimits)
+                    {
+                        string rlk = rl.type switch
+                        {
+                            RateLimitType.Global => "global",
+                            RateLimitType.Guild => message.channel?.guild_id ?? "global",
+                            RateLimitType.User => message.author.id,
+                            _ => "global"
+                        };
+
+                        string key = $"{command.Name}:{rlk}";
+
+                        RatelimitData? data = ratelimits.GetValueOrDefault(key);
+                        if (data is null)
+                        {
+                            ratelimits[key] = new RatelimitData()
+                            {
+                                Remaining = rl.amount - 1,
+                                Reset = DateTimeOffset.UtcNow + rl.per
+                            };
+                        }
+                        else
+                        {
+                            if (data.Remaining == 0 && data.Reset > DateTimeOffset.UtcNow)
+                            {
+                                await ctx.Reply("{string.errors.ratelimited}".Process(ctx.Language, new Dictionary<string, string>() { { "reset", Time.ConvertMillisecondsToRelativeString(data.Reset.ToUnixTimeMilliseconds(), false, ", ", false, 1000) } }));
+
+                                return;
+                            }
+                            else
+                            {
+                                if (data.Reset <= DateTimeOffset.UtcNow)
+                                {
+                                    data.Remaining = rl.amount - 1;
+                                    data.Reset = DateTimeOffset.UtcNow + rl.per;
+                                }
+                                else
+                                {
+                                    data.Remaining--;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                try
+                {
+                    await command.ExecuteAsync(ctx);
+                }
+                catch (Exception ex)
+                {
+                    var id = SentrySdk.CaptureException(ex);
+
+                    var e_result = await ctx.EditResponse(new MessageBuilder
+                    {
+                        components = [
+                            new ContainerBuilder
+                            {
+                                components = [
+                                    new TextDisplayBuilder("## {string.title.error}"),
+                                    new TextDisplayBuilder("{string.content.error}".Process(ctx.Language, new() { { "url", "<https://whisp.bot/support>" } })),
+                                    new TextDisplayBuilder($"{{string.content.error.id}}:\n```\n{id}\n```"),
+                                    new SectionBuilder
+                                    {
+                                        components = [
+                                            new TextDisplayBuilder("{string.content.error.feedback}")
+                                        ],
+                                        accessory = new ButtonBuilder
+                                        {
+                                            label = "{string.content.error.feedback_button}",
+                                            custom_id = $"error_feedback {ctx.UserId} {id}",
+                                            style = ButtonStyle.Secondary
+                                        }
+                                    }
+                                ],
+                                accent = new(200, 69, 69)
+                            }
+                        ],
+                        flags = MessageFlags.IsComponentsV2
+                    });
+
+                    if (e_result.Item2 is not null) Log.Error(e_result.Item2.ToString());
+                }
             }
             else if 
             (
@@ -119,7 +229,7 @@ namespace Whispbot.Commands
                 Command? command = null;
                 for (int len = MaxLength; len > 0; len--)
                 {
-                    Command? activeCommand = _staffCommands.Find(c =>
+                    Command? activeCommand = staffCommands.Find(c =>
                     {
                         foreach (string alias in c.Aliases)
                         {
@@ -149,10 +259,10 @@ namespace Whispbot.Commands
 
         public void Attach(Client client)
         {
-            client.MessageCreate += (c, message) =>
+            client.MessageCreate += async (c, message) =>
             {
                 if (c is not Client client) return;
-                HandleMessage(client, message);
+                await HandleMessage(client, message);
             };
         }
 
@@ -162,6 +272,17 @@ namespace Whispbot.Commands
             {
                 Attach(shard.client);
             }
+        }
+
+
+
+
+
+
+        public class RatelimitData
+        {
+            public int Remaining;
+            public DateTimeOffset Reset;
         }
     }
 }
