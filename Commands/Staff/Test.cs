@@ -12,6 +12,9 @@ namespace Whispbot.Commands.Staff
     {
         public override string Name => "Test";
         public override string Description => "A test command for staff.";
+        public override Module Module => Module.Staff;
+        public override bool GuildOnly => true;
+        public override List<RateLimit> Ratelimits => [];
         public override List<string> Aliases => ["test"];
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
@@ -24,15 +27,7 @@ namespace Whispbot.Commands.Staff
                 return;
             }
 
-            GuildConfig? config = await WhispCache.GuildConfig.Get(guildId);
-
-            if (config is null)
-            {
-                await ctx.Reply("No configuration found for this server.");
-                return;
-            }
-
-            await ctx.Reply($"```json\n{config.ToJson(true)}\n```");
+            await Tools.Google.Search("What is the uk minimum wage?");
         }
     }
 }

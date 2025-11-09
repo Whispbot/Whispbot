@@ -14,6 +14,9 @@ namespace Whispbot.Commands.Staff
     {
         public override string Name => "SQL";
         public override string Description => "Run an SQL query.";
+        public override Module Module => Module.Staff;
+        public override bool GuildOnly => false;
+        public override List<RateLimit> Ratelimits => [];
         public override List<string> Aliases => ["sql"];
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
