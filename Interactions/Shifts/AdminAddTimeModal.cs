@@ -38,8 +38,6 @@ namespace Whispbot.Interactions.Shifts
                 return;
             }
 
-            Log.Debug(timeMs.ToString());
-
             await ctx.DeferUpdate();
 
             Shift? shift = Postgres.SelectFirst<Shift>(
