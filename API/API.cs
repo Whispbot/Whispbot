@@ -14,6 +14,7 @@ using YellowMacaroni.Discord.Core;
 using YellowMacaroni.Discord.Cache;
 using Newtonsoft.Json;
 using Serilog;
+using System.ComponentModel.Design.Serialization;
 
 namespace Whispbot.API
 {
@@ -66,29 +67,10 @@ namespace Whispbot.API
                     }
                 }
             } },
-            { "/mutuals", new() {
-                { Post, async context => {
-                    MutualsFormat? data = await context.Request.ReadFromJsonAsync<MutualsFormat>();
-
-                    if (data is null)
-                    {
-                        context.Response.StatusCode = 400;
-                        await context.Response.WriteAsJsonAsync(new { status = 400, message = "Failed to parse body" });
-                        return;
-                    }
-
-                    List<object> response = [];
-
-                    foreach (string id in data.guildIds)
-                    {
-                        Guild? guild = DiscordCache.Guilds.FromCache(id);
-                        if (guild is null) continue;
-
-                        response.Add(new { guild.id, (await guild.members.Get(data.userId))?.roles });
-                    }
-
-                    context.Response.StatusCode = 200;
-                    await context.Response.WriteAsJsonAsync(response);
+            { "/commands", new()
+            {
+                { Get, async context => {
+                    await context.Response.WriteAsJsonAsync(Config.commands?.commands ?? []);
                 } }
             } }
         };
