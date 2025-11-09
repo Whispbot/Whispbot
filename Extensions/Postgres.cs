@@ -1,9 +1,11 @@
 ﻿using Npgsql;
+using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Dynamic;
 using System.Reflection;
+using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Extensions
 {
@@ -134,7 +136,7 @@ namespace Whispbot.Extensions
                     {
                         SetPropertyValue(property, item!, value);
                     }
-                    catch {}
+                    catch { }
                     continue;
                 }
 
@@ -154,21 +156,52 @@ namespace Whispbot.Extensions
         /// </summary>
         private static void SetPropertyValue(PropertyInfo property, object item, object value)
         {
-            if (property.PropertyType == typeof(Guid) && value is string stringValue)
+            Type propertyType = Nullable.GetUnderlyingType(property.PropertyType) ?? property.PropertyType;
+
+            if (propertyType == typeof(Guid) && value is string stringValue)
             {
                 property.SetValue(item, Guid.Parse(stringValue));
             }
-            else if (property.PropertyType == typeof(Guid) && value is byte[] guidBytes)
+            else if (propertyType == typeof(Guid) && value is byte[] guidBytes)
             {
                 property.SetValue(item, new Guid(guidBytes));
             }
-            else if (property.PropertyType.IsEnum && value is string enumString)
+            else if (propertyType == typeof(DateTimeOffset) && value is DateTime dateTimeValue)
+            {
+                property.SetValue(item, new DateTimeOffset(dateTimeValue));
+            }
+            else if (propertyType.IsEnum && value is string enumString)
             {
                 property.SetValue(item, Enum.Parse(property.PropertyType, enumString));
             }
-            else if (property.PropertyType.IsEnum && value is int enumInt)
+            else if (propertyType.IsEnum && value is int enumInt)
             {
                 property.SetValue(item, Enum.ToObject(property.PropertyType, enumInt));
+            }
+            else if (value is Array array)
+            {
+                if (propertyType.IsGenericType && propertyType.GetGenericTypeDefinition() == typeof(List<>))
+                {
+                    var elementType = propertyType.GetGenericArguments()[0];
+                    var listType = typeof(List<>).MakeGenericType(elementType);
+                    var list = Activator.CreateInstance(listType);
+                    var addMethod = listType.GetMethod("Add");
+                    
+                    foreach (var arrayElement in array)
+                    {
+                        if (arrayElement != null)
+                        {
+                            var convertedItem = elementType == typeof(string) ? arrayElement.ToString() : Convert.ChangeType(arrayElement, elementType);
+                            addMethod?.Invoke(list, [convertedItem]);
+                        }
+                    }
+                    
+                    property.SetValue(item, list);
+                }
+                else
+                {
+                    property.SetValue(item, array);
+                }
             }
             else
             {
@@ -183,21 +216,52 @@ namespace Whispbot.Extensions
         /// </summary>
         private static void SetFieldValue(FieldInfo field, object item, object value)
         {
-            if (field.FieldType == typeof(Guid) && value is string stringValue)
+            Type fieldType = Nullable.GetUnderlyingType(field.FieldType) ?? field.FieldType;
+
+            if (fieldType == typeof(Guid) && value is string stringValue)
             {
                 field.SetValue(item, Guid.Parse(stringValue));
             }
-            else if (field.FieldType == typeof(Guid) && value is byte[] guidBytes)
+            else if (fieldType == typeof(Guid) && value is byte[] guidBytes)
             {
                 field.SetValue(item, new Guid(guidBytes));
             }
-            else if (field.FieldType.IsEnum && value is string enumString)
+            else if (fieldType == typeof(DateTimeOffset) && value is DateTime dateTimeValue)
+            {
+                field.SetValue(item, new DateTimeOffset(dateTimeValue));
+            }
+            else if (fieldType.IsEnum && value is string enumString)
             {
                 field.SetValue(item, Enum.Parse(field.FieldType, enumString));
             }
-            else if (field.FieldType.IsEnum && value is int enumInt)
+            else if (fieldType.IsEnum && value is int enumInt)
             {
                 field.SetValue(item, Enum.ToObject(field.FieldType, enumInt));
+            }
+            else if (value is Array array)
+            {
+                if (fieldType.IsGenericType && fieldType.GetGenericTypeDefinition() == typeof(List<>))
+                {
+                    var elementType = fieldType.GetGenericArguments()[0];
+                    var listType = typeof(List<>).MakeGenericType(elementType);
+                    var list = Activator.CreateInstance(listType);
+                    var addMethod = listType.GetMethod("Add");
+                    
+                    foreach (var arrayElement in array)
+                    {
+                        if (arrayElement != null)
+                        {
+                            var convertedItem = elementType == typeof(string) ? arrayElement.ToString() : Convert.ChangeType(arrayElement, elementType);
+                            addMethod?.Invoke(list, [convertedItem]);
+                        }
+                    }
+                    
+                    field.SetValue(item, list);
+                }
+                else
+                {
+                    field.SetValue(item, array);
+                }
             }
             else
             {

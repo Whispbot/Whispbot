@@ -13,7 +13,7 @@ namespace Whispbot
         {
             Log.Logger = new LoggerConfiguration()
                 .MinimumLevel.Debug()
-                .WriteTo.Console(outputTemplate: $"[{{Timestamp:HH:mm:ss}} {{Level:u3}}] [{Config.replicaId}] {{Message:lj}}{{NewLine}}{{Exception}}")
+                .WriteTo.Console(outputTemplate: $"[{{Timestamp:HH:mm:ss}} {{Level:u3}}] {(Config.replicaId is not null ? $"[{Config.replicaId}] " : "")}{{Message:lj}}{{NewLine}}{{Exception}}")
                 .CreateLogger();
 
             Log.Information("Logger initialized");

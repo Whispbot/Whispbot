@@ -3,6 +3,7 @@ using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -10,175 +11,216 @@ using Whispbot.Databases;
 using YellowMacaroni.Discord.Core;
 using YellowMacaroni.Discord.Extentions;
 
-namespace Whispbot
+namespace Whispbot.Tools
 {
-    public static partial class Tools
+    public static class Strings
     {
-        public static string Process(this string content)
+        public static Dictionary<string, Emoji> Emojis = [];
+        public static Dictionary<Language, Dictionary<string, string>> LanguageStrings = [];
+
+        private static readonly HttpClient _client = new();
+
+        public static string Process(string content, Language language = 0, Dictionary<string, string>? arguments = null, bool hasUserInput = false)
         {
-            return Strings.Process(content);
+            MatchCollection matches = Regex.Matches(content, @"\{((emoji|string|dt)[^}]+)\}");
+            Dictionary<string, string>? thisLanguage = LanguageStrings.GetValueOrDefault(language);
+            Dictionary<string, string>? defaultLanguage = LanguageStrings.GetValueOrDefault(Language.EnglishUK);
+
+            arguments ??= [];
+
+            List<string> missingStrings = [];
+
+            foreach (Match match in matches)
+            {
+                string key = match.Groups[1].Value.ToLower();
+                string type = match.Groups[2].Value.ToLower();
+                if (type == "emoji")
+                {
+                    string emojiName = key.Replace("emoji.", "");
+                    Emoji? emoji = Emojis.GetValueOrDefault(emojiName);
+                    if (emoji is not null)
+                    {
+                        content = content.Replace(match.Value, emoji.ToString());
+                    }
+                } 
+                else if (type == "dt")
+                {
+                    double s = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                    content = content.Replace(match.Value, $"<t:{s}:d> <t:{s}:T>");
+                }
+                else if (type == "string")
+                {
+                    if (thisLanguage is not null)
+                    {
+                        string languageKey = key.Replace("string.", "");
+
+                        string[] split = languageKey.Split(':');
+                        languageKey = split[0];
+                        List<string> args = split.Length > 1 ? [.. split[1].Split(',')] : [];
+                        foreach (string arg in args)
+                        {
+                            string[] argSplit = arg.Split('=');
+                            if (argSplit.Length >= 2) arguments.Add(argSplit[0], argSplit[1]);
+                        }
+
+                        string? value = thisLanguage.GetValueOrDefault(languageKey) ?? defaultLanguage?.GetValueOrDefault(languageKey);
+                        if (value is not null)
+                        {
+                            foreach (var arg in arguments)
+                            {
+                                value = value.Replace($"{{{arg.Key.ToLower()}}}", arg.Value);
+                            }
+                            content = content.Replace(match.Value, value);
+                        }
+                        else
+                        {
+                            missingStrings.Add(languageKey);
+                        }
+                    }
+                }
+            }
+
+            if (!hasUserInput && missingStrings.Count > 0)
+            {
+                Task.Run(
+                    () =>
+                    {
+                        var distinctMissingStrings = missingStrings.Distinct().ToList();
+                        var args = new List<object> { (int)language };
+                        args.AddRange(distinctMissingStrings);
+
+                        Postgres.Execute(
+                            "INSERT INTO languages (key, language) VALUES " +
+                            string.Join(", ", missingStrings.Distinct().Select((_, i) => $"(@{i + 2}, @1)")) +
+                            " ON CONFLICT (key, language) DO NOTHING;",
+                            args
+                        );
+                    }
+                );
+            }
+
+            return content.Replace("\\n", "\n");
         }
 
-        public static class Strings
+        public static async Task GetEmojis(Client client)
         {
-            public static Dictionary<string, Emoji> Emojis = [];
-            public static Dictionary<Language, Dictionary<string, string>> LanguageStrings = [];
+            string? token = Config.IsDev ? Environment.GetEnvironmentVariable("DEV_TOKEN") : Environment.GetEnvironmentVariable("CLIENT_TOKEN");
+            if (token is null) return;
 
-            private static HttpClient _client = new();
+            string? clientId = client.readyData?.user.id;
+            if (clientId is null) return;
 
-            public static string Process(string content, Language language = 0)
+            try
             {
-                MatchCollection matches = Regex.Matches(content, @"\{([^}]+)\}");
-                Dictionary<string, string>? thisLanguage = LanguageStrings.GetValueOrDefault(language);
+                _client.DefaultRequestHeaders.Add("Authorization", $"Bot {token}");
 
-                foreach (Match match in matches)
+                HttpResponseMessage result = await _client.GetAsync($"https://discord.com/api/v10/applications/{clientId}/emojis");
+                if (result.IsSuccessStatusCode)
                 {
-                    string key = match.Groups[1].Value.ToLower();
-                    if (key.StartsWith("emoji."))
-                    {
-                        string emojiName = key.Replace("emoji.", "");
-                        Emoji? emoji = Emojis.GetValueOrDefault(emojiName);
-                        if (emoji is not null)
-                        {
-                            content = content.Replace(match.Value, emoji.ToString());
-                        }
-                    } 
-                    else if (key == "dt")
-                    {
-                        double s = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-                        content = content.Replace(match.Value, $"<t:{s}:d> <t:{s}:T>");
-                    }
-                    else if (key.StartsWith("string."))
-                    {
-                        if (thisLanguage is not null)
-                        {
-                            string? value = thisLanguage.GetValueOrDefault(key.Replace("string.", ""));
-                            if (value is not null)
-                            {
-                                content = content.Replace(match.Value, value);
-                            }
-                        }
-                    }
+                    EmojisResponse? data = JsonConvert.DeserializeObject<EmojisResponse>(await result.Content.ReadAsStringAsync());
+                    Dictionary<string, Emoji>? emojis = data?.items.ToDictionary(e => e.name?.ToLower() ?? "", e => e);
+                    if (emojis is null) return;
+                    Emojis = emojis;
                 }
-
-                return content;
             }
+            catch { }
+        }
 
-            public static async Task GetEmojis()
-            {
-                string? token = Environment.GetEnvironmentVariable("RESOURCE_TOKEN");
-                if (token is null) return;
+        public static Emoji GetEmoji(string name)
+        {
+            return Emojis.GetValueOrDefault(name.ToLower()) ?? new Emoji { name = "❌" };
+        }
 
-                string? clientId = Environment.GetEnvironmentVariable("DISCORD_CLIENT_ID");
-                if (clientId is null) return;
+        public static void GetLanguages()
+        {
+            while (!Postgres.IsConnected()) Thread.Sleep(100);
+            List<DBLanguage>? languages = Postgres.Select<DBLanguage>($"SELECT * FROM languages WHERE content IS NOT NULL;");
+            if (languages is null || languages.Count == 0) return;
+            LanguageStrings = languages.GroupBy(l => l.language).ToDictionary(g => g.Key, g => g.ToDictionary(l => l.key, l => l.content));
+        }
 
-                try
-                {
-                    _client.DefaultRequestHeaders.Add("Authorization", $"Bot {token}");
+        public class DBLanguage
+        {
+            public string key = "";
+            public Language language;
+            public string content = "";
+        }
 
-                    HttpResponseMessage result = await _client.GetAsync($"https://discord.com/api/v10/applications/{clientId}/emojis");
-                    if (result.IsSuccessStatusCode)
-                    {
-                        EmojisResponse? data = JsonConvert.DeserializeObject<EmojisResponse>(await result.Content.ReadAsStringAsync());
-                        Dictionary<string, Emoji>? emojis = data?.items.ToDictionary(e => e.name?.ToLower() ?? "", e => e);
-                        if (emojis is null) return;
-                        Emojis = emojis;
-                    }
-                }
-                catch { }
-            }
+        public struct EmojisResponse
+        {
+            public List<Emoji> items;
+        }
 
-            public static void GetLanguages()
-            {
-                while (!Postgres.IsConnected()) Thread.Sleep(100);
-                List<DBLanguage>? languages = Postgres.Select<DBLanguage>($"SELECT * FROM languages");
-                if (languages is null || languages.Count == 0) return;
-                LanguageStrings = languages.GroupBy(l => l.language).ToDictionary(g => g.Key, g => g.ToDictionary(l => l.key, l => l.content));
-            }
+        public static Dictionary<Language, (string, string, string)> Languages = new()
+        {
+            { Language.EnglishUK, ("en-GB", "English, UK", "English UK") },
+            { Language.EnglishUS, ("en-US", "English, US", "English US") },
+            { Language.French, ("fr-FR", "French", "Français") },
+            { Language.German, ("de", "German", "Deutsch") },
+            { Language.Spanish, ("es-ES", "Spanish", "Español") },
+            { Language.SpanishLatinAmerican, ("es-419", "Spanish, LATAM", "Español, LATAM") },
+            { Language.Italian, ("it", "Italian", "Italiano") },
+            { Language.Thai, ("th", "Thai", "ไทย") },
+            { Language.Dutch, ("nl", "Dutch", "Nederlands") },
+            { Language.Polish, ("pl", "Polish", "Polski") },
+            { Language.Indonesian, ("id", "Indonesian", "Bahasa Indonesia") },
+            { Language.Danish, ("da", "Danish", "Dansk") },
+            { Language.Croatian, ("hr", "Croatian", "Hrvatski") },
+            { Language.Lithuanian, ("lt", "Lithuanian", "Lietuviškai") },
+            { Language.Hungarian, ("hu", "Hungarian", "Magyar") },
+            { Language.Norwegian, ("no", "Norwegian", "Norsk") },
+            { Language.PortugueseBrazilian, ("pt-BR", "Portuguese, Brazilian", "Português do Brasil") },
+            { Language.RomanianRomania, ("ro", "Romanian, Romania", "Română") },
+            { Language.Finnish, ("fi", "Finnish", "Suomi") },
+            { Language.Swedish, ("sv-SE", "Swedish", "Svenska") },
+            { Language.Vietnamese, ("vi", "Vietnamese", "Tiếng Việt") },
+            { Language.Turkish, ("tr", "Turkish", "Türkçe") },
+            { Language.Czech, ("cs", "Czech", "Čeština") },
+            { Language.Greek, ("el", "Greek", "Ελληνικά") },
+            { Language.Bulgarian, ("bg", "Bulgarian", "български") },
+            { Language.Russian, ("ru", "Russian", "Pусский") },
+            { Language.Ukrainian, ("uk", "Ukrainian", "Українська") },
+            { Language.Hindi, ("hi", "Hindi", "हिन्दी") },
+            { Language.ChineseChina, ("zh-CN", "Chinese, China", "中文") },
+            { Language.ChineseTaiwan, ("zh-TW", "Chinese, Taiwan", "繁體中文") },
+            { Language.Japanese, ("ja", "Japanese", "日本語") },
+            { Language.Korean, ("ko", "Korean", "한국어") },
+        };
 
-            public class DBLanguage
-            {
-                public string key = "";
-                public Language language;
-                public string content = "";
-            }
-
-            public struct EmojisResponse
-            {
-                public List<Emoji> items;
-            }
-
-            public static Dictionary<Language, (string, string, string)> Languages = new()
-            {
-                { Language.EnglishUK, ("en-GB", "English, UK", "English UK") },
-                { Language.EnglishUS, ("en-US", "English, US", "English US") },
-                { Language.French, ("fr-FR", "French", "Français") },
-                { Language.German, ("de", "German", "Deutsch") },
-                { Language.Spanish, ("es-ES", "Spanish", "Español") },
-                { Language.SpanishLatinAmerican, ("es-419", "Spanish, LATAM", "Español, LATAM") },
-                { Language.Italian, ("it", "Italian", "Italiano") },
-                { Language.Thai, ("th", "Thai", "ไทย") },
-                { Language.Dutch, ("nl", "Dutch", "Nederlands") },
-                { Language.Polish, ("pl", "Polish", "Polski") },
-                { Language.Indonesian, ("id", "Indonesian", "Bahasa Indonesia") },
-                { Language.Danish, ("da", "Danish", "Dansk") },
-                { Language.Croatian, ("hr", "Croatian", "Hrvatski") },
-                { Language.Lithuanian, ("lt", "Lithuanian", "Lietuviškai") },
-                { Language.Hungarian, ("hu", "Hungarian", "Magyar") },
-                { Language.Norwegian, ("no", "Norwegian", "Norsk") },
-                { Language.PortugueseBrazilian, ("pt-BR", "Portuguese, Brazilian", "Português do Brasil") },
-                { Language.RomanianRomania, ("ro", "Romanian, Romania", "Română") },
-                { Language.Finish, ("fi", "Finish", "Suomi") },
-                { Language.Swedish, ("sv-SE", "Swedish", "Svenska") },
-                { Language.Vietnamese, ("vi", "Vietnamese", "Tiếng Việt") },
-                { Language.Turkish, ("tr", "Turkish", "Türkçe") },
-                { Language.Czech, ("cs", "Czech", "Čeština") },
-                { Language.Greek, ("el", "Greek", "Ελληνικά") },
-                { Language.Bulgarian, ("bg", "Bulgarian", "български") },
-                { Language.Russian, ("ru", "Russian", "Pусский") },
-                { Language.Ukrainian, ("uk", "Ukrainian", "Українська") },
-                { Language.Hindi, ("hi", "Hindi", "हिन्दी") },
-                { Language.ChineseChina, ("zh-CN", "Chinese, China", "中文") },
-                { Language.ChineseTaiwan, ("zh-TW", "Chinese, Taiwan", "繁體中文") },
-                { Language.Japanese, ("ja", "Japanese", "日本語") },
-                { Language.Korean, ("ko", "Korean", "한국어") },
-            };
-
-            public enum Language
-            {
-                EnglishUK,
-                EnglishUS,
-                French,
-                German,
-                Spanish,
-                SpanishLatinAmerican,
-                Italian,
-                Thai,
-                Dutch,
-                Polish,
-                Indonesian,
-                Danish,
-                Croatian,
-                Lithuanian,
-                Hungarian,
-                Norwegian,
-                PortugueseBrazilian,
-                RomanianRomania,
-                Finish,
-                Swedish,
-                Vietnamese,
-                Turkish,
-                Czech,
-                Greek,
-                Bulgarian,
-                Russian,
-                Ukrainian,
-                Hindi,
-                ChineseChina,
-                ChineseTaiwan,
-                Japanese,
-                Korean
-            }
+        public enum Language
+        {
+            EnglishUK,
+            EnglishUS,
+            French,
+            German,
+            Spanish,
+            SpanishLatinAmerican,
+            Italian,
+            Thai,
+            Dutch,
+            Polish,
+            Indonesian,
+            Danish,
+            Croatian,
+            Lithuanian,
+            Hungarian,
+            Norwegian,
+            PortugueseBrazilian,
+            RomanianRomania,
+            Finnish,
+            Swedish,
+            Vietnamese,
+            Turkish,
+            Czech,
+            Greek,
+            Bulgarian,
+            Russian,
+            Ukrainian,
+            Hindi,
+            ChineseChina,
+            ChineseTaiwan,
+            Japanese,
+            Korean
         }
     }
 }

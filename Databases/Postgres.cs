@@ -12,14 +12,14 @@ namespace Whispbot.Databases
 {
     public static class Postgres
     {
-        private static NpgsqlConnection? _connection = null;
-        private static bool _connected = false;
+        private static NpgsqlDataSource? _dataSource = null;
+        private static bool _initialized = false;
         private static DateTime _lastConnectionAttempt = DateTime.MinValue;
         private static readonly TimeSpan _reconnectInterval = TimeSpan.FromMinutes(2); // Retry after 2 minutes
 
         private static readonly TimeSpan _pingMeasureInterval = TimeSpan.FromMinutes(5);
         private static double _ping = -1d;
-        private static bool _connecting = false;
+        private static bool _initializing = false;
 
         /// <summary>
         /// The database ping in ms
@@ -38,17 +38,16 @@ namespace Whispbot.Databases
 
         public static double MeasurePing()
         {
-            if (_connection == null || _connection.State != System.Data.ConnectionState.Open)
+            if (_dataSource == null)
             {
                 return -1d;
             }
             double start = DateTimeOffset.UtcNow.UtcTicks;
             try
             {
-                using (NpgsqlCommand command = new("SELECT 1", _connection))
-                {
-                    command.ExecuteScalar();
-                }
+                using var connection = _dataSource.OpenConnection();
+                using var command = new NpgsqlCommand("SELECT 1", connection);
+                command.ExecuteScalar();
                 return (DateTimeOffset.UtcNow.UtcTicks - start) / 10000;
             }
             catch
@@ -58,50 +57,65 @@ namespace Whispbot.Databases
         }
 
         /// <summary>
-        /// Gets the database connection. If the connection is not established or has been closed,
-        /// it will attempt to reconnect if the last failed attempt was more than the reconnect interval ago.
+        /// Gets a database connection from the connection pool. If the data source is not initialized,
+        /// it will attempt to initialize if the last failed attempt was more than the reconnect interval ago.
         /// </summary>
-        /// <returns>The active database connection, or null if connection is not available</returns>
+        /// <returns>A database connection from the pool, or null if data source is not available</returns>
         public static NpgsqlConnection? GetConnection()
         {
-            // If we're connected and the connection is open, return it
-            if (_connected && _connection?.State == System.Data.ConnectionState.Open)
+            // If we have a data source, get a connection from the pool
+            if (_initialized && _dataSource != null)
             {
-                return _connection;
+                try
+                {
+                    return _dataSource.OpenConnection();
+                }
+                catch
+                {
+                    // If we can't get a connection, mark as not initialized and fall through to reinit
+                    _initialized = false;
+                }
             }
 
-            // If we're not connected and the last attempt was recent, return null
-            if (!_connected && DateTime.UtcNow - _lastConnectionAttempt < _reconnectInterval)
+            // If we're not initialized and the last attempt was recent, return null
+            if (!_initialized && DateTime.UtcNow - _lastConnectionAttempt < _reconnectInterval)
             {
                 return null;
             }
 
-            // Try to reconnect
+            // Try to initialize
             if (Init())
             {
-                return _connection;
+                try
+                {
+                    return _dataSource?.OpenConnection();
+                }
+                catch
+                {
+                    return null;
+                }
             }
 
-            // Connection failed
+            // Initialization failed
             return null;
         }
 
         public static bool Init()
         {
-            if (_connecting) return false;
-            _connecting = true;
+            if (_initializing) return false;
+            _initializing = true;
             double start = DateTimeOffset.UtcNow.UtcTicks;
-            Log.Information("Connecting to postgres...");
+            Log.Information("Initializing postgres connection pool...");
             _lastConnectionAttempt = DateTime.UtcNow;
 
             try
             {
-                if (_connection != null)
+                // Dispose existing data source if it exists
+                if (_dataSource != null)
                 {
                     try
                     {
-                        _connection.Close();
-                        _connection.Dispose();
+                        _dataSource.Dispose();
                     }
                     catch { }
                 }
@@ -159,66 +173,84 @@ namespace Whispbot.Databases
                     return false;
                 }
 
-                string connectionString = $"Host={host};Port={port};Username={username};Password={password};Database={database};Timeout=15;CommandTimeout=30";
-
-                _connection = new NpgsqlConnection(connectionString);
-
-                _connection.OpenWithRetry(3, TimeSpan.FromSeconds(5));
-
-                using (NpgsqlCommand command = new("SELECT 1", _connection))
+                // Build connection string with connection pooling parameters
+                var connectionStringBuilder = new NpgsqlConnectionStringBuilder
                 {
+                    Host = host,
+                    Port = int.Parse(port!),
+                    Username = username,
+                    Password = password,
+                    Database = database,
+                    Timeout = 15,
+                    CommandTimeout = 30,
+                    // Connection pooling settings
+                    MinPoolSize = 5,
+                    MaxPoolSize = 20,
+                    ConnectionIdleLifetime = 300, // 5 minutes
+                    ConnectionPruningInterval = 10 // 10 seconds
+                };
+
+                // Create data source with connection pooling
+                var dataSourceBuilder = new NpgsqlDataSourceBuilder(connectionStringBuilder.ToString());
+                _dataSource = dataSourceBuilder.Build();
+
+                // Test the connection pool
+                using (var connection = _dataSource.OpenConnection())
+                {
+                    using var command = new NpgsqlCommand("SELECT 1", connection);
                     command.ExecuteNonQuery();
                 }
 
-                Log.Information($"Connected to postgres in {(DateTimeOffset.UtcNow.UtcTicks - start) / 10000}ms");
-                _connected = true;
-                _connecting = false;
+                Log.Information($"Postgres connection pool initialized in {(DateTimeOffset.UtcNow.UtcTicks - start) / 10000}ms");
+                _initialized = true;
+                _initializing = false;
                 return true;
             }
             catch (NpgsqlException ex)
             {
-                Log.Error($"Database connection error: {ex.Message}");
-                _connected = false;
-                _connecting = false;
+                Log.Error($"Database connection pool initialization error: {ex.Message}");
+                _initialized = false;
+                _initializing = false;
                 return false;
             }
             catch (Exception ex)
             {
-                Log.Error($"Unexpected error during database connection: {ex.Message}");
-                _connected = false;
-                _connecting = false;
+                Log.Error($"Unexpected error during database connection pool initialization: {ex.Message}");
+                _initialized = false;
+                _initializing = false;
                 return false;
             }
         }
 
         /// <summary>
-        /// Checks if the connection is currently established and open without running a query
+        /// Checks if the connection pool is initialized and available
         /// </summary>
         /// <returns></returns>
         public static bool IsConnected()
         {
-            return _connected && _connection?.State == System.Data.ConnectionState.Open;
+            return _initialized && _dataSource != null;
         }
 
         /// <summary>
-        /// Checks if the connection is still valid
+        /// Checks if the connection pool is still valid by testing a connection
         /// </summary>
         public static bool IsConnectionValid()
         {
-            if (_connection == null || _connection.State != System.Data.ConnectionState.Open)
+            if (_dataSource == null)
             {
                 return false;
             }
 
             try
             {
-                using NpgsqlCommand command = new("SELECT 1", _connection);
+                using var connection = _dataSource.OpenConnection();
+                using var command = new NpgsqlCommand("SELECT 1", connection);
                 command.ExecuteScalar();
                 return true;
             }
             catch
             {
-                _connected = false;
+                _initialized = false;
                 return false;
             }
         }
@@ -236,7 +268,7 @@ namespace Whispbot.Databases
 
         public static List<T>? Select<T>(string sql, List<object>? args = null) where T : new()
         {
-            var connection = GetConnection();
+            using var connection = GetConnection();
             if (connection is null) return null;
 
             using var command = new NpgsqlCommand(sql, connection);
@@ -248,7 +280,7 @@ namespace Whispbot.Databases
 
         public static List<dynamic>? Select(string sql, List<object>? args = null)
         {
-            var connection = GetConnection();
+            using var connection = GetConnection();
             if (connection is null) return null;
 
             using var command = new NpgsqlCommand(sql, connection);
@@ -260,7 +292,7 @@ namespace Whispbot.Databases
 
         public static T? SelectFirst<T>(string sql, List<object>? args = null) where T : new()
         {
-            var connection = GetConnection();
+            using var connection = GetConnection();
             if (connection is null) return default;
 
             using var command = new NpgsqlCommand(sql, connection);
@@ -272,7 +304,7 @@ namespace Whispbot.Databases
 
         public static int Execute(string sql, List<object>? args = null)
         {
-            var connection = GetConnection();
+            using var connection = GetConnection();
             if (connection is null) return -1;
 
             using var command = new NpgsqlCommand(sql, connection);
@@ -280,5 +312,28 @@ namespace Whispbot.Databases
 
             return command.ExecuteNonQuery();
         }
+
+        /// <summary>
+        /// Disposes the connection pool and cleans up resources
+        /// </summary>
+        public static void Dispose()
+        {
+            try
+            {
+                _dataSource?.Dispose();
+                _dataSource = null;
+                _initialized = false;
+                Log.Information("Postgres connection pool disposed");
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Error disposing postgres connection pool: {ex.Message}");
+            }
+        }
+    }
+
+    public class PostgresCount
+    {
+        public long count;
     }
 }

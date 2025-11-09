@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Whispbot
+namespace Whispbot.Tools
 {
-    public static partial class Tools
+    public static partial class Time
     {
         public static Dictionary<double, List<string>> TimeValues = new()
         {
@@ -138,7 +138,7 @@ namespace Whispbot
         /// <param name="Seperator">The seperator that should be put between the different lengths of time.<br/><br/>Default: ", "</param>
         /// <param name="Small">Should the format returned be in small mode?<br/><br/>E.G. 69000<br/>true -> 1m, 9s<br/>false -> 1 minute, 9 seconds</param>
         /// <returns>[string] A string in the specified format.</returns>
-        public static string ConvertMillisecondsToString(double Length, string Seperator = ", ", bool Small = false, double RoundTo = 1)
+        public static string ConvertMillisecondsToString(double Length, string Seperator = ", ", bool Small = false, double RoundTo = 1000)
         {
             if (Length <= 0)
             {
