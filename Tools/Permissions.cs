@@ -34,7 +34,7 @@ namespace Whispbot.Tools
         public async static Task<bool> HasPermission(string guildId, string userId, BotPermissions requiredPermissions)
         {
             BotPermissions permissions = await GetPermissions(guildId, userId);
-            return HasPermissionsAny(permissions, requiredPermissions);
+            return HasPermissionsAny(permissions, requiredPermissions | BotPermissions.Administrator);
         }
         public async static Task<bool> HasAllPermissions(string guildId, string userId, BotPermissions requiredPermissions)
         {
@@ -66,7 +66,7 @@ namespace Whispbot.Tools
             if (ctx.GuildId is null || ctx.UserId is null) return false;
 
             BotPermissions userPermissions = await GetPermissions(ctx.GuildId, ctx.UserId);
-            if (!HasPermissionsAny(userPermissions, permissions))
+            if (!HasPermissionsAny(userPermissions, permissions | BotPermissions.Administrator))
             {
                 List<string> missingPermissions = [];
                 foreach (BotPermissions perm in Enum.GetValues(typeof(BotPermissions)))
@@ -99,7 +99,7 @@ namespace Whispbot.Tools
             if (ctx.GuildId is null || ctx.UserId is null) return false;
 
             BotPermissions userPermissions = await GetPermissions(ctx.GuildId, ctx.UserId);
-            if (!HasPermissionsAny(userPermissions, permissions))
+            if (!HasPermissionsAny(userPermissions, permissions | BotPermissions.Administrator))
             {
                 List<string> missingPermissions = [];
                 foreach (BotPermissions perm in Enum.GetValues(typeof(BotPermissions)))

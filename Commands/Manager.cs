@@ -40,11 +40,14 @@ namespace Whispbot.Commands
             RegisterCommand(new Clockout());
             RegisterCommand(new ShiftManage());
             RegisterCommand(new ShiftAdmin());
+            RegisterCommand(new ShiftLeaderboard());
+            RegisterCommand(new ShiftActivity());
 
             RegisterCommand(new ERLC_ServerInfo());
             RegisterCommand(new ERLC_Players());
             RegisterCommand(new ERLC_Queue());
             RegisterCommand(new ERLC_Vehicles());
+            RegisterCommand(new ERLC_JoinLogs());
 
             RegisterStaffCommand(new Test());
             RegisterStaffCommand(new SQL());

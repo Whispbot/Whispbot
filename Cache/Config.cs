@@ -109,6 +109,8 @@ namespace Whispbot
         public string id = "";
         public long guild_id = 0;
         public string api_key = "";
+        private string? decrypted_api_key = null;
+        public string DecryptedApiKey => decrypted_api_key ??= Tools.ERLC.DecryptApiKey(api_key);
         public int ingame_players = 0;
         public string? name = null;
     }

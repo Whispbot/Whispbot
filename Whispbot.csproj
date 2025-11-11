@@ -11,17 +11,17 @@
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" Version="2.2.8" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.8" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.8" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.10" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.10" />
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.22.1" />
-    <PackageReference Include="Npgsql" Version="9.0.3" />
-    <PackageReference Include="OpenAI" Version="2.3.0" />
-    <PackageReference Include="Sentry" Version="5.14.1" />
+    <PackageReference Include="Npgsql" Version="9.0.4" />
+    <PackageReference Include="OpenAI" Version="2.6.0" />
+    <PackageReference Include="Sentry" Version="5.16.2" />
     <PackageReference Include="Serilog" Version="4.3.0" />
-    <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
-    <PackageReference Include="StackExchange.Redis" Version="2.8.58" />
-    <PackageReference Include="YellowMacaroni.Discord" Version="1.1.0-dev202511091630" />
+    <PackageReference Include="StackExchange.Redis" Version="2.9.32" />
+    <PackageReference Include="YellowMacaroni.Discord" Version="1.1.0-dev202511100926" />
   </ItemGroup>
 
 </Project>

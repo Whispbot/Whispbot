@@ -45,6 +45,7 @@ namespace Whispbot.Interactions
             RegisterInteraction(new AdminSetTimeModal());
             RegisterInteraction(new AdminWipeShifts());
             RegisterInteraction(new AdminWipeShiftsConfirm());
+            RegisterInteraction(new ShiftLeaderboard());
 
             if (Config.IsDev) Log.Debug($"[Debug] Loaded {_interactions.Count} interactions");
         }

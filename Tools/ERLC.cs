@@ -5,7 +5,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Security.Cryptography;
 using Whispbot.Databases;
+using YellowMacaroni.Discord.Core;
+using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Tools
 {
@@ -33,7 +36,7 @@ namespace Whispbot.Tools
             var (_, method, _, _) = endpoints[endpoint];
             if (method != HttpMethod.Get) return null;
 
-            string cacheKey = $"prcapiworker:{endpoint}:{apiKey ?? "unauthenticated"}";
+            string cacheKey = $"prcapiworker:{endpoint}:{(apiKey is not null ? HashString(apiKey) : "unauthenticated")}";
 
             var redis = Redis.GetDatabase();
 
@@ -71,7 +74,7 @@ namespace Whispbot.Tools
                 {
                     request.Headers.Add("Server-Key", apiKey);
                 }
-            }                
+            }
 
             HttpResponseMessage response = await _client.SendAsync(request);
 
@@ -80,63 +83,152 @@ namespace Whispbot.Tools
             return data;
         }
 
-        public static async Task<PRC_Response?> GetServerInfo(string apiKey)
+        public static string HashString(string input)
         {
-            var response = await Request(Endpoint.ServerInfo, apiKey);
-            if (response is not null) _ = Task.Run(() => PostGetServerInfo(response, apiKey));
+            byte[] inputBytes = Encoding.UTF8.GetBytes(input);
+            byte[] hashBytes = SHA256.HashData(inputBytes);
+
+            StringBuilder sb = new();
+            foreach (byte b in hashBytes)
+            {
+                sb.Append(b.ToString("x2"));
+            }
+
+            return sb.ToString();
+        }
+        
+        private static string EncryptionKey
+        {
+            get
+            {
+                string? key = Environment.GetEnvironmentVariable("PRC_ENCRYPTION_KEY");
+                if (string.IsNullOrEmpty(key))
+                {
+                    throw new InvalidOperationException("PRC_ENCRYPTION_KEY environment variable is not set.");
+                }
+                return key;
+            }
+        }
+
+        public static string EncryptApiKey(string apiKey)
+        {
+            using var aes = Aes.Create();
+            aes.Key = Encoding.UTF8.GetBytes(EncryptionKey);
+            aes.GenerateIV();
+            var iv = aes.IV;
+
+            using var encryptor = aes.CreateEncryptor(aes.Key, iv);
+            using var ms = new MemoryStream();
+            ms.Write(iv, 0, iv.Length);
+            using (var cs = new CryptoStream(ms, encryptor, CryptoStreamMode.Write))
+            using (var sw = new StreamWriter(cs))
+            {
+                sw.Write(apiKey);
+            }
+            return Convert.ToBase64String(ms.ToArray());
+        }
+
+        public static string DecryptApiKey(string encryptedApiKey)
+        {
+            var fullCipher = Convert.FromBase64String(encryptedApiKey);
+
+            using var aes = Aes.Create();
+            aes.Key = Encoding.UTF8.GetBytes(EncryptionKey);
+            var iv = new byte[aes.BlockSize / 8];
+            Array.Copy(fullCipher, iv, iv.Length);
+
+            using var decryptor = aes.CreateDecryptor(aes.Key, iv);
+            using var ms = new MemoryStream(fullCipher, iv.Length, fullCipher.Length - iv.Length);
+            using var cs = new CryptoStream(ms, decryptor, CryptoStreamMode.Read);
+            using var sr = new StreamReader(cs);
+            return sr.ReadToEnd();
+        }
+
+        public static bool ResponseHasError(PRC_Response response, out MessageBuilder? errorMessage)
+        {
+            if (response.code == ErrorCode.Success || response.code == ErrorCode.Cached)
+            {
+                errorMessage = null;
+                return false;
+            }
+            else
+            {
+                errorMessage = new MessageBuilder
+                {
+                    components = [
+                        new ContainerBuilder
+                        {
+                            components = [
+                                new TextDisplayBuilder($"## {{string.title.erlcapierror}}\n> {{string.errors.erlcapi.{response.code.ToString()?.ToLower() ?? "generic"}}}."),
+                                new SeperatorBuilder(),
+                                new TextDisplayBuilder($"{{string.content.erlcapierror}}.\n```\n[{response.code?.ToInt() ?? -1}] {response.message}\n```")
+                            ],
+                            accent = new Color(150, 0, 0)
+                        }
+                    ],
+                    flags = MessageFlags.IsComponentsV2
+                };
+                return true;
+            }
+        }
+
+        public static async Task<PRC_Response?> GetServerInfo(ERLCServerConfig server)
+        {
+            var response = await Request(Endpoint.ServerInfo, server.DecryptedApiKey);
+            if (response is not null) _ = Task.Run(() => PostGetServerInfo(response, server));
             return response;
         }
 
-        public static async Task<PRC_Response?> GetPlayers(string apiKey)
+        public static async Task<PRC_Response?> GetPlayers(ERLCServerConfig server)
         {
-            var response = await Request(Endpoint.ServerPlayers, apiKey);
-            if (response is not null) _ = Task.Run(() => PostGetPlayers(response, apiKey));
+            var response = await Request(Endpoint.ServerPlayers, server.DecryptedApiKey);
+            if (response is not null) _ = Task.Run(() => PostGetPlayers(response, server));
             return response;
         }
 
-        public static async Task<PRC_Response?> GetJoins(string apiKey)
+        public static async Task<PRC_Response?> GetJoins(ERLCServerConfig server)
         {
-            return await Request(Endpoint.ServerJoinlogs, apiKey);
+            return await Request(Endpoint.ServerJoinlogs, server.DecryptedApiKey);
         }
 
-        public static async Task<PRC_Response?> GetQueue(string apiKey)
+        public static async Task<PRC_Response?> GetQueue(ERLCServerConfig server)
         {
-            return await Request(Endpoint.ServerQueue, apiKey);
+            return await Request(Endpoint.ServerQueue, server.DecryptedApiKey);
         }
 
-        public static async Task<PRC_Response?> GetKills(string apiKey)
+        public static async Task<PRC_Response?> GetKills(ERLCServerConfig server)
         {
-            return await Request(Endpoint.ServerKilllogs, apiKey);
+            return await Request(Endpoint.ServerKilllogs, server.DecryptedApiKey);
         }
 
-        public static async Task<PRC_Response?> GetCommands(string apiKey)
+        public static async Task<PRC_Response?> GetCommands(ERLCServerConfig server)
         {
-            return await Request(Endpoint.ServerCommandlogs, apiKey);
+            return await Request(Endpoint.ServerCommandlogs, server.DecryptedApiKey);
         }
 
-        public static async Task<PRC_Response?> GetModcalls(string apiKey)
+        public static async Task<PRC_Response?> GetModcalls(ERLCServerConfig server)
         {
-            return await Request(Endpoint.ServerModcalls, apiKey);
+            return await Request(Endpoint.ServerModcalls, server.DecryptedApiKey);
         }
 
-        public static async Task<PRC_Response?> GetBans(string apiKey)
+        public static async Task<PRC_Response?> GetBans(ERLCServerConfig server)
         {
-            return await Request(Endpoint.ServerBans, apiKey);
+            return await Request(Endpoint.ServerBans, server.DecryptedApiKey);
         }
 
-        public static async Task<PRC_Response?> GetVehicles(string apiKey)
+        public static async Task<PRC_Response?> GetVehicles(ERLCServerConfig server)
         {
-            return await Request(Endpoint.ServerVehicles, apiKey);
+            return await Request(Endpoint.ServerVehicles, server.DecryptedApiKey);
         }
 
-        public static async Task<PRC_Response?> GetStaff(string apiKey)
+        public static async Task<PRC_Response?> GetStaff(ERLCServerConfig server)
         {
-            return await Request(Endpoint.ServerStaff, apiKey);
+            return await Request(Endpoint.ServerStaff, server.DecryptedApiKey);
         }
 
-        public static async Task<PRC_Response?> SendCommand(string apiKey, string command)
+        public static async Task<PRC_Response?> SendCommand(ERLCServerConfig server, string command)
         {
-            return await Request(Endpoint.ServerCommand, apiKey, new StringContent(JsonConvert.SerializeObject(new { command })));
+            return await Request(Endpoint.ServerCommand, server.DecryptedApiKey, new StringContent(JsonConvert.SerializeObject(new { command })));
         }
 
         public static async Task<PRC_Response?> ResetGlobalKey()
@@ -163,39 +255,34 @@ namespace Whispbot.Tools
             servers.RemoveAt(servers.IndexOf(server));
             servers.Add(config);
         }
-            
-        private static void PostGetServerInfo(PRC_Response response, string apiKey)
+
+        private static void PostGetServerInfo(PRC_Response response, ERLCServerConfig server)
         {
             PRC_Server? serverInfo = JsonConvert.DeserializeObject<PRC_Server>(response.data?.ToString() ?? "{}");
             if (serverInfo is null) return;
-
-            ERLCServerConfig? server = GetServerFromAPIKey(apiKey);
 
             if (server is null) return;
             if (server.ingame_players == serverInfo.currentPlayers && server.name == serverInfo.name) return;
 
             ERLCServerConfig? updatedServer = Postgres.SelectFirst<ERLCServerConfig>(
                 @"UPDATE erlc_servers SET name = @2, ingame_players = @3 WHERE api_key = @1 RETURNING *;",
-                [apiKey, serverInfo.name, serverInfo.currentPlayers]
+                [server.DecryptedApiKey, serverInfo.name, serverInfo.currentPlayers]
             );
-            UpdateServerFromAPIKey(apiKey, updatedServer);
+            UpdateServerFromAPIKey(server.DecryptedApiKey, updatedServer);
         }
 
-        private static void PostGetPlayers(PRC_Response response, string apiKey)
+        private static void PostGetPlayers(PRC_Response response, ERLCServerConfig server)
         {
             List<PRC_Player>? players = JsonConvert.DeserializeObject<List<PRC_Player>>(response.data?.ToString() ?? "[]");
             if (players is null) return;
 
-            ERLCServerConfig? server = GetServerFromAPIKey(apiKey);
-
-            if (server is null) return;
             if (server.ingame_players == players.Count) return;
 
             ERLCServerConfig? updatedServer = Postgres.SelectFirst<ERLCServerConfig>(
                 @"UPDATE erlc_servers SET ingame_players = @2 WHERE api_key = @1 RETURNING *;",
-                [apiKey, players.Count]
+                [server.DecryptedApiKey, players.Count]
             );
-            UpdateServerFromAPIKey(apiKey, updatedServer);
+            UpdateServerFromAPIKey(server.DecryptedApiKey, updatedServer);
         }
 
 

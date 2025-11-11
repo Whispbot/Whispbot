@@ -15,19 +15,14 @@ using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Commands.ERLC
 {
-    public class ERLC_Players: Command
+    public class ERLC_Vehicles : Command
     {
-        public override string Name => "ER:LC Players";
-        public override string Description => "Get the currently in-game players.";
+        public override string Name => "ER:LC Vehicles";
+        public override string Description => "Get the currently spawned vehicles.";
         public override Module Module => Module.ERLC;
         public override bool GuildOnly => true;
-        public override List<RateLimit> Ratelimits => [
-            new RateLimit()
-            {
-                type = RateLimitType.User
-            }
-        ];
-        public override List<string> Aliases => ["players", "ingame"];
+        public override List<RateLimit> Ratelimits => [];
+        public override List<string> Aliases => ["vehicles", "cars", "erlc vehicles"];
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
         {
@@ -39,6 +34,7 @@ namespace Whispbot.Commands.ERLC
                 return;
             }
 
+            if (!await WhispPermissions.CheckModuleMessage(ctx, Module.ERLC)) return;
             if (!await WhispPermissions.CheckPermissionsMessage(ctx, BotPermissions.UseERLC)) return;
 
             List<ERLCServerConfig>? servers = await WhispCache.ERLCServerConfigs.Get(ctx.GuildId);
@@ -57,12 +53,12 @@ namespace Whispbot.Commands.ERLC
                 return;
             }
 
-            var response = Tools.ERLC.CheckCache(Tools.ERLC.Endpoint.ServerPlayers, server.api_key);
+            var response = Tools.ERLC.CheckCache(Tools.ERLC.Endpoint.ServerVehicles, server.DecryptedApiKey);
 
             if (response is null)
             {
-                await ctx.Reply("{emoji.loading} {string.content.erlcplayers.fetching}...");
-                response = await Tools.ERLC.GetPlayers(server.api_key);
+                await ctx.Reply("{emoji.loading} {string.content.erlcvehicles.fetching}...");
+                response = await Tools.ERLC.GetVehicles(server);
 
                 if (response is null)
                 {
@@ -71,13 +67,26 @@ namespace Whispbot.Commands.ERLC
                 }
             }
 
-            List<Tools.ERLC.PRC_Player>? players = JsonConvert.DeserializeObject<List<Tools.ERLC.PRC_Player>>(response.data?.ToString() ?? "[]");
-
-            if (players is not null)
+            if (Tools.ERLC.ResponseHasError(response, out var errorMessage))
             {
-                List<long> playerIds = [.. players.Select(p => long.Parse(p.player.Split(":")[1]))];
-                List<UserConfig>? userConfigs = WhispCache.UserConfig.FindMany((u, _) => playerIds.Contains(u.id));
-                List<long> missingIds = [.. playerIds.Where(id => !userConfigs.Any(u => u.id == id))];
+                await ctx.EditResponse(errorMessage!);
+                return;
+            }
+
+            List<Tools.ERLC.PRC_Vehicle>? vehicles = JsonConvert.DeserializeObject<List<Tools.ERLC.PRC_Vehicle>>(response.data?.ToString() ?? "[]");
+
+            if (vehicles is not null)
+            {
+                if (vehicles.Count == 0)
+                {
+                    await ctx.EditResponse($"{{emoji.cross}} {{string.errors.erlcvehicles.novehicles}}\n-# {{string.content.erlcserver.updated}}: {(response.cachedAt is not null ? $"{Math.Round((decimal)(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - response.cachedAt)/1000)}s ago" : "{string.content.erlcserver.justnow}")}");
+                    return;
+                }
+
+                List<Roblox.RobloxUser>? users = await Roblox.GetUserByUsername([.. vehicles.Select(v => v.Owner)]);
+                List<long> robloxIds = [.. users?.Select(u => long.Parse(u.id)) ?? []];
+                List<UserConfig>? userConfigs = WhispCache.UserConfig.FindMany((u, _) => robloxIds.Contains(u.roblox_id ?? 0));
+                List<long> missingIds = [.. robloxIds.Where(id => !userConfigs.Any(u => u.roblox_id == id))];
                 if (missingIds.Count > 0)
                 {
                     List<UserConfig>? fetchedConfigs = Postgres.Select<UserConfig>(
@@ -93,7 +102,6 @@ namespace Whispbot.Commands.ERLC
                         }
                     }
                 }
-                
 
                 List<Member>? members = null;
                 if (userConfigs is not null && userConfigs.Count > 0 && ctx.Guild is not null)
@@ -106,79 +114,33 @@ namespace Whispbot.Commands.ERLC
                     }
                 }
 
-                Dictionary<string, StringBuilder> teams = [];
-
-                Dictionary<string, int> roles = new()
+                StringBuilder strings = new();
+                foreach (var vehicle in vehicles)
                 {
-                    { "Server Owner", 5 },
-                    { "Server Co-Owner", 4 },
-                    { "Server Administrator", 3 },
-                    { "Server Moderator", 2 },
-                    { "Server Helper", 1 }
-                };
-
-                players = [.. players.OrderByDescending(p => roles.GetValueOrDefault(p.permission, 0)).ThenBy(p => p.player)];
-
-                foreach (var player in players)
-                {
-                    StringBuilder? team = teams.GetValueOrDefault(player.team);
-                    if (team is null)
-                    {
-                        team = new StringBuilder();
-                        teams[player.team] = team;
-                    }
-
-                    string[] split = player.player.Split(':');
-                    string name = split[0];
-                    string id = split.Length > 1 ? split[1] : "N/A";
+                    Roblox.RobloxUser? owner = users?.Find(u => u.name.Equals(vehicle.Owner, StringComparison.OrdinalIgnoreCase));
+                    UserConfig? config = userConfigs?.Find(u => u.roblox_id == long.Parse(owner?.id ?? "0"));
+                    Member? member = members?.Find(m => m.user?.id == config?.id.ToString());
 
                     StringBuilder flags = new();
-
-                    switch (player.permission)
+                    if (member is not null)
                     {
-                        case "Server Owner":
-                            flags.Append("{emoji.owner}");
-                            break;
-                        case "Server Co-Owner":
-                            flags.Append("{emoji.coowner}");
-                            break;
-                        case "Server Administrator":
-                            flags.Append("{emoji.administrator}");
-                            break;
-                        case "Server Moderator":
-                            flags.Append("{emoji.moderator}");
-                            break;
-                        case "Server Helper":
-                            flags.Append("{emoji.helper}");
-                            break;
+                        flags.Append("{emoji.indiscord}");
+
+                        if (member.premium_since is not null) flags.Append("{emoji.booster}");
                     }
 
-                    UserConfig? userConfig = userConfigs?.FirstOrDefault(uc => uc.roblox_id.ToString() == id);
-                    if (userConfig is not null)
-                    {
-                        Member? member = members?.FirstOrDefault(m => m.user?.id == userConfig.id.ToString());
-                        if (member is not null)
-                        {
-                            flags.Append("{emoji.indiscord}");
-
-                            if (member.premium_since is not null) flags.Append("{emoji.booster}");
-                        }
-                        
-                    }
-                    
-                    team.AppendLine($"{flags}{(flags.Length > 0 ? " " : "")}{(player.callsign is not null ? $"[{player.callsign}] " : "")}**@{name}** ({id})");
+                    strings.Append($"**{flags}{(flags.Length > 0 ? " " : "")}@{vehicle.Owner}**\n> **{{string.title.erlcvehicles.model}}:** {vehicle.Name}\n> **{{string.title.erlcvehicles.texture}}:** {vehicle.Texture}\n\n");
                 }
 
                 await ctx.EditResponse(
-                    new MessageBuilder()
+                    new MessageBuilder
                     {
                         content = "",
                         embeds = [
                             new EmbedBuilder
                             {
-                                title = $"{{string.title.erlcserver.players}} [{players.Count}]",
-                                description = teams.Count == 0 ? "{string.errors.erlcserver.empty}" : null,
-                                fields = [.. teams.ForAll((kvp) => new EmbedField() { name = $"{kvp.Key} [{players.Sum(p=> p.team == kvp.Key ? 1 : 0 )}]", value = kvp.Value.ToString(), inline = false })],
+                                title = $"{{string.title.erlcvehicles}} ({vehicles.Count})",
+                                description = strings.ToString(),
                                 footer = new EmbedFooter { text = $"{{string.content.erlcserver.updated}}: {(response.cachedAt is not null ? $"{Math.Round((decimal)(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - response.cachedAt)/1000)}s ago" : "{string.content.erlcserver.justnow}")}" }
                             }
                         ]

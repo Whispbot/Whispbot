@@ -27,7 +27,7 @@ namespace Whispbot.Commands.ERLC
                 type = RateLimitType.User
             }
         ];
-        public override List<string> Aliases => ["queue"];
+        public override List<string> Aliases => ["queue", "erlc queue"];
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
         {
@@ -39,6 +39,7 @@ namespace Whispbot.Commands.ERLC
                 return;
             }
 
+            if (!await WhispPermissions.CheckModuleMessage(ctx, Module.ERLC)) return;
             if (!await WhispPermissions.CheckPermissionsMessage(ctx, BotPermissions.UseERLC)) return;
 
             List<ERLCServerConfig>? servers = await WhispCache.ERLCServerConfigs.Get(ctx.GuildId);
@@ -57,12 +58,12 @@ namespace Whispbot.Commands.ERLC
                 return;
             }
 
-            var response = Tools.ERLC.CheckCache(Tools.ERLC.Endpoint.ServerQueue, server.api_key);
+            var response = Tools.ERLC.CheckCache(Tools.ERLC.Endpoint.ServerQueue, server.DecryptedApiKey);
 
             if (response is null)
             {
                 await ctx.Reply("{emoji.loading} {string.content.erlcqueue.fetching}...");
-                response = await Tools.ERLC.GetQueue(server.api_key);
+                response = await Tools.ERLC.GetQueue(server);
 
                 if (response is null)
                 {
@@ -71,13 +72,19 @@ namespace Whispbot.Commands.ERLC
                 }
             }
 
+            if (Tools.ERLC.ResponseHasError(response, out var errorMessage))
+            {
+                await ctx.EditResponse(errorMessage!);
+                return;
+            }
+
             List<long>? queue = JsonConvert.DeserializeObject<List<long>>(response.data?.ToString() ?? "[]");
 
             if (queue is not null)
             {
                 if (queue.Count == 0)
                 {
-                    await ctx.Reply("{emoji.cross} {string.errors.erlcqueue.noplayers}.");
+                    await ctx.EditResponse($"{{emoji.cross}} {{string.errors.erlcqueue.noplayers}}.\n-# {{string.content.erlcserver.updated}}: {(response.cachedAt is not null ? $"{Math.Round((decimal)(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - response.cachedAt)/1000)}s ago" : "{string.content.erlcserver.justnow}")}");
                     return;
                 }
 
@@ -160,7 +167,7 @@ namespace Whispbot.Commands.ERLC
             }
             else
             {
-                await ctx.Reply($"{{emoji.cross}} [{response.code}] {response.message ?? "An unknown error occured"}.");
+                await ctx.EditResponse($"{{emoji.cross}} [{response.code}] {response.message ?? "An unknown error occured"}.");
             }
         }
     }

@@ -21,6 +21,5 @@ RUN dotnet publish "./Whispbot.csproj" -c $BUILD_CONFIGURATION -o /app/publish /
 # This stage is used in production or when running from VS in regular mode (Default when not using the Debug configuration)
 FROM base AS final
 WORKDIR /app
-RUN mkdir -p /app/logs && chmod 777 /app/logs
 COPY --from=publish /app/publish .
 ENTRYPOINT ["dotnet", "Whispbot.dll"]
