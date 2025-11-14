@@ -144,6 +144,12 @@ namespace Whispbot.Tools
             return sr.ReadToEnd();
         }
 
+        public static string HashApiKey(string apiKey)
+        {
+            string salt = Environment.GetEnvironmentVariable("PRC_HASH_SALT") ?? "DefaultSalt_ChangeInProduction";
+            return HashString(salt + apiKey);
+        }
+
         public static bool ResponseHasError(PRC_Response response, out MessageBuilder? errorMessage)
         {
             if (response.code == ErrorCode.Success || response.code == ErrorCode.Cached)
