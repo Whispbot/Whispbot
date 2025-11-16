@@ -46,7 +46,7 @@ namespace Whispbot.Tools
             string? timestamp = redis!.StringGet($"{cacheKey}:timestamp");
             long? cachedAtMs = timestamp is not null ? long.Parse(timestamp) : null;
 
-            return new PRC_Response { code = ErrorCode.Cached, message = "Item Cached", data = JsonConvert.SerializeObject(cacheValue), cachedAt = cachedAtMs };
+            return new PRC_Response { code = ErrorCode.Cached, message = "Item Cached", data = cacheValue, cachedAt = cachedAtMs };
         }
 
         public static async Task<PRC_Response?> Request(Endpoint endpoint, string? apiKey = null, StringContent? content = null)
