@@ -84,7 +84,7 @@ namespace Whispbot.Commands.ERLC
                 return;
             }
 
-            List<Tools.ERLC.PRC_Player>? players = JsonConvert.DeserializeObject<List<Tools.ERLC.PRC_Player>>(response.data?.ToString() ?? "[]");
+            List<Tools.ERLC.PRC_Player>? players = string.IsNullOrWhiteSpace(response.data?.ToString()) ? [] : JsonConvert.DeserializeObject<List<Tools.ERLC.PRC_Player>>(response.data.ToString()!);
 
             if (players is not null)
             {
