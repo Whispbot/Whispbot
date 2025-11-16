@@ -241,7 +241,7 @@ namespace Whispbot.Commands.Shifts
                     {
                         components = [
                             new TextDisplayBuilder($"## {{strings.title.shiftadmin.list}}\n-# @{user?.username ?? "unknown"}"),
-                            ..shifts.ConvertAll(s => new TextDisplayBuilder($"`{s.id}`\n**{{string.content.shiftadminlist.started}}**: <t:{s.start_time.ToUnixTimeSeconds()}:f>\n**{{string.content.shiftadminlist.ended}}**: {(s.end_time is not null ? $"<t:{s.end_time.Value.ToUnixTimeSeconds()}:f>" : "{string.content.shiftadmin.notfinished}")}\n**{{string.content.shiftadminlist.duration}}:** {Time.ConvertMillisecondsToString(((s.end_time ?? DateTimeOffset.UtcNow) - s.start_time).TotalMilliseconds, ", ", true, 60000)}\n**{{string.content.shiftadminlist.type}}:** {types?.Find(t => t.id == s.type)?.name ?? "unknown"}")),
+                            ..shifts.SelectMany<Shift, Component>(s => [new TextDisplayBuilder($"`{s.id}`\n**{{string.content.shiftadminlist.started}}**: <t:{s.start_time.ToUnixTimeSeconds()}:f>\n**{{string.content.shiftadminlist.ended}}**: {(s.end_time is not null ? $"<t:{s.end_time.Value.ToUnixTimeSeconds()}:f>" : "{string.content.shiftadmin.notfinished}")}\n**{{string.content.shiftadminlist.duration}}:** {Time.ConvertMillisecondsToString(((s.end_time ?? DateTimeOffset.UtcNow) - s.start_time).TotalMilliseconds, ", ", true, 60000)}\n**{{string.content.shiftadminlist.type}}:** {types?.Find(t => t.id == s.type)?.name ?? "unknown"}"), new SeperatorBuilder()]).SkipLast(1),
                             new TextDisplayBuilder($"-# Type: {type?.name ?? "all"}")
                         ]
                     },
