@@ -53,6 +53,12 @@ namespace Whispbot.Commands.ERLC
                 return;
             }
 
+            if (server.api_key is null)
+            {
+                await ctx.Reply("{emoji.cross} {string.errors.erlcserver.nokey}");
+                return;
+            }
+
             var response = Tools.ERLC.CheckCache(Tools.ERLC.Endpoint.ServerJoinlogs, server.DecryptedApiKey);
 
             if (response is null)
@@ -87,6 +93,7 @@ namespace Whispbot.Commands.ERLC
                 joinlogs = [..joinlogs.Take(20)];
 
                 List<long> robloxIds = [..joinlogs.Select(j => long.Parse(j.Player.Split(":")[1]))];
+                robloxIds = [.. robloxIds.Distinct()];
                 List<UserConfig>? userConfigs = WhispCache.UserConfig.FindMany((u, _) => robloxIds.Contains(u.roblox_id ?? 0));
                 List<long> missingIds = [..robloxIds.Where(id => !userConfigs.Any(u => u.roblox_id == id))];
                 if (missingIds.Count > 0)

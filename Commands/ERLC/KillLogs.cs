@@ -15,14 +15,14 @@ using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Commands.ERLC
 {
-    public class ERLC_Vehicles : Command
+    public class ERLC_KillLogs : Command
     {
-        public override string Name => "ER:LC Vehicles";
-        public override string Description => "Get the currently spawned vehicles.";
+        public override string Name => "ER:LC Kill Logs";
+        public override string Description => "View the players who have recently been killed.";
         public override Module Module => Module.ERLC;
         public override bool GuildOnly => true;
         public override List<RateLimit> Ratelimits => [];
-        public override List<string> Aliases => ["vehicles", "cars", "erlc vehicles"];
+        public override List<string> Aliases => ["killlogs", "erlc killlogs", "erlc kills", "erlc killlog"];
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
         {
@@ -59,12 +59,12 @@ namespace Whispbot.Commands.ERLC
                 return;
             }
 
-            var response = Tools.ERLC.CheckCache(Tools.ERLC.Endpoint.ServerVehicles, server.DecryptedApiKey);
+            var response = Tools.ERLC.CheckCache(Tools.ERLC.Endpoint.ServerKilllogs, server.DecryptedApiKey);
 
             if (response is null)
             {
-                await ctx.Reply("{emoji.loading} {string.content.erlcvehicles.fetching}...");
-                response = await Tools.ERLC.GetVehicles(server);
+                await ctx.Reply("{emoji.loading} {string.content.erlckilllogs.fetching}...");
+                response = await Tools.ERLC.GetKills(server);
 
                 if (response is null)
                 {
@@ -79,18 +79,21 @@ namespace Whispbot.Commands.ERLC
                 return;
             }
 
-            List<Tools.ERLC.PRC_Vehicle>? vehicles = JsonConvert.DeserializeObject<List<Tools.ERLC.PRC_Vehicle>>(response.data?.ToString() ?? "[]");
+            List<Tools.ERLC.PRC_KillLog>? killLogs = JsonConvert.DeserializeObject<List<Tools.ERLC.PRC_KillLog>>(response.data?.ToString() ?? "[]");
 
-            if (vehicles is not null)
+            if (killLogs is not null)
             {
-                if (vehicles.Count == 0)
+                if (killLogs.Count == 0)
                 {
-                    await ctx.EditResponse($"{{emoji.cross}} {{string.errors.erlcvehicles.novehicles}}\n-# {{string.content.erlcserver.updated}}: {(response.cachedAt is not null ? $"{Math.Round((decimal)(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - response.cachedAt)/1000)}s ago" : "{string.content.erlcserver.justnow}")}");
+                    await ctx.EditResponse($"{{emoji.cross}} {{string.errors.erlckilllogs.nokills}}\n-# {{string.content.erlcserver.updated}}: {(response.cachedAt is not null ? $"{Math.Round((decimal)(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - response.cachedAt) / 1000)}s ago" : "{string.content.erlcserver.justnow}")}");
                     return;
                 }
 
-                List<Roblox.RobloxUser>? users = await Roblox.GetUserByUsername([.. vehicles.Select(v => v.Owner)]);
-                List<long> robloxIds = [.. users?.Select(u => long.Parse(u.id)) ?? []];
+                killLogs.Sort((a, b) => b.Timestamp.CompareTo(a.Timestamp));
+                killLogs = [.. killLogs.Take(20)];
+
+                List<long> robloxIds = [.. killLogs.Select(j => long.Parse(j.Killed.Split(":")[1])), .. killLogs.Select(k => long.Parse(k.Killer.Split(":")[1]))];
+                robloxIds = [..robloxIds.Distinct()];
                 List<UserConfig>? userConfigs = WhispCache.UserConfig.FindMany((u, _) => robloxIds.Contains(u.roblox_id ?? 0));
                 List<long> missingIds = [.. robloxIds.Where(id => !userConfigs.Any(u => u.roblox_id == id))];
                 if (missingIds.Count > 0)
@@ -121,21 +124,29 @@ namespace Whispbot.Commands.ERLC
                 }
 
                 StringBuilder strings = new();
-                foreach (var vehicle in vehicles)
+                foreach (var log in killLogs)
                 {
-                    Roblox.RobloxUser? owner = users?.Find(u => u.name.Equals(vehicle.Owner, StringComparison.OrdinalIgnoreCase));
-                    UserConfig? config = userConfigs?.Find(u => u.roblox_id == long.Parse(owner?.id ?? "0"));
-                    Member? member = members?.Find(m => m.user?.id == config?.id.ToString());
+                    UserConfig? killedConfig = userConfigs?.Find(u => u.roblox_id.ToString() == log.Killed.Split(":")[1]);
+                    Member? killedMember = members?.Find(m => m.user?.id == killedConfig?.id.ToString());
 
-                    StringBuilder flags = new();
-                    if (member is not null)
+                    UserConfig? killerConfig = userConfigs?.Find(u => u.roblox_id.ToString() == log.Killer.Split(":")[1]);
+                    Member? killerMember = members?.Find(m => m.user?.id == killerConfig?.id.ToString());
+
+                    StringBuilder killedFlags = new();
+                    if (killedMember is not null)
                     {
-                        flags.Append("{emoji.indiscord}");
-
-                        if (member.premium_since is not null) flags.Append("{emoji.booster}");
+                        killedFlags.Append("{emoji.indiscord}");
+                        if (killedMember.premium_since is not null) killedFlags.Append("{emoji.booster}");
                     }
 
-                    strings.Append($"**{flags}{(flags.Length > 0 ? " " : "")}@{vehicle.Owner}**\n> **{{string.title.erlcvehicles.model}}:** {vehicle.Name}\n> **{{string.title.erlcvehicles.texture}}:** {vehicle.Texture}\n\n");
+                    StringBuilder killerFlags = new();
+                    if (killerMember is not null)
+                    {
+                        killerFlags.Append("{emoji.indiscord}");
+                        if (killerMember.premium_since is not null) killerFlags.Append("{emoji.booster}");
+                    }
+
+                    strings.AppendLine($"{killerFlags}{(killerFlags.Length > 0 ? " " : "")}**@{log.Killer.Split(":")[0]}** killed {killedFlags}{(killedFlags.Length > 0 ? " " : "")}**@{log.Killed.Split(":")[0]}**");
                 }
 
                 await ctx.EditResponse(
@@ -145,7 +156,7 @@ namespace Whispbot.Commands.ERLC
                         embeds = [
                             new EmbedBuilder
                             {
-                                title = $"{{string.title.erlcvehicles}} ({vehicles.Count})",
+                                title = $"{{string.title.killlogs}}",
                                 description = strings.ToString(),
                                 footer = new EmbedFooter { text = $"{{string.content.erlcserver.updated}}: {(response.cachedAt is not null ? $"{Math.Round((decimal)(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - response.cachedAt)/1000)}s ago" : "{string.content.erlcserver.justnow}")}" }
                             }

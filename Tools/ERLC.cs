@@ -16,7 +16,7 @@ namespace Whispbot.Tools
     {
         private static HttpClient _client = new();
         private static bool _initialized = false;
-        public static string? apiUrl = Config.IsDev ? "http://localhost:5001" : Environment.GetEnvironmentVariable("PRC_API_URL");
+        public static string? apiUrl = Config.IsDev ? "https://prc.whisp.bot" : Environment.GetEnvironmentVariable("PRC_API_URL");
         public static string? authKey = Environment.GetEnvironmentVariable("PRC_API_KEY");
 
         public static void Init()

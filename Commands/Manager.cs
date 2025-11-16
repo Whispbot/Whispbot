@@ -48,6 +48,8 @@ namespace Whispbot.Commands
             RegisterCommand(new ERLC_Queue());
             RegisterCommand(new ERLC_Vehicles());
             RegisterCommand(new ERLC_JoinLogs());
+            RegisterCommand(new ERLC_JoinServer());
+            RegisterCommand(new ERLC_KillLogs());
 
             RegisterStaffCommand(new Test());
             RegisterStaffCommand(new SQL());

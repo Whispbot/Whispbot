@@ -58,6 +58,12 @@ namespace Whispbot.Commands.ERLC
                 return;
             }
 
+            if (server.api_key is null)
+            {
+                await ctx.Reply("{emoji.cross} {string.errors.erlcserver.nokey}");
+                return;
+            }
+
             var response = Tools.ERLC.CheckCache(Tools.ERLC.Endpoint.ServerPlayers, server.DecryptedApiKey);
 
             if (response is null)
