@@ -150,7 +150,7 @@ namespace Whispbot.Commands.ERLC
                         command = command.Replace(":kick", "").Trim();
                     }
 
-                    strings.AppendLine($"[<t:{log.Timestamp}:T>] {flags}{(flags.Length > 0 ? " " : "")}**@{log.Player.Split(":")[0]}** {action} `{command.AsSpan(0, 50)}{(command.Length > 50 ? "..." : "")}`.");
+                    strings.AppendLine($"[<t:{log.Timestamp}:T>] {flags}{(flags.Length > 0 ? " " : "")}**@{log.Player.Split(":")[0]}** {action} `{command[0..50]}{(command.Length > 50 ? "..." : "")}`.");
                 }
 
                 await ctx.EditResponse(

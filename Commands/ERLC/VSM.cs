@@ -152,7 +152,7 @@ namespace Whispbot.Commands.ERLC
                     return;
                 }
 
-                await ctx.EditResponse("{emoji.check} {string.content.erlcvsm.success}.");
+                await ctx.EditResponse("{emoji.tick} {string.content.erlcvsm.success}.");
             }
         }
     }
