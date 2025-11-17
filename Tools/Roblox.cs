@@ -35,6 +35,18 @@ namespace Whispbot.Tools
             return true;
         }
 
+        public static async Task<RobloxUser?> GetUser(string identifier)
+        {
+            if (long.TryParse(identifier, out long id))
+            {
+                return await GetUserById(id);
+            }
+            else
+            {
+                return (await GetUserByUsername(identifier));
+            }
+        }
+
         public static async Task<RobloxUser?> GetUserById(string id)
         {
             if (!_initialized) if (!Init()) return null;

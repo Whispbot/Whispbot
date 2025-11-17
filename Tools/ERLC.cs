@@ -30,9 +30,7 @@ namespace Whispbot.Tools
         }
 
         public static PRC_Response? CheckCache(Endpoint endpoint, string? apiKey)
-        {
-            if (Config.IsDev) return null;
-                
+        {                
             var (_, method, _, _) = endpoints[endpoint];
             if (method != HttpMethod.Get) return null;
 
@@ -56,7 +54,7 @@ namespace Whispbot.Tools
             var cachedValue = CheckCache(endpoint, apiKey);
             if (cachedValue is not null) return cachedValue;
 
-            var (url, method, type, requiresKey) = endpoints[endpoint];
+            var (url, method, _, requiresKey) = endpoints[endpoint];
 
             HttpRequestMessage request = new(method, url)
             {
@@ -234,7 +232,7 @@ namespace Whispbot.Tools
 
         public static async Task<PRC_Response?> SendCommand(ERLCServerConfig server, string command)
         {
-            return await Request(Endpoint.ServerCommand, server.DecryptedApiKey, new StringContent(JsonConvert.SerializeObject(new { command })));
+            return await Request(Endpoint.ServerCommand, server.DecryptedApiKey, new StringContent(JsonConvert.SerializeObject(new { command }), Encoding.UTF8, "application/json"));
         }
 
         public static async Task<PRC_Response?> ResetGlobalKey()
@@ -299,6 +297,52 @@ namespace Whispbot.Tools
             server ??= servers.FirstOrDefault(s => s.name is null);
 
             return server;
+        }
+
+
+
+
+        public static class ERLC_Commands
+        {
+            public static readonly Dictionary<string, (int, string)> modCommands = new() {
+                { "hint",           new (1, "[message]") },
+                { "h",              new (1, "[message]") },
+                { "m",              new (1, "[message]") },
+                { "message",        new (1, "[message]") },
+                { "pm",             new (2, "[user] [message]") },
+                { "privatemessage", new (2, "[user] [message]") },
+                { "kick",           new (1, "[user] (reason)") },
+                { "kill",           new (1, "[user]") },
+                { "down",           new (1, "[user]") },
+                { "refresh",        new (1, "[user]") },
+                { "heal",           new (1, "[user]") },
+                { "startfire",      new (0, "(location)") },
+                { "unwanted",       new (1, "[user]") },
+                { "unjail",         new (1, "[user]") },
+                { "free",           new (1, "[user]") },
+                { "jail",           new (1, "[user]") },
+                { "arrest",         new (1, "[user]") },
+                { "prty",           new (1, "[length]") },
+                { "priority",       new (1, "[length]") },
+                { "wanted",         new (1, "[user]") },
+                { "time",           new (1, "[time (0-24)]") },
+                { "stopfire",       new (0, "") },
+                { "respawn",        new (1, "[user]") },
+                { "load",           new (1, "[user]") },
+                { "pt",             new (1, "[length]") },
+                { "peacetime",      new (1, "[length]") },
+            };
+            public static readonly Dictionary<string, (int, string)> adminCommands = new() {
+                { "weather",         new (1, "[weather]") },
+                { "mod",             new (1, "[user/id]") },
+                { "unmod",           new (1, "[user/id]") },
+                { "ban",             new (1, "[user/id]") },
+                { "unban",           new (1, "[user/id]") },
+            };
+            public static readonly Dictionary<string, (int, string)> ownerCommands = new() {
+                { "admin",             new (1, "[user/id]") },
+                { "unadmin",           new (1, "[user/id]") },
+            };
         }
 
 
@@ -507,7 +551,7 @@ namespace Whispbot.Tools
             /// <summary>
             /// The moderator's name in the format "{Username}:{UserId}".
             /// </summary>
-            public string Moderator = "Roblox:1";
+            public string? Moderator = "Roblox:1";
 
             /// <summary>
             /// The timestamp of the call in seconds since the Unix epoch.
