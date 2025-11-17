@@ -53,14 +53,27 @@ namespace Whispbot.Commands.ERLC
                 return;
             }
 
+            string url = $"https://whisp.bot/join-erlc/{server.id}";
+
             await ctx.Reply(new MessageBuilder
             {
                 components = [
                     new ContainerBuilder
                     {
                         components = [
-                            new TextDisplayBuilder($"Join **{server.name ?? "no name"}** using code '[{server.code ?? "nocode"}](<https://whisp.bot/join-erlc/{server.id}>)'.")
-                        ]
+                            new SectionBuilder
+                            {
+                                components = [
+                                    new TextDisplayBuilder($"Join **{server.name ?? "no name"}** using code '[{server.code ?? "nocode"}](<{url}>)'.")
+                                ],
+                                accessory = new ButtonBuilder
+                                {
+                                    style = ButtonStyle.Link,
+                                    label = "Quick Join",
+                                    url = url
+                                }
+                            }
+                        ],
                     }
                 ],
                 flags = MessageFlags.IsComponentsV2
