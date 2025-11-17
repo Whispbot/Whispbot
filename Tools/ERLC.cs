@@ -338,6 +338,7 @@ namespace Whispbot.Tools
                 { "unmod",           new (1, "[user/id]") },
                 { "ban",             new (1, "[user/id]") },
                 { "unban",           new (1, "[user/id]") },
+                { "shutdown",        new (0, "") }
             };
             public static readonly Dictionary<string, (int, string)> ownerCommands = new() {
                 { "admin",             new (1, "[user/id]") },
