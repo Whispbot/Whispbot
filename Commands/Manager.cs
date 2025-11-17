@@ -59,6 +59,7 @@ namespace Whispbot.Commands
             RegisterStaffCommand(new SQL());
             RegisterStaffCommand(new UpdateLanguages());
             RegisterStaffCommand(new AIRequest());
+            RegisterStaffCommand(new ResolveError());
 
             #endregion
 
