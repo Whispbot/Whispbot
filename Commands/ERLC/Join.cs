@@ -55,7 +55,7 @@ namespace Whispbot.Commands.ERLC
 
             string url = $"https://whisp.bot/join-erlc/{server.id}";
 
-            await ctx.Reply(new MessageBuilder
+            var (m, e) = await ctx.Reply(new MessageBuilder
             {
                 components = [
                     new ContainerBuilder
@@ -78,6 +78,8 @@ namespace Whispbot.Commands.ERLC
                 ],
                 flags = MessageFlags.IsComponentsV2
             });
+
+            Log.Debug(e?.ToString() ?? "no error");
         }
     }
 }

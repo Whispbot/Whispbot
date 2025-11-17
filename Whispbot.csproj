@@ -21,7 +21,7 @@
     <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
     <PackageReference Include="StackExchange.Redis" Version="2.9.32" />
-    <PackageReference Include="YellowMacaroni.Discord" Version="1.1.0-dev202511100926" />
+    <PackageReference Include="YellowMacaroni.Discord" Version="1.1.0-dev202511171245" />
   </ItemGroup>
 
 </Project>
