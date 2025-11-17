@@ -94,8 +94,6 @@ namespace Whispbot.Commands.ERLC
                 return;
             }
 
-            Log.Debug(response.data?.ToString() ?? "no data");
-
             Dictionary<string, string>? bans = JsonConvert.DeserializeObject<Dictionary<string, string>>(response.data?.ToString() ?? "{}");
 
             if (bans is not null)
