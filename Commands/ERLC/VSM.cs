@@ -111,14 +111,13 @@ namespace Whispbot.Commands.ERLC
                     return;
                 }
 
-                string serverName = ctx.args.Join(" ").Split(" in ")[^1];
+                string? serverName = ctx.args.IndexOf("in") != -1 ? ctx.args.Join(" ").Split(" in ")[^1] : null;
 
-                ERLCServerConfig? server = Tools.ERLC.GetServerFromString(servers, serverName);
+                ERLCServerConfig? server = Tools.ERLC.GetServerFromString(servers, serverName ?? "thisservernameshouldntbepossibletomatch");
 
                 if (server is not null)
                 {
                     ctx.args.RemoveRange(ctx.args.LastIndexOf("in"), ctx.args.Count - ctx.args.LastIndexOf("in"));
-                    
                 }
                 else
                 {
