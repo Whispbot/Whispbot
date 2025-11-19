@@ -148,7 +148,7 @@ namespace Whispbot.Commands.ERLC
 
                     if (log.Moderator is not null)
                     {
-                        strings.AppendLine($"{{emoji.clockedin}} [<t:{log.Timestamp}:T>] {modFlags}{(modFlags.Length > 0 ? " " : "")}**@{log.Moderator[0]}** helped {callerFlags}{(callerFlags.Length > 0 ? " " : "")}**@{log.Caller[0]}**");
+                        strings.AppendLine($"{{emoji.clockedin}} [<t:{log.Timestamp}:T>] {modFlags}{(modFlags.Length > 0 ? " " : "")}**@{log.Moderator.Split(':')[0]}** helped {callerFlags}{(callerFlags.Length > 0 ? " " : "")}**@{log.Caller.Split(':')[0]}**");
                     }
                     else
                     {
