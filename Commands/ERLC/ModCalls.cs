@@ -153,7 +153,7 @@ namespace Whispbot.Commands.ERLC
                     }
                     else
                     {
-                        strings.AppendLine($"{{emoji.clockedout}} [<t:{log.Timestamp}:T>] {callerFlags}{(callerFlags.Length > 0 ? " " : "")}**@{log.Caller[0]}** called for mod");
+                        strings.AppendLine($"{{emoji.clockedout}} [<t:{log.Timestamp}:T>] {callerFlags}{(callerFlags.Length > 0 ? " " : "")}**@{log.Caller.Split(':')[0]}** called for mod");
                     }
                 }
 
