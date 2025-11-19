@@ -12,6 +12,7 @@ using Whispbot.Databases;
 using Whispbot.Tools;
 using YellowMacaroni.Discord.Core;
 using YellowMacaroni.Discord.Extentions;
+using YellowMacaroni.Discord.Websocket.Events;
 
 namespace Whispbot.Commands.ERLC
 {
@@ -146,7 +147,7 @@ namespace Whispbot.Commands.ERLC
                         if (modMember.premium_since is not null) modFlags.Append("{emoji.booster}");
                     }
 
-                    if (log.Moderator is not null)
+                    if (log.Moderator is not null && log.Moderator.Split(':')[1] != "1")
                     {
                         strings.AppendLine($"{{emoji.clockedin}} [<t:{log.Timestamp}:T>] {modFlags}{(modFlags.Length > 0 ? " " : "")}**@{log.Moderator.Split(':')[0]}** helped {callerFlags}{(callerFlags.Length > 0 ? " " : "")}**@{log.Caller.Split(':')[0]}**");
                     }
