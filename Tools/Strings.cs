@@ -50,32 +50,29 @@ namespace Whispbot.Tools
                 }
                 else if (type == "string")
                 {
-                    if (thisLanguage is not null)
+                    string languageKey = key.Replace("string.", "");
+
+                    string[] split = languageKey.Split(':');
+                    languageKey = split[0];
+                    List<string> args = split.Length > 1 ? [.. split[1].Split(',')] : [];
+                    foreach (string arg in args)
                     {
-                        string languageKey = key.Replace("string.", "");
+                        string[] argSplit = arg.Split('=');
+                        if (argSplit.Length >= 2) arguments.Add(argSplit[0], argSplit[1]);
+                    }
 
-                        string[] split = languageKey.Split(':');
-                        languageKey = split[0];
-                        List<string> args = split.Length > 1 ? [.. split[1].Split(',')] : [];
-                        foreach (string arg in args)
+                    string? value = thisLanguage?.GetValueOrDefault(languageKey) ?? defaultLanguage?.GetValueOrDefault(languageKey);
+                    if (value is not null)
+                    {
+                        foreach (var arg in arguments)
                         {
-                            string[] argSplit = arg.Split('=');
-                            if (argSplit.Length >= 2) arguments.Add(argSplit[0], argSplit[1]);
+                            value = value.Replace($"{{{arg.Key.ToLower()}}}", arg.Value);
                         }
-
-                        string? value = thisLanguage.GetValueOrDefault(languageKey) ?? defaultLanguage?.GetValueOrDefault(languageKey);
-                        if (value is not null)
-                        {
-                            foreach (var arg in arguments)
-                            {
-                                value = value.Replace($"{{{arg.Key.ToLower()}}}", arg.Value);
-                            }
-                            content = content.Replace(match.Value, value);
-                        }
-                        else
-                        {
-                            missingStrings.Add(languageKey);
-                        }
+                        content = content.Replace(match.Value, value);
+                    }
+                    else
+                    {
+                        missingStrings.Add(languageKey);
                     }
                 }
             }
