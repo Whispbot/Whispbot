@@ -146,7 +146,13 @@ int? shards = shardsEnv is null ? null : int.Parse(shardsEnv);
 
 ShardingManager sharding = new(
     token,
-    Intents.GuildMessages | Intents.MessageContent | Intents.Guilds,
+    Intents.GuildMessages | 
+    Intents.MessageContent | 
+    Intents.Guilds | 
+    Intents.GuildMembers | 
+    Intents.GuildModeration | 
+    Intents.GuildIntegrations |
+    Intents.AutoModerationExecution,
     shards
 );
 
