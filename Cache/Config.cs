@@ -1,6 +1,7 @@
 ﻿using Newtonsoft.Json;
 using Npgsql;
 using Serilog;
+using StackExchange.Redis;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -66,14 +67,59 @@ namespace Whispbot
 
             if (types is not null && types.Count == 0)
             {
-                types = [Postgres.SelectFirst<ShiftType>(
+                ShiftType? defaultType = Postgres.SelectFirst<ShiftType>(
                     @"INSERT INTO shift_types (guild_id, is_default) VALUES (@1, true) RETURNING *;",
                     [long.Parse(key)]
-                )];
+                );
+
+                if (defaultType is not null)
+                {
+                    types.Add(defaultType);
+                }
             }
 
             return types;
         });
+
+        public static readonly Collection<List<RobloxModerationType>> RobloxModerationTypes = new(async (key, args) =>
+        {
+            List<RobloxModerationType>? types = Postgres.Select<RobloxModerationType>(
+                @"SELECT * FROM roblox_moderation_types WHERE guild_id = @1;",
+                [long.Parse(key)]
+            );
+
+            return types;
+        });
+
+
+        public static void OnGuildUpdate()
+        {
+            ISubscriber? pubsub = Redis.GetSubscriber();
+            int i = 0;
+            while (pubsub is null && i < 5)
+            {
+                i++;
+                Thread.Sleep(1000);
+                pubsub = Redis.GetSubscriber();
+            }
+
+            if (pubsub is null)
+            {
+                Log.Error("Failed to get pubsub for cache invalidation");
+                return;
+            }
+
+            pubsub.Subscribe("guild_updated", (channel, value) =>
+            {
+                string guildId = value.ToString();
+
+                GuildConfig.Remove(guildId);
+                ShiftConfig.Remove(guildId);
+                ERLCServerConfigs.Remove(guildId);
+                ShiftTypes.Remove(guildId);
+                RobloxModerationTypes.Remove(guildId);
+            });
+        }
     }
 
     public class GuildConfig
@@ -136,5 +182,20 @@ namespace Whispbot
         public long? role_id = null;
         public long? log_channel_id = null;
         public List<string>? required_roles = [];
+    }
+
+    public class RobloxModerationType
+    {
+        public Guid id;
+        public long guild_id;
+        public string name = "New Moderation Type";
+        public bool is_deleted = false;
+        public List<string> triggers = [];
+        public bool is_kick_type = false;
+        public bool is_ban_type = false;
+        public long? log_channel_id;
+        public List<string>? required_roles;
+        public DateTimeOffset created_at = DateTimeOffset.UtcNow;
+        public DateTimeOffset updated_at = DateTimeOffset.UtcNow;
     }
 }

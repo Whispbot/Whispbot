@@ -164,6 +164,8 @@ InteractionManager interactions = new();
 Config.interactions = interactions;
 interactions.Attach(sharding);
 
+_ = Task.Run(() => WhispCache.OnGuildUpdate());
+
 foreach (Shard shard in sharding.shards)
 {
     shard.client.On("READY", (client, obj) =>
