@@ -25,10 +25,7 @@ namespace Whispbot
 
             if (type.role_id is not null)
             {
-                if (!(moderator.roles ?? []).Contains($"{type.role_id}"))
-                {
-                    Task _ = moderator.AddRole(type.role_id?.ToString() ?? "", $"Clocked in to shift type '{type.name}'.");
-                }
+                Task _ = moderator.AddRole(type.role_id?.ToString() ?? "", $"Clocked in to shift type '{type.name}'.");
             }
 
             ShiftConfig? shiftConfig = await WhispCache.ShiftConfig.Get(guildId.ToString());
