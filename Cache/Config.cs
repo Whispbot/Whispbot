@@ -25,17 +25,9 @@ namespace Whispbot
 
             return existingRecord ?? Postgres.SelectFirst<GuildConfig>(
                 @"INSERT INTO guild_config (id, name) VALUES (@1, @2) RETURNING *;",
-                [long.Parse(key), DiscordCache.Guilds.Get(key).WaitFor()?.name]
+                [long.Parse(key), DiscordCache.Guilds.Get(key).Result?.name ?? ""]
             );
         });
-
-        public static readonly Collection<ShiftConfig> ShiftConfig = new(async (key, args) =>
-        {
-            return Postgres.SelectFirst<ShiftConfig>(
-                @"SELECT * FROM module_shifts WHERE id = @1;", [long.Parse(key)]
-            ) ?? new();
-        });
-
 
         public static readonly Collection<UserConfig> UserConfig = new(async (key, args) =>
         {
@@ -88,6 +80,24 @@ namespace Whispbot
                 [long.Parse(key)]
             );
 
+            if (types is not null && types.Count == 0)
+            {
+                List<RobloxModerationType>? defaultTypes = Postgres.Select<RobloxModerationType>(
+                    @"
+                    INSERT INTO roblox_moderation_types (guild_id, name, triggers, is_kick_type, is_ban_type)
+                    VALUES ( @1, 'Warning', '{w,warning,warn}', false, false ),
+                           ( @1, 'Kick',    '{k,kick}',         true,  false ),
+                           ( @1, 'Ban',     '{b,ban}',          false, true  )
+                    ",
+                    [long.Parse(key)]
+                );
+
+                if (defaultTypes is not null)
+                {
+                    types.AddRange(defaultTypes);
+                }
+            }
+
             return types;
         });
 
@@ -114,7 +124,6 @@ namespace Whispbot
                 string guildId = value.ToString();
 
                 GuildConfig.Remove(guildId);
-                ShiftConfig.Remove(guildId);
                 ERLCServerConfigs.Remove(guildId);
                 ShiftTypes.Remove(guildId);
                 RobloxModerationTypes.Remove(guildId);
@@ -131,6 +140,10 @@ namespace Whispbot
         public long enabled_modules = 0;
 
         public int? default_language = 0;
+
+        public long? shifts_default_log_channel_id;
+        public long? roblox_moderation_default_log_channel_id;
+        public bool roblox_moderation_require_reason = false;
     }
 
     public class ShiftConfig

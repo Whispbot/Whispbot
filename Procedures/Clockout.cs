@@ -27,17 +27,14 @@ namespace Whispbot
                 Task _ = moderator.RemoveRole(type.role_id?.ToString() ?? "", $"Clocked out of shift type '{type.name}'.");
             }
 
-            ShiftConfig? shiftConfig = await WhispCache.ShiftConfig.Get(guildId.ToString());
-            if (shiftConfig is null) return;
+            GuildConfig? config = await WhispCache.GuildConfig.Get(guildId.ToString());
+            if (config is null) return;
 
-            string? logChannelId = (type.log_channel_id ?? shiftConfig.default_log_channel_id)?.ToString();
+            string? logChannelId = (type.log_channel_id ?? config.shifts_default_log_channel_id)?.ToString();
             if (logChannelId is null) return;
 
             Channel? logChannel = await DiscordCache.Channels.Get(logChannelId);
             if (logChannel is null) return;
-
-            GuildConfig? config = await WhispCache.GuildConfig.Get(guildId.ToString());
-            if (config is null) return;
 
             Task __ = logChannel.Send(new MessageBuilder()
             {

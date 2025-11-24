@@ -190,6 +190,8 @@ namespace Whispbot.Tools
         UseERLC = 1 << 4,
         ERLCOWner = 1 << 5,
         ERLCAdmin = 1 << 6,
-        ERLCModerator = 1 << 7
+        ERLCModerator = 1 << 7,
+        UseRobloxModerations = 1 << 8,
+        ManageRobloxModerations = 1 << 9,
     }
 }

@@ -8,6 +8,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Whispbot.Commands.ERLC;
 using Whispbot.Commands.General;
+using Whispbot.Commands.Roblox_Moderation;
 using Whispbot.Commands.Shifts;
 using Whispbot.Commands.Staff;
 using Whispbot.Extensions;
@@ -43,6 +44,12 @@ namespace Whispbot.Commands
             RegisterCommand(new ShiftLeaderboard());
             RegisterCommand(new ShiftActivity());
             RegisterCommand(new ShiftActive());
+
+            RegisterCommand(new LogModeration());
+            RegisterCommand(new RobloxCase());
+            RegisterCommand(new RobloxReason());
+            RegisterCommand(new RobloxType());
+            RegisterCommand(new RobloxVoid());
 
             RegisterCommand(new ERLC_ServerInfo());
             RegisterCommand(new ERLC_Players());

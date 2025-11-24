@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Databases;
 using Whispbot.Interactions.Roblox;
+using Whispbot.Interactions.Roblox_Moderations;
 using Whispbot.Interactions.Shifts;
 using YellowMacaroni.Discord.Core;
 using YellowMacaroni.Discord.Extentions;
@@ -46,6 +47,8 @@ namespace Whispbot.Interactions
             RegisterInteraction(new AdminWipeShifts());
             RegisterInteraction(new AdminWipeShiftsConfirm());
             RegisterInteraction(new ShiftLeaderboard());
+
+            RegisterInteraction(new RobloxEditType());
 
             if (Config.IsDev) Log.Debug($"[Debug] Loaded {_interactions.Count} interactions");
         }

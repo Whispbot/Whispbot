@@ -28,17 +28,14 @@ namespace Whispbot
                 Task _ = moderator.AddRole(type.role_id?.ToString() ?? "", $"Clocked in to shift type '{type.name}'.");
             }
 
-            ShiftConfig? shiftConfig = await WhispCache.ShiftConfig.Get(guildId.ToString());
-            if (shiftConfig is null) return;
+            GuildConfig? config = await WhispCache.GuildConfig.Get(guildId.ToString());
+            if (config is null) return;
 
-            string? logChannelId = (type.log_channel_id ?? shiftConfig?.default_log_channel_id)?.ToString();
+            string? logChannelId = (type.log_channel_id ?? config?.shifts_default_log_channel_id)?.ToString();
             if (logChannelId is null) return;
 
             Channel? logChannel = await DiscordCache.Channels.Get(logChannelId);
             if (logChannel is null) return;
-
-            GuildConfig? config = await WhispCache.GuildConfig.Get(guildId.ToString());
-            if (config is null) return;
 
             Task __ = logChannel.Send(new MessageBuilder()
             {
@@ -68,6 +65,11 @@ namespace Whispbot
 
         public static async Task<(Shift?, string?)> Clockin(long guildId, long moderatorId, ShiftType type, long? adminId = null)
         {
+            if (type.is_deleted)
+            {
+                return (null, "{string.errors.clockin.invalidtype}");
+            }
+
             if (adminId is not null && !await WhispPermissions.HasPermission(guildId.ToString(), (adminId ?? 0).ToString(), BotPermissions.ManageShifts))
             {
                 return (null, "{string.errors.clockin.adminnoperms}");
