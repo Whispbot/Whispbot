@@ -24,9 +24,11 @@ namespace Whispbot.Interactions
             RegisterInteraction(new RobloxConnect());
             RegisterInteraction(new RobloxDisconnect());
 
+            // Shifts
             RegisterInteraction(new Clockin());
             RegisterInteraction(new Clockout());
 
+            // Shifts Admin
             RegisterInteraction(new AdminClockin());
             RegisterInteraction(new AdminClockout());
             RegisterInteraction(new AdminList());
@@ -48,7 +50,15 @@ namespace Whispbot.Interactions
             RegisterInteraction(new AdminWipeShiftsConfirm());
             RegisterInteraction(new ShiftLeaderboard());
 
+            // Roblox Moderation
             RegisterInteraction(new RobloxEditType());
+            RegisterInteraction(new EditTypeButton());
+            RegisterInteraction(new EditTypeModal());
+            RegisterInteraction(new EditReasonButton());
+            RegisterInteraction(new EditReasonModal());
+            RegisterInteraction(new DeleteButton());
+            RegisterInteraction(new DeleteConfirm());
+
 
             if (Config.IsDev) Log.Debug($"[Debug] Loaded {_interactions.Count} interactions");
         }

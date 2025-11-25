@@ -106,21 +106,21 @@ namespace Whispbot
                         components = [
                             new ButtonBuilder
                             {
-                                custom_id = $"rm_log_editreason {moderation.guild_id} {moderation.@case}",
+                                custom_id = $"rm_log_editreason {moderation.@case}",
                                 style = ButtonStyle.Secondary,
                                 emoji = Strings.GetEmoji("pen"),
                                 label = "{string.button.rmlog.editreason}"
                             },
                             new ButtonBuilder
                             {
-                                custom_id = $"rm_log_edittype {moderation.guild_id} {moderation.@case}",
+                                custom_id = $"rm_log_edittype {moderation.@case}",
                                 style = ButtonStyle.Secondary,
                                 emoji = Strings.GetEmoji("folder"),
                                 label = "{string.button.rmlog.edittype}"
                             },
                             new ButtonBuilder
                             {
-                                custom_id = $"rm_log_delete {moderation.guild_id} {moderation.@case}",
+                                custom_id = $"rm_log_delete {moderation.@case}",
                                 style = ButtonStyle.Danger,
                                 emoji = Strings.GetEmoji("delete")
                             }
