@@ -2,6 +2,7 @@
 using Serilog;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -266,48 +267,56 @@ namespace Whispbot.Databases
             return command;
         }
 
-        public static List<T>? Select<T>(string sql, List<object>? args = null) where T : new()
+        public static NpgsqlTransaction? BeginTransaction()
         {
             using var connection = GetConnection();
             if (connection is null) return null;
 
-            using var command = new NpgsqlCommand(sql, connection);
+            return connection.BeginTransaction();
+        }
+
+        public static List<T>? Select<T>(string sql, List<object>? args = null, NpgsqlTransaction? transaction = null) where T : new()
+        {
+            using var connection = transaction?.Connection ?? GetConnection();
+            if (connection is null) return null;
+
+            using var command = new NpgsqlCommand(sql, connection, transaction);
             command.AddArgs(args ?? []);
 
             using var reader = command.ExecuteReader();
             return reader.ToList<T>();
         }
 
-        public static List<dynamic>? Select(string sql, List<object>? args = null)
+        public static List<dynamic>? Select(string sql, List<object>? args = null, NpgsqlTransaction? transaction = null)
         {
-            using var connection = GetConnection();
+            using var connection = transaction?.Connection ?? GetConnection();
             if (connection is null) return null;
 
-            using var command = new NpgsqlCommand(sql, connection);
+            using var command = new NpgsqlCommand(sql, connection, transaction);
             command.AddArgs(args ?? []);
 
             using var reader = command.ExecuteReader();
             return reader.ToDynamicList();
         }
 
-        public static T? SelectFirst<T>(string sql, List<object>? args = null) where T : new()
+        public static T? SelectFirst<T>(string sql, List<object>? args = null, NpgsqlTransaction? transaction = null) where T : new()
         {
-            using var connection = GetConnection();
+            using var connection = transaction?.Connection ?? GetConnection();
             if (connection is null) return default;
 
-            using var command = new NpgsqlCommand(sql, connection);
+            using var command = new NpgsqlCommand(sql, connection, transaction);
             command.AddArgs(args ?? []);
 
             using var reader = command.ExecuteReader();
             return reader.FirstOrDefault<T>();
         }
 
-        public static int Execute(string sql, List<object>? args = null)
+        public static int Execute(string sql, List<object>? args = null, NpgsqlTransaction? transaction = null)
         {
-            using var connection = GetConnection();
+            using var connection = transaction?.Connection ?? GetConnection();
             if (connection is null) return -1;
 
-            using var command = new NpgsqlCommand(sql, connection);
+            using var command = new NpgsqlCommand(sql, connection, transaction);
             command.AddArgs(args ?? []);
 
             return command.ExecuteNonQuery();

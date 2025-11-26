@@ -1,4 +1,6 @@
-﻿using Npgsql;
+﻿using Microsoft.VisualBasic.FileIO;
+using Newtonsoft.Json;
+using Npgsql;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -178,6 +180,10 @@ namespace Whispbot.Extensions
             {
                 property.SetValue(item, Enum.ToObject(property.PropertyType, enumInt));
             }
+            else if (propertyType.IsClass && propertyType != typeof(string) && value is string jsonString)
+            {
+                property.SetValue(item, JsonConvert.DeserializeObject(jsonString, propertyType));
+            }
             else if (value is Array array)
             {
                 if (propertyType.IsGenericType && propertyType.GetGenericTypeDefinition() == typeof(List<>))
@@ -237,6 +243,10 @@ namespace Whispbot.Extensions
             else if (fieldType.IsEnum && value is int enumInt)
             {
                 field.SetValue(item, Enum.ToObject(field.FieldType, enumInt));
+            }
+            else if (fieldType.IsClass && fieldType != typeof(string) && value is string jsonString)
+            {
+                field.SetValue(item, JsonConvert.DeserializeObject(jsonString, fieldType));
             }
             else if (value is Array array)
             {

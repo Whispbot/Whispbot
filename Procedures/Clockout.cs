@@ -30,7 +30,7 @@ namespace Whispbot
             GuildConfig? config = await WhispCache.GuildConfig.Get(guildId.ToString());
             if (config is null) return;
 
-            string? logChannelId = (type.log_channel_id ?? config.shifts_default_log_channel_id)?.ToString();
+            string? logChannelId = (type.log_channel_id ?? config.shifts?.default_log_channel_id)?.ToString();
             if (logChannelId is null) return;
 
             Channel? logChannel = await DiscordCache.Channels.Get(logChannelId);

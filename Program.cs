@@ -54,6 +54,16 @@ Thread APIThread = new(new ThreadStart(() =>
 };
 APIThread.Start();
 
+Thread CacheThread = new(new ThreadStart(async () =>
+{
+    await WhispCache.OnTableUpdate();
+}))
+{
+    Name = "Whisp Cache",
+    IsBackground = true
+};
+CacheThread.Start();
+
 int clusters = 1;
 if (!dev)
 {
@@ -169,8 +179,6 @@ commands.Attach(sharding);
 InteractionManager interactions = new();
 Config.interactions = interactions;
 interactions.Attach(sharding);
-
-_ = Task.Run(() => WhispCache.OnGuildUpdate());
 
 foreach (Shard shard in sharding.shards)
 {

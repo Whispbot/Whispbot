@@ -25,7 +25,7 @@ namespace Whispbot
             List<RobloxModerationType>? types = await WhispCache.RobloxModerationTypes.Get(moderation.guild_id.ToString());
             RobloxModerationType? type = types?.Find(t => t.id == moderation.type);
 
-            long? logChannelId = type?.log_channel_id ?? guildConfig.roblox_moderation_default_log_channel_id;
+            long? logChannelId = type?.log_channel_id ?? guildConfig.roblox_moderation?.default_log_channel_id;
 
             if (logChannelId is not null)
             {
@@ -130,7 +130,7 @@ namespace Whispbot
             }.Process((Strings.Language)(guildConfig?.default_language ?? 0), null, true);
         }
 
-        public static async Task<(RobloxModeration?, string?)> CreateModeration(long guildId, long moderatorId, long targetId, RobloxModerationType type, string reason = null, int flags = 0)
+        public static async Task<(RobloxModeration?, string?)> CreateModeration(long guildId, long moderatorId, long targetId, RobloxModerationType type, string reason = "No reason provided", int flags = 0)
         {
             if (!await WhispPermissions.HasPermission(guildId.ToString(), moderatorId.ToString(), BotPermissions.UseRobloxModerations))
             {
@@ -158,7 +158,7 @@ namespace Whispbot
             } return (null, "{string.errors.rmlog.logfailed}");
         }
 
-        public static async Task<(RobloxModeration?, string?)> CreateModeration(string guildId, string moderatorId, string targetId, RobloxModerationType type, string raeson = null, int flags = 0)
+        public static async Task<(RobloxModeration?, string?)> CreateModeration(string guildId, string moderatorId, string targetId, RobloxModerationType type, string raeson = "No reason provided", int flags = 0)
         {
             return await CreateModeration(long.Parse(guildId), long.Parse(moderatorId), long.Parse(targetId), type, raeson, flags);
         }

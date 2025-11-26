@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Commands;
 using Whispbot.Databases;
+using Whispbot.Tools;
 using YellowMacaroni.Discord.Cache;
 using YellowMacaroni.Discord.Extentions;
 
@@ -19,7 +20,14 @@ namespace Whispbot
         public static readonly Collection<GuildConfig> GuildConfig = new(async (key, args) =>
         {
             GuildConfig? existingRecord = Postgres.SelectFirst<GuildConfig>(
-              @"SELECT * FROM guild_config WHERE id = @1;",
+              @"SELECT 
+                    gc.*,
+                    to_jsonb(mrm) AS roblox_moderation,
+                    to_jsonb(ms) AS shifts
+                FROM guild_config gc 
+                LEFT JOIN module_roblox_moderation mrm ON gc.id = mrm.id
+                LEFT JOIN module_shifts ms ON gc.id = ms.id
+                WHERE gc.id = @1;",
               [long.Parse(key)]
             );
 
@@ -102,33 +110,89 @@ namespace Whispbot
         });
 
 
-        public static void OnGuildUpdate()
+        public static async Task OnTableUpdate()
         {
-            ISubscriber? pubsub = Redis.GetSubscriber();
             int i = 0;
-            while (pubsub is null && i < 5)
+            while (!Postgres.IsConnected() && i < 10)
             {
+                Thread.Sleep(5000);
                 i++;
-                Thread.Sleep(1000);
-                pubsub = Redis.GetSubscriber();
             }
 
-            if (pubsub is null)
+            using var conn = Postgres.GetConnection();
+            if (conn is null)
             {
-                Log.Error("Failed to get pubsub for cache invalidation");
+                Log.Error("Notifcation listner connection failed");
                 return;
             }
 
-            pubsub.Subscribe("guild_updated", (channel, value) =>
+            conn.Notification += async (o, e) =>
             {
-                string guildId = value.ToString();
+                if (e.Channel == "guild_update")
+                {
+                    var data = JsonConvert.DeserializeObject<GuildUpdatePayload>(e.Payload);
 
-                GuildConfig.Remove(guildId);
-                ERLCServerConfigs.Remove(guildId);
-                ShiftTypes.Remove(guildId);
-                RobloxModerationTypes.Remove(guildId);
-            });
+                    if (data is null) return;
+
+                    if (data.table == "guild_config" || data.table.StartsWith("module_", StringComparison.InvariantCultureIgnoreCase))
+                    {
+                        GuildConfig? newConfig = await GuildConfig.Fetch(data.id.ToString());
+                        if (newConfig is null)
+                        {
+                            GuildConfig.Remove(data.id.ToString());
+                        }
+                    }
+                    else if (data.table == "shift_types")
+                    {
+                        List<ShiftType>? newTypes = await ShiftTypes.Fetch(data.id.ToString());
+                    }
+                    else if (data.table == "roblox_moderation_types")
+                    {
+                        List<RobloxModerationType>? newTypes = await RobloxModerationTypes.Fetch(data.id.ToString());
+                    }
+                    else if (data.table == "erlc_servers")
+                    {
+                        List<ERLCServerConfig>? newServers = await ERLCServerConfigs.Fetch(data.id.ToString());
+                    }
+                }
+                else if (e.Channel == "language_update")
+                {
+                    var data = JsonConvert.DeserializeObject<LanguageUpdatePayload>(e.Payload);
+
+                    if (data is null) return;
+
+                    if (data.op == "DELETE")
+                    {
+                        if (!Strings.LanguageStrings.TryGetValue(data.data.language, out Dictionary<string, string>? value)) return;
+                        value.Remove(data.data.key);
+                    }
+                    else
+                    {
+                        if (!Strings.LanguageStrings.TryGetValue(data.data.language, out var lang))
+                        {
+                            Strings.LanguageStrings.Add(data.data.language, []);
+                            lang = Strings.LanguageStrings[data.data.language];
+                        }
+
+                        lang.Remove(data.data.key);
+                        lang.Add(data.data.key, data.data.content);
+                    }
+                }
+            };
+
+            using var listenGuildUpdate = new NpgsqlCommand("LISTEN guild_update;", conn);
+            listenGuildUpdate.ExecuteNonQuery();
+
+            using var listenLanguageUpdate = new NpgsqlCommand("LISTEN language_update", conn);
+            listenLanguageUpdate.ExecuteNonQuery();            
+
+            while (true) await conn.WaitAsync();
         }
+
+#pragma warning disable IDE1006
+        public record GuildUpdatePayload (long id, string table, string op);
+        public record LanguageUpdatePayload (Strings.DBLanguage data, string op);
+#pragma warning restore IDE1006
     }
 
     public class GuildConfig
@@ -141,10 +205,22 @@ namespace Whispbot
 
         public int? default_language = 0;
 
-        public long? shifts_default_log_channel_id;
-        public long? roblox_moderation_default_log_channel_id;
-        public bool roblox_moderation_require_reason = false;
+        public ModuleRobloxModeration? roblox_moderation;
+        public ModuleShifts? shifts;
     }
+
+    public class ModuleRobloxModeration
+    {
+        public long? default_log_channel_id;
+        public bool require_reason = false;
+        public long? ban_request_channel_id;
+    }
+
+    public class ModuleShifts
+    {
+        public long? default_log_channel_id;
+    }
+
 
     public class ShiftConfig
     {
@@ -173,6 +249,8 @@ namespace Whispbot
         public int ingame_players = 0;
         public string? name = null;
         public string? code = null;
+
+        public bool allow_ban_requests = true;
     }
 
     public enum BotVersion

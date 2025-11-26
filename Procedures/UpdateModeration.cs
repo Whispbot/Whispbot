@@ -28,7 +28,7 @@ namespace Whispbot
             GuildConfig? config = await WhispCache.GuildConfig.Get(moderation.guild_id.ToString());
             if (config is null) return;
 
-            long? log_channel_id = type.log_channel_id ?? config.roblox_moderation_default_log_channel_id;
+            long? log_channel_id = type.log_channel_id ?? config.roblox_moderation?.default_log_channel_id;
             if (log_channel_id is null) return;
 
             Message log = new()
