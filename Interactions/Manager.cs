@@ -59,6 +59,10 @@ namespace Whispbot.Interactions
             RegisterInteraction(new DeleteButton());
             RegisterInteraction(new DeleteConfirm());
 
+            RegisterInteraction(new BanRequestApprove());
+            RegisterInteraction(new BanRequestApproveModal());
+            RegisterInteraction(new BanRequestDeny());
+
 
             if (Config.IsDev) Log.Debug($"[Debug] Loaded {_interactions.Count} interactions");
         }

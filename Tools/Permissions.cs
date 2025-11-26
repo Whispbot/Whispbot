@@ -134,7 +134,7 @@ namespace Whispbot.Tools
             GuildConfig? config = await WhispCache.GuildConfig.Get(ctx.GuildId);
             if (config is null)
             {
-                await ctx.Reply("{emoji.warning} {emoji.errors.dbfailed}");
+                await ctx.Reply("{emoji.warning} {string.errors.dbfailed}");
                 return false;
             }
 
@@ -193,5 +193,7 @@ namespace Whispbot.Tools
         ERLCModerator = 1 << 7,
         UseRobloxModerations = 1 << 8,
         ManageRobloxModerations = 1 << 9,
+        UseBanRequests = 1 << 10,
+        ManageBanRequests = 1 << 11,
     }
 }

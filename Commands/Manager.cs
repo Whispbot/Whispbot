@@ -50,6 +50,7 @@ namespace Whispbot.Commands
             RegisterCommand(new RobloxReason());
             RegisterCommand(new RobloxType());
             RegisterCommand(new RobloxVoid());
+            RegisterCommand(new Roblox_Moderation.BanRequest());
 
             RegisterCommand(new ERLC_ServerInfo());
             RegisterCommand(new ERLC_Players());

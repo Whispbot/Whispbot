@@ -11,14 +11,14 @@ using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Commands.Roblox_Moderation
 {
-    public class LogModeration : Command
+    public class BanRequest : Command
     {
-        public override string Name => "Log Moderation";
-        public override string Description => "Log a Roblox moderation";
+        public override string Name => "Log Ban Request";
+        public override string Description => "Log a Roblox Ban Request";
         public override Module Module => Module.RobloxModeration;
         public override bool GuildOnly => true;
         public override List<RateLimit> Ratelimits => [];
-        public override List<string> Aliases => ["log", "moderate", "rlog"];
+        public override List<string> Aliases => ["br", "banrequest", "bolo"];
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
         {
@@ -31,11 +31,11 @@ namespace Whispbot.Commands.Roblox_Moderation
             }
 
             if (!await WhispPermissions.CheckModuleMessage(ctx, Module.RobloxModeration)) return;
-            if (!await WhispPermissions.CheckPermissionsMessage(ctx, BotPermissions.UseRobloxModerations)) return;
+            if (!await WhispPermissions.CheckPermissionsMessage(ctx, BotPermissions.UseBanRequests)) return;
 
-            if (ctx.args.Count < 2)
+            if (ctx.args.Count < 1)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.rmlog.missingargs}.");
+                await ctx.Reply("{emoji.cross} {string.errors.rmbr.missingargs}.");
                 return;
             }
 
@@ -47,27 +47,15 @@ namespace Whispbot.Commands.Roblox_Moderation
                 return;
             }
 
-            bool typearg = false;
+            bool hasBanType = types.Any(t => t.is_ban_type);
 
-            string arg1 = ctx.args[0].ToLowerInvariant();
-            string arg2 = ctx.args[1].ToLowerInvariant();
-
-            RobloxModerationType? type = types.Find(t => t.triggers.Contains(arg1));
-            if (type is null)
+            if (!hasBanType)
             {
-                type = types.Find(t => t.triggers.Contains(arg2));
-                if (type is null)
-                {
-                    await ctx.Reply("{emoji.cross} {string.errors.rmlog.invalidtype}.");
-                    return;
-                }
-                else
-                {
-                    typearg = true;
-                }
+                await ctx.Reply("{emoji.cross} {string.errors.rmbr.nobantype}");
+                return;
             }
-            
-            string reason = string.Join(' ', ctx.args.Skip(2));
+
+            string reason = string.Join(' ', ctx.args.Skip(1));
 
             if (ctx.GuildConfig?.roblox_moderation?.require_reason == true && string.IsNullOrWhiteSpace(reason))
             {
@@ -75,19 +63,18 @@ namespace Whispbot.Commands.Roblox_Moderation
                 return;
             }
 
-            Roblox.RobloxUser? user = await Roblox.GetUser(typearg ? ctx.args[0] : ctx.args[1]);
+            Roblox.RobloxUser? user = await Roblox.GetUser(ctx.args[0]);
 
             if (user is null)
             {
                 await ctx.Reply("{emoji.cross} {string.errors.rmlog.invaliduser}.");
                 return;
-            }            
+            }
 
-            var (log, errormessage) = await Procedures.CreateModeration(
+            var (log, errormessage) = await Procedures.CreateBanRequest(
                 ctx.GuildId,
                 ctx.UserId,
                 user.id,
-                type,
                 reason
             );
 
@@ -98,8 +85,8 @@ namespace Whispbot.Commands.Roblox_Moderation
                     embeds = [
                         new EmbedBuilder
                         {
-                            title = "{string.title.rmlog.logged}",
-                            description = $"{{emoji.tick}} {{string.success.rmlog:caseid={log.@case}}}.",
+                            title = "{string.title.rmbr.logged}",
+                            description = "{emoji.tick} {string.success.rmbr}.",
                             author = new EmbedAuthor
                             {
                                 name = $"{(ctx.User?.global_name is not null ? ctx.User.global_name : $"@{ctx.User?.username ?? "unknown"}")}",
@@ -113,20 +100,12 @@ namespace Whispbot.Commands.Roblox_Moderation
                                 new EmbedField
                                 {
                                     name = "{string.title.rmlog.user}",
-                                    value = $"{{emoji.user}} **@{user.name}** ({user.id})",
-                                    inline = true
-                                },
-                                new EmbedField
-                                {
-                                    name = "{string.title.rmlog.type}",
-                                    value = $"{{emoji.folder}} {type.name}",
-                                    inline = true
+                                    value = $"{{emoji.user}} **@{user.name}** ({user.id})"
                                 },
                                 new EmbedField
                                 {
                                     name = "{string.title.rmlog.reason}",
-                                    value = $"{{emoji.alignment}} {reason}",
-                                    inline = false
+                                    value = $"{{emoji.alignment}} {reason}"
                                 }
                             ]
                         }
