@@ -32,11 +32,11 @@ namespace Whispbot.Tools
 
             foreach (Match match in matches)
             {
-                string key = match.Groups[1].Value.ToLower();
+                string key = match.Groups[1].Value;
                 string type = match.Groups[2].Value.ToLower();
                 if (type == "emoji")
                 {
-                    string emojiName = key.Replace("emoji.", "");
+                    string emojiName = key.Replace("emoji.", "").ToLower();
                     Emoji? emoji = Emojis.GetValueOrDefault(emojiName);
                     if (emoji is not null)
                     {
@@ -53,7 +53,7 @@ namespace Whispbot.Tools
                     string languageKey = key.Replace("string.", "");
 
                     string[] split = languageKey.Split(':');
-                    languageKey = split[0];
+                    languageKey = split[0].ToLower();
                     List<string> args = split.Length > 1 ? [.. split[1].Split(',')] : [];
                     foreach (string arg in args)
                     {

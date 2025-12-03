@@ -126,20 +126,15 @@ namespace Whispbot.Tools
 
             return true;
         }
-        
-        public static async Task<bool> CheckModuleMessage(CommandContext ctx, Module modules)
-        {
-            if (ctx.GuildId is null) return false;
 
-            GuildConfig? config = await WhispCache.GuildConfig.Get(ctx.GuildId);
+        public static async Task<(bool, List<string>)> CheckModule(string guildId, Module modules)
+        {
+            GuildConfig? config = await WhispCache.GuildConfig.Get(guildId);
             if (config is null)
             {
-                await ctx.Reply("{emoji.warning} {string.errors.dbfailed}");
-                return false;
+                return (false, []);
             }
-
             Module enabledModules = (Module)config.enabled_modules;
-
             if ((enabledModules & modules) == 0)
             {
                 List<string> missingModules = [];
@@ -147,7 +142,19 @@ namespace Whispbot.Tools
                 {
                     if ((modules & module) != 0 && (enabledModules & module) == 0) missingModules.Add(module.ToString());
                 }
+                return (false, missingModules);
+            }
+            return (true, []);
+        }
 
+        public static async Task<bool> CheckModuleMessage(CommandContext ctx, Module modules)
+        {
+            if (ctx.GuildId is null) return false;
+
+            var (enabled, missingModules) = await CheckModule(ctx.GuildId, modules);
+
+            if (!enabled)
+            {
                 await ctx.Reply(new MessageBuilder()
                 {
                     embeds = [
@@ -161,11 +168,9 @@ namespace Whispbot.Tools
                         }
                     ]
                 });
-
-                return false;
             }
 
-            return true;
+            return enabled;
         }
     }
 
