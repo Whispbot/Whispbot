@@ -65,6 +65,8 @@ namespace Whispbot
 
         public static async Task<(Shift?, string?)> Clockin(long guildId, long moderatorId, ShiftType type, long? adminId = null)
         {
+            if (!(await WhispPermissions.CheckModule(guildId.ToString(), Commands.Module.Shifts)).Item1) return (null, "{string.errors.clockin.moduledisabled}");
+
             if (type.is_deleted)
             {
                 return (null, "{string.errors.clockin.invalidtype}");

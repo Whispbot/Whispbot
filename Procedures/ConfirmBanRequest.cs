@@ -100,9 +100,9 @@ namespace Whispbot
             BanRequest? banRequest = Postgres.SelectFirst<BanRequest>(
                 @"
                 DELETE FROM ban_requests
-                WHERE id = @1
+                WHERE id = @1 AND guild_id = @2
                 RETURNING *",
-                [id]
+                [id, guildId]
             );
 
             if (banRequest is not null)
@@ -115,6 +115,8 @@ namespace Whispbot
 
         public static async Task<(BanRequest?, string?)> MarkAsBanned(long id, long guildId, long moderatorId)
         {
+            if (!(await WhispPermissions.CheckModule(guildId.ToString(), Commands.Module.RobloxModeration)).Item1) return (null, "{string.errors.rmlog.moduledisabled}");
+
             if (!await WhispPermissions.HasPermission(guildId.ToString(), moderatorId.ToString(), BotPermissions.ManageBanRequests))
             {
                 return (null, "{string.errors.rmlog.noperms}");
@@ -127,15 +129,15 @@ namespace Whispbot
                 return (null, "{string.errors.rmbr.nobantype}");
             }
 
-            var transaction = Postgres.BeginTransaction();
+            using var transaction = Postgres.BeginTransaction();
             if (transaction is null) return (null, "{string.errors.general.dbfailed}");
 
             BanRequest? banRequest = Postgres.SelectFirst<BanRequest>(
                 @"
                 DELETE FROM ban_requests
-                WHERE id = @1
+                WHERE id = @1 AND guild_id = @2
                 RETURNING *",
-                [id],
+                [id, guildId],
                 transaction
             );
 
@@ -160,6 +162,8 @@ namespace Whispbot
 
         public static async Task<(BanRequest?, string?)> ApproveBanRequest(long id, long guildId, long moderatorId, ERLCServerConfig erlcServer)
         {
+            if (!(await WhispPermissions.CheckModule(guildId.ToString(), Commands.Module.RobloxModeration | Commands.Module.ERLC)).Item1) return (null, "{string.errors.rmlog.moduledisabled}");
+
             if (erlcServer.api_key is null) return (null, "{string.errors.rmbr.noapikey}");
 
             if (!await WhispPermissions.HasPermission(guildId.ToString(), moderatorId.ToString(), BotPermissions.ManageBanRequests))
@@ -184,9 +188,9 @@ namespace Whispbot
                 @"
                 UPDATE ban_requests
                 SET status = TRUE
-                WHERE id = @1 AND status IS NOT TRUE
+                WHERE id = @1 AND guild_id = @2 AND status IS NOT TRUE
                 RETURNING *",
-                [id]
+                [id, guildId]
             );
 
             if (banRequest is not null)

@@ -57,7 +57,7 @@ namespace Whispbot
                         WHERE guild_id = @3 AND moderator_id = @2
                         ORDER BY created_at DESC
                         LIMIT 1
-                    )
+                    ) AND guild_id = @3 AND moderator_id = @2
                     RETURNING *;
                     ",
                     [reason, long.Parse(moderatorId), long.Parse(guildId)]
@@ -76,7 +76,7 @@ namespace Whispbot
                             WHERE guild_id = @3
                             ORDER BY created_at DESC
                             LIMIT 1
-                        )
+                        ) AND guild_id = @3
                         RETURNING *;
                         ",
                         [reason, long.Parse(moderatorId), long.Parse(guildId)]
@@ -118,7 +118,7 @@ namespace Whispbot
                         WHERE guild_id = @3 AND moderator_id = @2
                         ORDER BY created_at DESC
                         LIMIT 1
-                    )
+                    ) AND guild_id = @3 AND moderator_id = @2
                     RETURNING *;
                     ",
                     [type.id, long.Parse(moderatorId), long.Parse(guildId)]
@@ -137,7 +137,7 @@ namespace Whispbot
                             WHERE guild_id = @3
                             ORDER BY created_at DESC
                             LIMIT 1
-                        )
+                        ) AND guild_id = @3
                         RETURNING *;
                         ",
                         [type.id, long.Parse(moderatorId), long.Parse(guildId)]

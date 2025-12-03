@@ -51,7 +51,6 @@ namespace Whispbot
 
         public static async Task<MessageBuilder> GetBanRequestMessage(BanRequest banRequest)
         {
-
             User? moderator = await DiscordCache.Users.Get(banRequest.moderator_id.ToString());
             Roblox.RobloxUser? target = await Roblox.GetUserById(banRequest.target_id.ToString());
 
@@ -131,6 +130,8 @@ namespace Whispbot
 
         public static async Task<(BanRequest?, string?)> CreateBanRequest(long guildId, long moderatorId, long targetId, string reason = "No reason provided")
         {
+            if (!(await WhispPermissions.CheckModule(guildId.ToString(), Commands.Module.RobloxModeration)).Item1) return (null, "{string.errors.rmlog.moduledisabled}");
+
             if (!await WhispPermissions.HasPermission(guildId.ToString(), moderatorId.ToString(), BotPermissions.UseBanRequests))
             {
                 return (null, "{string.errors.rmlog.noperms}");

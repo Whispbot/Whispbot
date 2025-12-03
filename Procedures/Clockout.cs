@@ -67,6 +67,8 @@ namespace Whispbot
 
         public static async Task<(Shift?, string?)> Clockout(long guildId, long moderatorId, ShiftType type, long? adminId = null)
         {
+            if (!(await WhispPermissions.CheckModule(guildId.ToString(), Commands.Module.Shifts)).Item1) return (null, "{string.errors.clockin.moduledisabled}");
+
             if (adminId is not null && !await WhispPermissions.HasPermission(guildId.ToString(), (adminId ?? 0).ToString(), BotPermissions.ManageShifts))
             {
                 return (null, "{string.errors.clockin.adminnoperms}");

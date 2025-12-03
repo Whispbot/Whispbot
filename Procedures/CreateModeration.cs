@@ -132,6 +132,8 @@ namespace Whispbot
 
         public static async Task<(RobloxModeration?, string?)> CreateModeration(long guildId, long moderatorId, long targetId, RobloxModerationType type, string reason = "No reason provided", int flags = 0)
         {
+            if (!(await WhispPermissions.CheckModule(guildId.ToString(), Commands.Module.RobloxModeration)).Item1) return (null, "{string.errors.rmlog.moduledisabled}");
+
             if (!await WhispPermissions.HasPermission(guildId.ToString(), moderatorId.ToString(), BotPermissions.UseRobloxModerations))
             {
                 return (null, "{string.errors.rmlog.noperms}");

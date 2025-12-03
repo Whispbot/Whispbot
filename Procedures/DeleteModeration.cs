@@ -48,7 +48,7 @@ namespace Whispbot
             if (caseId == -1)
             {
                 moderation = Postgres.SelectFirst<RobloxModeration>(
-                    "DELETE FROM roblox_moderations WHERE guild_id = @1 AND \"case\" = (SELECT \"case\" FROM roblox_moderations WHERE guild_id = @1 AND moderator_id = @2 ORDER BY created_at DESC LIMIT 1) RETURNING *",
+                    "DELETE FROM roblox_moderations WHERE guild_id = @1 AND moderator_id = @2 AND \"case\" = (SELECT \"case\" FROM roblox_moderations WHERE guild_id = @1 AND moderator_id = @2 ORDER BY created_at DESC LIMIT 1) RETURNING *",
                     [long.Parse(guildId), long.Parse(moderatorId)]
                 );
             }
