@@ -269,7 +269,7 @@ namespace Whispbot.Databases
 
         public static NpgsqlTransaction? BeginTransaction()
         {
-            using var connection = GetConnection();
+            var connection = GetConnection();
             if (connection is null) return null;
 
             return connection.BeginTransaction();
@@ -277,49 +277,109 @@ namespace Whispbot.Databases
 
         public static List<T>? Select<T>(string sql, List<object>? args = null, NpgsqlTransaction? transaction = null) where T : new()
         {
-            using var connection = transaction?.Connection ?? GetConnection();
-            if (connection is null) return null;
+            NpgsqlConnection? connection = transaction?.Connection;
+            bool connectionOwned = false;
+            if (connection == null)
+            {
+                connection = GetConnection();
+                if (connection is null) return null;
+                connectionOwned = true;
+            }
 
-            using var command = new NpgsqlCommand(sql, connection, transaction);
-            command.AddArgs(args ?? []);
-
-            using var reader = command.ExecuteReader();
-            return reader.ToList<T>();
+            try
+            {
+                using var command = new NpgsqlCommand(sql, connection, transaction);
+                command.AddArgs(args ?? []);
+                using var reader = command.ExecuteReader();
+                return reader.ToList<T>();
+            }
+            finally
+            {
+                if (connectionOwned)
+                {
+                    try { connection.Dispose(); } catch { }
+                }
+            }
         }
 
         public static List<dynamic>? Select(string sql, List<object>? args = null, NpgsqlTransaction? transaction = null)
         {
-            using var connection = transaction?.Connection ?? GetConnection();
-            if (connection is null) return null;
+            NpgsqlConnection? connection = transaction?.Connection;
+            bool connectionOwned = false;
+            if (connection == null)
+            {
+                connection = GetConnection();
+                if (connection is null) return null;
+                connectionOwned = true;
+            }
 
-            using var command = new NpgsqlCommand(sql, connection, transaction);
-            command.AddArgs(args ?? []);
-
-            using var reader = command.ExecuteReader();
-            return reader.ToDynamicList();
+            try
+            {
+                using var command = new NpgsqlCommand(sql, connection, transaction);
+                command.AddArgs(args ?? []);
+                using var reader = command.ExecuteReader();
+                return reader.ToDynamicList();
+            }
+            finally
+            {
+                if (connectionOwned)
+                {
+                    try { connection.Dispose(); } catch { }
+                }
+            }
         }
 
         public static T? SelectFirst<T>(string sql, List<object>? args = null, NpgsqlTransaction? transaction = null) where T : new()
         {
-            using var connection = transaction?.Connection ?? GetConnection();
-            if (connection is null) return default;
+            NpgsqlConnection? connection = transaction?.Connection;
+            bool connectionOwned = false;
+            if (connection == null)
+            {
+                connection = GetConnection();
+                if (connection is null) return default;
+                connectionOwned = true;
+            }
 
-            using var command = new NpgsqlCommand(sql, connection, transaction);
-            command.AddArgs(args ?? []);
-
-            using var reader = command.ExecuteReader();
-            return reader.FirstOrDefault<T>();
+            try
+            {
+                using var command = new NpgsqlCommand(sql, connection, transaction);
+                command.AddArgs(args ?? []);
+                using var reader = command.ExecuteReader();
+                return reader.FirstOrDefault<T>();
+            }
+            finally
+            {
+                if (connectionOwned)
+                {
+                    try { connection.Dispose(); } catch { }
+                }
+            }
         }
 
         public static int Execute(string sql, List<object>? args = null, NpgsqlTransaction? transaction = null)
         {
-            using var connection = transaction?.Connection ?? GetConnection();
-            if (connection is null) return -1;
+            NpgsqlConnection? connection = transaction?.Connection;
+            bool connectionOwned = false;
+            if (connection == null)
+            {
+                connection = GetConnection();
+                if (connection is null) return -1;
+                connectionOwned = true;
+            }
 
-            using var command = new NpgsqlCommand(sql, connection, transaction);
-            command.AddArgs(args ?? []);
-
-            return command.ExecuteNonQuery();
+            try
+            {
+                using var command = new NpgsqlCommand(sql, connection, transaction);
+                command.AddArgs(args ?? []);
+                return command.ExecuteNonQuery();
+            }
+            finally
+            {
+                if (connectionOwned)
+                {
+                    try { connection.Dispose(); } catch { }
+                }
+            }
         }
 
         /// <summary>

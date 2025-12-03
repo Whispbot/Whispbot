@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using Microsoft.Extensions.Hosting;
+using Newtonsoft.Json;
 using Npgsql;
 using Serilog;
 using StackExchange.Redis;
@@ -200,8 +201,9 @@ namespace Whispbot
         public long id = 0;
         public string? name;
         public string? icon_url;
-        public BotVersion version = BotVersion.Production;
+        public EnvironmentType version = EnvironmentType.Prod;
         public long enabled_modules = 0;
+        public string? prefix;
 
         public int? default_language = 0;
 
@@ -251,13 +253,6 @@ namespace Whispbot
         public string? code = null;
 
         public bool allow_ban_requests = true;
-    }
-
-    public enum BotVersion
-    {
-        Production = 0,
-        Beta = 1,
-        Alpha = 2
     }
 
     public class ShiftType
