@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Commands;
+using Whispbot.Commands.ERLC.Commands;
 using Whispbot.Interactions;
 
 namespace Whispbot
@@ -23,8 +24,36 @@ namespace Whispbot
         public static string staffPrefix = Config.IsDev ? ">>>" : ">>";
         public static string mainGuild = "1096509172784300174";
 
+        private static EnvironmentType? _envId = null;
+        public static EnvironmentType EnvId
+        {
+            get
+            {
+                if (_envId is not null) return _envId.Value;
+
+                if (IsDev) return EnvironmentType.Dev;
+
+                string? versionEnv = Environment.GetEnvironmentVariable("WHISP_ENV_ID");
+
+                if (string.IsNullOrEmpty(versionEnv))
+                {
+                    return EnvironmentType.Dev;
+                }
+
+                bool parsed = Enum.TryParse<EnvironmentType>(versionEnv, true, out var envType);
+
+                if (!parsed) return EnvironmentType.Dev;
+
+                _envId = envType;
+                return envType;
+            }
+        }
+        public static readonly string websiteUrl = Environment.GetEnvironmentVariable("WHISP_WEBSITE_URL") ?? "https://whisp.bot";
+        public static readonly string prefix = Environment.GetEnvironmentVariable("WHISP_LEGACY_PREFIX") ?? "!";
+
         public static CommandManager? commands;
         public static InteractionManager? interactions;
+        public static ERLCCommandManager? erlcCommands;
     }
 
     public class Auth
@@ -32,5 +61,12 @@ namespace Whispbot
         public Guid id;
         public string user_id = "";
         public string username = "";
+    }
+
+    public enum EnvironmentType
+    {
+        Prod = 0,
+        Beta = 1,
+        Dev = 2
     }
 }

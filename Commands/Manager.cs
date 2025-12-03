@@ -35,6 +35,7 @@ namespace Whispbot.Commands
             RegisterCommand(new Ping());
             RegisterCommand(new About());
             RegisterCommand(new Support());
+            RegisterCommand(new Prefix());
             RegisterCommand(new Connections());
 
             RegisterCommand(new Clockin());
@@ -99,7 +100,15 @@ namespace Whispbot.Commands
 
         public async Task HandleMessage(Client client, Message message)
         {
-            string prefix = Config.IsDev ? "a!" : "b!";
+            if (message.webhook_id is not null)
+            {
+                Config.erlcCommands?.HandleMessage(client, message);
+                return;
+            }
+
+            GuildConfig? guildConfig = message.channel?.guild_id is not null ? await WhispCache.GuildConfig.Get(message.channel.guild_id) : null;
+
+            string prefix = guildConfig?.prefix ?? Config.prefix;
             string mention = $"<@{client.readyData?.user.id}>";
 
             string staffPrefix = Config.staffPrefix;
@@ -141,6 +150,18 @@ namespace Whispbot.Commands
                 args = [.. args.Where(a => !flags.Contains(a))];
 
                 var ctx = new CommandContext(client, message, args, flags);
+
+                if (ctx.GuildConfig is null)
+                {
+                    await ctx.Reply("{emoji.warning} {string.errors.dbfailed}");
+                    return;
+                }
+
+                if (ctx.GuildConfig.version != Config.EnvId)
+                {
+                    return;
+                }
+                
 
                 if (ctx.UserConfig?.ack_required ?? false)
                 {
