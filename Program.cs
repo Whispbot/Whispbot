@@ -14,6 +14,7 @@ using Whispbot.API;
 using YellowMacaroni.Discord.Extentions;
 using Whispbot.Interactions;
 using Whispbot.Tools;
+using Whispbot.Commands.ERLC.Commands;
 
 Logger.Initialize();
 
@@ -179,6 +180,9 @@ commands.Attach(sharding);
 InteractionManager interactions = new();
 Config.interactions = interactions;
 interactions.Attach(sharding);
+
+ERLCCommandManager erlcCommands = new();
+Config.erlcCommands = erlcCommands;
 
 foreach (Shard shard in sharding.shards)
 {
