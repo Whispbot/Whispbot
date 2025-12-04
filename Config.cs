@@ -48,7 +48,7 @@ namespace Whispbot
                 return envType;
             }
         }
-        public static readonly string websiteUrl = Environment.GetEnvironmentVariable("WHISP_WEBSITE_URL") ?? "https://whisp.bot";
+        public static readonly string websiteUrl = !IsDev ? Environment.GetEnvironmentVariable("WHISP_WEBSITE_URL") ?? "https://whisp.bot" : "http://localhost:3001";
         public static readonly string prefix = Environment.GetEnvironmentVariable("WHISP_LEGACY_PREFIX") ?? "!";
 
         public static CommandManager? commands;

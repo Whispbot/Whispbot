@@ -70,7 +70,8 @@ namespace Whispbot
                         author = new EmbedAuthor
                         {
                             name = moderator?.global_name is not null ? moderator.global_name : $"@{moderator?.username ?? "unknown"}",
-                            icon_url = moderator?.avatar_url
+                            icon_url = moderator?.avatar_url,
+                            url = $"{Config.websiteUrl}/case/{moderation.guild_id}/{moderation.@case}"
                         },
                         title = "{string.title.rmlog.newmoderation}",
                         thumbnail = new EmbedThumbnail
