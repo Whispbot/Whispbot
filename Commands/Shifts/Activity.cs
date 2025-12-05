@@ -66,11 +66,37 @@ namespace Whispbot.Commands.Shifts
             }
 
             List<ShiftUserActivity>? userActivities = Postgres.Select<ShiftUserActivity>(
-                @$"SELECT moderator_id, SUM(EXTRACT(EPOCH FROM (end_time - start_time)) * 1000) AS duration, COUNT(*) AS shifts
-                FROM shifts
-                WHERE guild_id = @1 AND end_time IS NOT NULL {(type is not null ? "AND type = @3" : "")} AND start_time >= NOW() - (@2 * INTERVAL '1 milliseconds')
-                GROUP BY moderator_id;",
-                [long.Parse(ctx.GuildId), duration, .. type is not null ? new List<long> { type.id } : []]
+                @$"
+                WITH moderators AS (
+                    SELECT DISTINCT moderator_id
+                    FROM shifts
+                    WHERE guild_id = @1
+                    {(type is not null ? "AND type = @3" : "")}
+                ),
+                agg AS (
+                    SELECT
+                        moderator_id,
+                        SUM(EXTRACT(EPOCH FROM (end_time - start_time)) * 1000) AS duration,
+                        COUNT(*) AS shifts
+                    FROM shifts
+                    WHERE guild_id = @1
+                      AND end_time IS NOT NULL
+                      {(type is not null ? "AND type = @3" : "")}
+                      AND start_time >= NOW() - (@2 * INTERVAL '1 milliseconds')
+                    GROUP BY moderator_id
+                )
+                SELECT
+                    m.moderator_id,
+                    COALESCE(a.duration, 0) AS duration,
+                    COALESCE(a.shifts, 0)   AS shifts
+                FROM moderators m
+                LEFT JOIN agg a ON a.moderator_id = m.moderator_id;
+                ",
+                [
+                    long.Parse(ctx.GuildId),
+                    duration,
+                    .. (type is not null ? new List<long> { type.id } : [])
+                ]
             );
 
             if (userActivities is null)
