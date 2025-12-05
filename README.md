@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="/whispbot.ico" alt="Whispbot Logo">
+    <img src="./whispbot.ico" alt="Whispbot Logo">
 </p>
 
 <h1 align="center">Whispbot</h1>
