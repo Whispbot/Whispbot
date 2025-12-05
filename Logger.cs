@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Serilog;
+using Serilog.Sinks.SystemConsole.Themes;
 
 namespace Whispbot
 {
@@ -12,11 +13,9 @@ namespace Whispbot
         public static void Initialize()
         {
             Log.Logger = new LoggerConfiguration()
-                .MinimumLevel.Debug()
-                .WriteTo.Console(outputTemplate: $"[{{Timestamp:HH:mm:ss}} {{Level:u3}}] {(Config.replicaId is not null ? $"[{Config.replicaId}] " : "")}{{Message:lj}}{{NewLine}}{{Exception}}")
+                .MinimumLevel.Is(Config.IsDev ? Serilog.Events.LogEventLevel.Verbose : Serilog.Events.LogEventLevel.Information)
+                .WriteTo.Console(outputTemplate: $"[{{Timestamp:HH:mm:ss}} {{Level:u3}}] {(Config.replicaId is not null ? $"[{Config.replicaId}] " : "")}{{Message:lj}}{{NewLine}}{{Exception}}", theme: SystemConsoleTheme.Colored)
                 .CreateLogger();
-
-            Log.Information("Logger initialized");
         }
 
         public static void Shutdown()

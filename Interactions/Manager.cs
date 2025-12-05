@@ -64,7 +64,7 @@ namespace Whispbot.Interactions
             RegisterInteraction(new BanRequestDeny());
 
 
-            if (Config.IsDev) Log.Debug($"[Debug] Loaded {_interactions.Count} interactions");
+            Log.Debug($"[Debug] Loaded {_interactions.Count} interactions");
         }
 
         public void RegisterInteraction(InteractionData interaction)

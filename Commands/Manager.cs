@@ -73,7 +73,7 @@ namespace Whispbot.Commands
 
             #endregion
 
-            if (Config.IsDev) Log.Debug($"[Debug] Loaded {commands.Count} commands");
+            Log.Debug($"Loaded {commands.Count} commands");
         }
 
         public void RegisterCommand(Command command)

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
@@ -12,7 +13,8 @@ namespace Whispbot
 {
     public static class Config
     {
-        public static readonly string Version = "1.0.0";
+        public static readonly Version? version = Assembly.GetEntryAssembly()?.GetName().Version;
+        public static readonly string versionText = $"{version?.Major ?? 1}.{version?.Minor}.{version?.Build}";
         public static bool IsDev => RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
         public static Replica? replica = null;
         public static int cluster = -1;

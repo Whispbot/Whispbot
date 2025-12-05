@@ -43,7 +43,7 @@ namespace Whispbot.Commands.ERLC.Commands
 
             #endregion
 
-            if (Config.IsDev) Log.Debug($"[Debug] Loaded {commands.Count} ERLC commands");
+            Log.Debug($"[Debug] Loaded {commands.Count} ERLC commands");
         }
 
         public void RegisterCommand(ERLCCommand command)

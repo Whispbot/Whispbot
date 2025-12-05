@@ -61,7 +61,7 @@ namespace Whispbot.Commands.General
                                 new SeperatorBuilder(false),
                                 new TextDisplayBuilder(
                                     $"## Versions" +
-                                    $"\n**Whisp Version:** {Config.Version}" +
+                                    $"\n**Whisp Version:** V{Config.versionText}" +
                                     $"\n**Discord API Version:** 10" +
                                     $"\n**Discord Lib Version:** {Assembly.Load("YellowMacaroni.Discord").GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0]}" +
                                     $"\n**C# Version:** {Environment.Version}"

@@ -19,7 +19,18 @@ using Whispbot.Commands.ERLC.Commands;
 Logger.Initialize();
 
 bool dev = Config.IsDev;
-if (dev) Log.Information("Running in development mode.");
+
+Log.Information(@$"
+ _    _ _     _           _           _   
+| |  | | |   (_)         | | V{Config.versionText,-7}| |  
+| |  | | |__  _ ___ _ __ | |__   ___ | |_ 
+| |/\| | '_ \| / __| '_ \| '_ \ / _ \| __|
+\  /\  / | | | \__ \ |_) | |_) | (_) | |_ 
+ \/  \/|_| |_|_|___/ .__/|_.__/ \___/ \__|{(dev ? ".dev" : "")}
+                   | |                    
+                   |_|                    
+");
+
 
 string? token = dev ? Environment.GetEnvironmentVariable("DEV_TOKEN") : Environment.GetEnvironmentVariable("CLIENT_TOKEN");
 
@@ -201,7 +212,7 @@ foreach (Shard shard in sharding.shards)
     {
         shard.client.Debug += (client, message) =>
         {
-            Log.Debug($"[{message.type}] {message.message}");
+            Log.Verbose($"[{message.type}] {message.message}");
         };
     }
 
