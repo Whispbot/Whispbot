@@ -82,14 +82,6 @@ namespace Whispbot.Databases
                         lang.Add(data.data.key, data.data.content);
                     }
                 }
-                else if (e.Channel == "proof_delete" && Config.cluster == 0 && Config.EnvId == 0)
-                {
-                    var data = JsonConvert.DeserializeObject<ProofDeletePayload>(e.Payload);
-
-                    if (data is null) return;
-
-                    await Bucket.DeleteObject($"guild/{data.guild_id}/moderation/proof/{data.id}.{data.extension}");
-                }
             };
 
             using var listenGuildUpdate = new NpgsqlCommand("LISTEN guild_update;", conn);
@@ -97,9 +89,6 @@ namespace Whispbot.Databases
 
             using var listenLanguageUpdate = new NpgsqlCommand("LISTEN language_update", conn);
             listenLanguageUpdate.ExecuteNonQuery();
-
-            using var listenProofDelete = new NpgsqlCommand("LISTEN proof_delete", conn);
-            listenProofDelete.ExecuteNonQuery();
 
             while (true) await conn.WaitAsync();
         }
