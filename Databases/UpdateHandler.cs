@@ -88,7 +88,7 @@ namespace Whispbot.Databases
 
                     if (data is null) return;
 
-                    await Bucket.DeleteObject($"guild/{data.guild_id}/moderation/proof/{data.id}.{data.extention}");
+                    await Bucket.DeleteObject($"guild/{data.guild_id}/moderation/proof/{data.id}.{data.extension}");
                 }
             };
 
@@ -106,7 +106,7 @@ namespace Whispbot.Databases
 
 #pragma warning disable IDE1006
         public record GuildUpdatePayload(long id, string table, string op);
-        public record ProofDeletePayload(Guid id, string guild_id, string extention);
+        public record ProofDeletePayload(Guid id, string guild_id, string extension);
         public record LanguageUpdatePayload(Strings.DBLanguage data, string op);
 #pragma warning restore IDE1006
     }
