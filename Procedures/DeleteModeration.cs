@@ -48,7 +48,7 @@ namespace Whispbot
             if (caseId == -1)
             {
                 moderation = Postgres.SelectFirst<RobloxModeration>(
-                    "DELETE FROM roblox_moderations WHERE guild_id = @1 AND moderator_id = @2 AND \"case\" = (SELECT \"case\" FROM roblox_moderations WHERE guild_id = @1 AND moderator_id = @2 ORDER BY created_at DESC LIMIT 1) RETURNING *",
+                    "UPDATE roblox_moderations SET is_deleted = TRUE WHERE guild_id = @1 AND moderator_id = @2 AND \"case\" = (SELECT \"case\" FROM roblox_moderations WHERE guild_id = @1 AND moderator_id = @2 ORDER BY created_at DESC LIMIT 1) RETURNING *",
                     [long.Parse(guildId), long.Parse(moderatorId)]
                 );
             }
@@ -57,7 +57,7 @@ namespace Whispbot
                 if (hasAdminPerms)
                 {
                     moderation = Postgres.SelectFirst<RobloxModeration>(
-                        "DELETE FROM roblox_moderations WHERE guild_id = @1 AND \"case\" = (SELECT \"case\" FROM roblox_moderations WHERE guild_id = @1 ORDER BY updated_at DESC LIMIT 1) RETURNING *",
+                        "UPDATE roblox_moderations SET is_deleted = TRUE WHERE guild_id = @1 AND \"case\" = (SELECT \"case\" FROM roblox_moderations WHERE guild_id = @1 ORDER BY updated_at DESC LIMIT 1) RETURNING *",
                         [long.Parse(guildId)]
                     );
                 }
@@ -66,7 +66,7 @@ namespace Whispbot
             else
             {
                 moderation = Postgres.SelectFirst<RobloxModeration>(
-                    $"DELETE FROM roblox_moderations WHERE guild_id = @1 AND \"case\" = @2{(hasAdminPerms ? "" : " AND moderator_id = @3")} RETURNING *",
+                    $"UPDATE roblox_moderations SET is_deleted = TRUE WHERE guild_id = @1 AND \"case\" = @2{(hasAdminPerms ? "" : " AND moderator_id = @3")} RETURNING *",
                     [long.Parse(guildId), caseId, ..(hasAdminPerms ? [] : new List<long> { long.Parse(moderatorId) })]
                 );
             }

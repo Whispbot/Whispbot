@@ -54,7 +54,7 @@ namespace Whispbot
                     SET reason = @1, updated_at = NOW(), updated_by = @2
                     WHERE " + "\"case\"" + @" = (
                         SELECT " + "\"case\"" + @" FROM roblox_moderations
-                        WHERE guild_id = @3 AND moderator_id = @2
+                        WHERE guild_id = @3 AND moderator_id = @2 AND is_deleted = FALSE
                         ORDER BY created_at DESC
                         LIMIT 1
                     ) AND guild_id = @3 AND moderator_id = @2
@@ -76,7 +76,7 @@ namespace Whispbot
                             WHERE guild_id = @3
                             ORDER BY created_at DESC
                             LIMIT 1
-                        ) AND guild_id = @3
+                        ) AND guild_id = @3 AND is_deleted = FALSE
                         RETURNING *;
                         ",
                         [reason, long.Parse(moderatorId), long.Parse(guildId)]
@@ -89,7 +89,7 @@ namespace Whispbot
                     @"
                     UPDATE roblox_moderations
                     SET reason = @1, updated_at = NOW(), updated_by = @2
-                    WHERE guild_id = @3 AND " + "\"case\"" + @$" = @4{(hasAdminPerms ? "" : " AND moderator_id = @2")}
+                    WHERE guild_id = @3 AND " + "\"case\"" + @$" = @4{(hasAdminPerms ? "" : " AND moderator_id = @2")} AND is_deleted = FALSE
                     RETURNING *;
                     ",
                     [reason, long.Parse(moderatorId), long.Parse(guildId), caseId]
@@ -118,7 +118,7 @@ namespace Whispbot
                         WHERE guild_id = @3 AND moderator_id = @2
                         ORDER BY created_at DESC
                         LIMIT 1
-                    ) AND guild_id = @3 AND moderator_id = @2
+                    ) AND guild_id = @3 AND moderator_id = @2 AND is_deleted = FALSE
                     RETURNING *;
                     ",
                     [type.id, long.Parse(moderatorId), long.Parse(guildId)]
@@ -137,7 +137,7 @@ namespace Whispbot
                             WHERE guild_id = @3
                             ORDER BY created_at DESC
                             LIMIT 1
-                        ) AND guild_id = @3
+                        ) AND guild_id = @3 AND is_deleted = FALSE
                         RETURNING *;
                         ",
                         [type.id, long.Parse(moderatorId), long.Parse(guildId)]
@@ -150,7 +150,7 @@ namespace Whispbot
                     @"
                     UPDATE roblox_moderations
                     SET type = @1, updated_at = NOW(), updated_by = @2
-                    WHERE guild_id = @3 AND " + "\"case\"" + @$" = @4{(hasAdminPerms ? "" : " AND moderator_id = @2")}
+                    WHERE guild_id = @3 AND " + "\"case\"" + @$" = @4{(hasAdminPerms ? "" : " AND moderator_id = @2")} AND is_deleted = FALSE
                     RETURNING *;
                     ",
                     [type.id, long.Parse(moderatorId), long.Parse(guildId), caseId]
