@@ -32,7 +32,7 @@ namespace Whispbot.Commands.Roblox_Moderation
             }
 
             if (!await WhispPermissions.CheckModuleMessage(ctx, Module.RobloxModeration)) return;
-            if (!await WhispPermissions.CheckPermissionsMessage(ctx, BotPermissions.UseRobloxModerations)) return;
+            if (!await WhispPermissions.CheckPermissionsMessage(ctx, BotPermissions.UseRobloxModerations | BotPermissions.ManageRobloxModerations)) return;
 
             if (ctx.args.Count < 1)
             {
