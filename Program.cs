@@ -68,7 +68,7 @@ APIThread.Start();
 
 Thread CacheThread = new(new ThreadStart(async () =>
 {
-    await WhispCache.OnTableUpdate();
+    await UpdateHandler.ListenForUpdates();
 }))
 {
     Name = "Whisp Cache",
