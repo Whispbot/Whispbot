@@ -106,7 +106,7 @@ namespace Whispbot.Databases
 
 #pragma warning disable IDE1006
         public record GuildUpdatePayload(long id, string table, string op);
-        public record ProofDeletePayload(Guid id, string guild_id, string extension);
+        public record ProofDeletePayload(string id, string guild_id, string extension);
         public record LanguageUpdatePayload(Strings.DBLanguage data, string op);
 #pragma warning restore IDE1006
     }
