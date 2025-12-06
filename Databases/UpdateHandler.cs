@@ -82,7 +82,7 @@ namespace Whispbot.Databases
                         lang.Add(data.data.key, data.data.content);
                     }
                 }
-                else if (e.Channel == "proof_delete")
+                else if (e.Channel == "proof_delete" && Config.cluster == 0 && Config.EnvId == 0)
                 {
                     var data = JsonConvert.DeserializeObject<ProofDeletePayload>(e.Payload);
 
