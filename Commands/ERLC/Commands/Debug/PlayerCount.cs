@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Whispbot.Commands.ERLC.Commands.Debug
+namespace Whispbot.Commands.ERLCCommands.Commands.Debug
 {
     public class PlayerCount: ERLCCommand
     {

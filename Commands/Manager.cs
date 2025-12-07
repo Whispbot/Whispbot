@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using Whispbot.Commands.ERLC;
+using Whispbot.Commands.ERLCCommands;
 using Whispbot.Commands.General;
 using Whispbot.Commands.Roblox_Moderation;
 using Whispbot.Commands.Shifts;
@@ -29,9 +29,7 @@ namespace Whispbot.Commands
 
         public CommandManager()
         {
-
             #region Commands
-
             RegisterCommand(new Ping());
             RegisterCommand(new About());
             RegisterCommand(new Support());
@@ -70,7 +68,6 @@ namespace Whispbot.Commands
             RegisterStaffCommand(new UpdateLanguages());
             RegisterStaffCommand(new AIRequest());
             RegisterStaffCommand(new ResolveError());
-
             #endregion
 
             Log.Debug($"Loaded {commands.Count} commands");
@@ -120,28 +117,8 @@ namespace Whispbot.Commands
                 List<string> args = [.. message.content[prefix.Length..].Split(' ', StringSplitOptions.RemoveEmptyEntries)];
                 string content = args.Join(" ");
 
-                Command? command = null;
-                for (int len = MaxLength; len > 0; len--)
-                {
-                    Command? activeCommand = commands.Find(c =>
-                    {
-                        foreach (string alias in c.Aliases)
-                        {
-                            int length = alias.Split(" ").Length;
-                            if (length == len && (content.StartsWith($"{alias} ", StringComparison.CurrentCultureIgnoreCase) || content.Equals(alias, StringComparison.CurrentCultureIgnoreCase)))
-                            {
-                                args.RemoveRange(0, length);
-                                return true;
-                            }
-                        }
-                        return false;
-                    });
-                    if (activeCommand is not null)
-                    {
-                        command = activeCommand;
-                        break;
-                    }
-                }
+                Command? command = GetCommandByName(content, out int length);
+                args.RemoveRange(0, length);
 
                 if (command is null) return;
 
@@ -157,12 +134,8 @@ namespace Whispbot.Commands
                     return;
                 }
 
-                if (ctx.GuildConfig.version != Config.EnvId)
-                {
-                    return;
-                }
+                if (ctx.GuildConfig.version != Config.EnvId) return;
                 
-
                 if (ctx.UserConfig?.ack_required ?? false)
                 {
                     await ctx.Reply(Actions.GenerateAcknowledgeMessage(long.Parse(ctx.UserId ?? "0")));
@@ -170,52 +143,7 @@ namespace Whispbot.Commands
                     return;
                 }
 
-                if (command.Ratelimits.Count > 0)
-                {
-                    foreach (var rl in command!.Ratelimits)
-                    {
-                        string rlk = rl.type switch
-                        {
-                            RateLimitType.Global => "global",
-                            RateLimitType.Guild => message.channel?.guild_id ?? "global",
-                            RateLimitType.User => message.author.id,
-                            _ => "global"
-                        };
-
-                        string key = $"{command.Name}:{rlk}";
-
-                        RatelimitData? data = ratelimits.GetValueOrDefault(key);
-                        if (data is null)
-                        {
-                            ratelimits[key] = new RatelimitData()
-                            {
-                                Remaining = rl.amount - 1,
-                                Reset = DateTimeOffset.UtcNow + rl.per
-                            };
-                        }
-                        else
-                        {
-                            if (data.Remaining == 0 && data.Reset > DateTimeOffset.UtcNow)
-                            {
-                                await ctx.Reply("{string.errors.ratelimited}".Process(ctx.Language, new Dictionary<string, string>() { { "reset", Time.ConvertMillisecondsToRelativeString(data.Reset.ToUnixTimeMilliseconds(), false, ", ", false, 1000) } }));
-
-                                return;
-                            }
-                            else
-                            {
-                                if (data.Reset <= DateTimeOffset.UtcNow)
-                                {
-                                    data.Remaining = rl.amount - 1;
-                                    data.Reset = DateTimeOffset.UtcNow + rl.per;
-                                }
-                                else
-                                {
-                                    data.Remaining--;
-                                }
-                            }
-                        }
-                    }
-                }
+                if (await IsRatelimited(ctx, command)) return;
 
                 try
                 {
@@ -224,36 +152,8 @@ namespace Whispbot.Commands
                 catch (Exception ex)
                 {
                     var id = SentrySdk.CaptureException(ex);
-
-                    var e_result = await ctx.EditResponse(new MessageBuilder
-                    {
-                        components = [
-                            new ContainerBuilder
-                            {
-                                components = [
-                                    new TextDisplayBuilder("## {string.title.error}"),
-                                    new TextDisplayBuilder("{string.content.error}".Process(ctx.Language, new() { { "url", "<https://whisp.bot/support>" } })),
-                                    new TextDisplayBuilder($"{{string.content.error.id}}:\n```\n{id}\n```"),
-                                    new SectionBuilder
-                                    {
-                                        components = [
-                                            new TextDisplayBuilder("{string.content.error.feedback}")
-                                        ],
-                                        accessory = new ButtonBuilder
-                                        {
-                                            label = "{string.content.error.feedback_button}",
-                                            custom_id = $"error_feedback {ctx.UserId} {id}",
-                                            style = ButtonStyle.Secondary
-                                        }
-                                    }
-                                ],
-                                accent = new(200, 69, 69)
-                            }
-                        ],
-                        flags = MessageFlags.IsComponentsV2
-                    });
-
-                    if (e_result.Item2 is not null) Log.Error(e_result.Item2.ToString());
+                    Log.Error($"An error occured while executing '{command.Name}'\nUser: @{ctx.User?.username} ({ctx.UserId})\nGuild: {ctx.Guild?.name} ({ctx.GuildId})\n\n", ex);
+                    await SendErrorMessage(ctx, id);
                 }
             }
             else if 
@@ -266,28 +166,8 @@ namespace Whispbot.Commands
                 List<string> args = [.. message.content[staffPrefix.Length..].Split(' ', StringSplitOptions.RemoveEmptyEntries)];
                 string content = args.Join(" ");
 
-                Command? command = null;
-                for (int len = MaxLength; len > 0; len--)
-                {
-                    Command? activeCommand = staffCommands.Find(c =>
-                    {
-                        foreach (string alias in c.Aliases)
-                        {
-                            int length = alias.Split(" ").Length;
-                            if (length == len && (content.StartsWith($"{alias} ", StringComparison.CurrentCultureIgnoreCase) || content.Equals(alias, StringComparison.CurrentCultureIgnoreCase)))
-                            {
-                                args.RemoveRange(0, length);
-                                return true;
-                            }
-                        }
-                        return false;
-                    });
-                    if (activeCommand is not null)
-                    {
-                        command = activeCommand;
-                        break;
-                    }
-                }
+                Command? command = GetCommandByName(content, out int length);
+                args.RemoveRange(0, length);
 
                 MatchCollection matches = Regex.Matches(args.Join(" "), @"--(\w+)");
                 List<string> flags = [.. matches.Select(m => m.Groups[1].Value)];
@@ -295,6 +175,119 @@ namespace Whispbot.Commands
 
                 command?.ExecuteAsync(new CommandContext(client, message, args, flags));
             }
+        }
+
+        public Command? GetCommandByName(string name, out int length)
+        {
+            Command? command = null;
+            int commandLength = 0;
+            for (int len = MaxLength; len > 0; len--)
+            {
+                Command? activeCommand = commands.Find(c =>
+                {
+                    foreach (string alias in c.Aliases)
+                    {
+                        commandLength = alias.Split(" ").Length;
+                        if (commandLength == len && (name.StartsWith($"{alias} ", StringComparison.CurrentCultureIgnoreCase) || name.Equals(alias, StringComparison.CurrentCultureIgnoreCase)))
+                        {
+                            return true;
+                        }
+                    }
+                    return false;
+                });
+                if (activeCommand is not null)
+                {
+                    command = activeCommand;
+                    break;
+                }
+            }
+
+            length = commandLength;
+            return command;
+        }
+
+        public async Task<bool> IsRatelimited(CommandContext ctx, Command command)
+        {
+            if (command.Ratelimits.Count > 0) return false;
+
+            Message message = ctx.message;
+
+            foreach (var rl in command!.Ratelimits)
+            {
+                string rlk = rl.type switch
+                {
+                    RateLimitType.Global => "global",
+                    RateLimitType.Guild => message.channel?.guild_id ?? "global",
+                    RateLimitType.User => message.author.id,
+                    _ => "global"
+                };
+
+                string key = $"{command.Name}:{rlk}";
+
+                RatelimitData? data = ratelimits.GetValueOrDefault(key);
+                if (data is null)
+                {
+                    ratelimits[key] = new RatelimitData()
+                    {
+                        Remaining = rl.amount - 1,
+                        Reset = DateTimeOffset.UtcNow + rl.per
+                    };
+                }
+                else
+                {
+                    if (data.Remaining == 0 && data.Reset > DateTimeOffset.UtcNow)
+                    {
+                        await ctx.Reply("{string.errors.ratelimited}".Process(ctx.Language, new Dictionary<string, string>() { { "reset", Time.ConvertMillisecondsToRelativeString(data.Reset.ToUnixTimeMilliseconds(), false, ", ", false, 1000) } }));
+
+                        return true;
+                    }
+                    else
+                    {
+                        if (data.Reset <= DateTimeOffset.UtcNow)
+                        {
+                            data.Remaining = rl.amount - 1;
+                            data.Reset = DateTimeOffset.UtcNow + rl.per;
+                        }
+                        else
+                        {
+                            data.Remaining--;
+                        }
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        public async Task SendErrorMessage(CommandContext ctx, SentryId id)
+        {
+            await ctx.EditResponse(new MessageBuilder
+            {
+                components = [
+                    new ContainerBuilder
+                    {
+                        components = [
+                            new TextDisplayBuilder("## {string.title.error}"),
+                            new TextDisplayBuilder("{string.content.error}".Process(ctx.Language, new() { { "url", "<https://whisp.bot/support>" } })),
+                            new TextDisplayBuilder($"{{string.content.error.id}}:\n```\n{id}\n```"),
+                            new SectionBuilder
+                            {
+                                components = [
+                                    new TextDisplayBuilder("{string.content.error.feedback}")
+                                ],
+                                accessory = new ButtonBuilder
+                                {
+                                    label = "{string.content.error.feedback_button}",
+                                    custom_id = $"error_feedback {ctx.UserId} {id}",
+                                    style = ButtonStyle.Secondary
+                                }
+                            }
+                        ],
+                        accent = new(200, 69, 69)
+                    }
+                ],
+                flags = MessageFlags.IsComponentsV2
+            });
         }
 
         public void Attach(Client client)
@@ -313,11 +306,6 @@ namespace Whispbot.Commands
                 Attach(shard.client);
             }
         }
-
-
-
-
-
 
         public class RatelimitData
         {

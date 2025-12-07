@@ -8,7 +8,7 @@ using Whispbot.Databases;
 using Whispbot.Tools;
 using YellowMacaroni.Discord.Extentions;
 
-namespace Whispbot.Commands.ERLC.Commands.Debug
+namespace Whispbot.Commands.ERLCCommands.Commands.Debug
 {
     public class PMUsers: ERLCCommand
     {

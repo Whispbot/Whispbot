@@ -13,7 +13,7 @@ using Whispbot.Tools;
 using YellowMacaroni.Discord.Core;
 using YellowMacaroni.Discord.Extentions;
 
-namespace Whispbot.Commands.ERLC
+namespace Whispbot.Commands.ERLCCommands
 {
     public class ERLC_JoinLogs : Command
     {
@@ -37,55 +37,17 @@ namespace Whispbot.Commands.ERLC
             if (!await WhispPermissions.CheckModuleMessage(ctx, Module.ERLC)) return;
             if (!await WhispPermissions.CheckPermissionsMessage(ctx, BotPermissions.UseERLC)) return;
 
-            List<ERLCServerConfig>? servers = await WhispCache.ERLCServerConfigs.Get(ctx.GuildId);
+            ERLCServerConfig? server = await ERLC.TryGetServer(ctx);
+            if (server is null) return;
 
-            if (servers is null || servers.Count == 0)
-            {
-                await ctx.Reply("{emoji.cross} {string.errors.erlcserver.notfound}");
-                return;
-            }
-
-            ERLCServerConfig? server = Tools.ERLC.GetServerFromString(servers, ctx.args.Join(" "));
-
-            if (server is null)
-            {
-                await ctx.Reply("{emoji.cross} {string.errors.erlcserver.notfound}");
-                return;
-            }
-
-            if (server.api_key is null)
-            {
-                await ctx.Reply("{emoji.cross} {string.errors.erlcserver.nokey}");
-                return;
-            }
-
-            var response = Tools.ERLC.CheckCache(Tools.ERLC.Endpoint.ServerJoinlogs, server.DecryptedApiKey);
-
-            if (response is null)
-            {
-                await ctx.Reply("{emoji.loading} {string.content.erlcjoinlogs.fetching}...");
-                response = await Tools.ERLC.GetJoins(server);
-
-                if (response is null)
-                {
-                    await ctx.EditResponse("{emoji.cross} {string.errors.erlcserver.apierror}");
-                    return;
-                }
-            }
-
-            if (Tools.ERLC.ResponseHasError(response, out var errorMessage))
-            {
-                await ctx.EditResponse(errorMessage!);
-                return;
-            }
-
-            List<Tools.ERLC.PRC_JoinLog>? joinlogs = JsonConvert.DeserializeObject<List<Tools.ERLC.PRC_JoinLog>>(response.data?.ToString() ?? "[]");
+            var response = await ERLC.GetEndpointData<List<ERLC.PRC_JoinLog>>(ctx, server, ERLC.Endpoint.ServerJoinlogs);
+            var joinlogs = response?.data;
 
             if (joinlogs is not null)
             {
                 if (joinlogs.Count == 0)
                 {
-                    await ctx.EditResponse($"{{emoji.cross}} {{string.errors.erlcjoinlogs.nojoins}}\n-# {{string.content.erlcserver.updated}}: {(response.cachedAt is not null ? $"{Math.Round((decimal)(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - response.cachedAt) / 1000)}s ago" : "{string.content.erlcserver.justnow}")}");
+                    await ctx.EditResponse($"{{emoji.cross}} {{string.errors.erlcjoinlogs.nojoins}}\n-# {{string.content.erlcserver.updated}}: {(response!.cachedAt is not null ? $"{Math.Round((decimal)(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - response.cachedAt) / 1000)}s ago" : "{string.content.erlcserver.justnow}")}");
                     return;
                 }
 
@@ -94,34 +56,8 @@ namespace Whispbot.Commands.ERLC
 
                 List<long> robloxIds = [..joinlogs.Select(j => long.Parse(j.Player.Split(":")[1]))];
                 robloxIds = [.. robloxIds.Distinct()];
-                List<UserConfig>? userConfigs = WhispCache.UserConfig.FindMany((u, _) => robloxIds.Contains(u.roblox_id ?? 0));
-                List<long> missingIds = [..robloxIds.Where(id => !userConfigs.Any(u => u.roblox_id == id))];
-                if (missingIds.Count > 0)
-                {
-                    List<UserConfig>? fetchedConfigs = Postgres.Select<UserConfig>(
-                        @"SELECT * FROM user_config WHERE roblox_id IS NOT NULL AND roblox_id = ANY(@1);",
-                        [missingIds]
-                    );
-                    if (fetchedConfigs is not null && fetchedConfigs.Count > 0)
-                    {
-                        userConfigs.AddRange(fetchedConfigs);
-                        foreach (var config in fetchedConfigs)
-                        {
-                            WhispCache.UserConfig.Insert(config.id.ToString(), config);
-                        }
-                    }
-                }
-
-                List<Member>? members = null;
-                if (userConfigs is not null && userConfigs.Count > 0 && ctx.Guild is not null)
-                {
-                    members = ctx.Guild.members.FindMany((m, _) => userConfigs.Any(u => u.id.ToString() == m.user?.id));
-                    List<string> remainingMembers = [.. userConfigs.Where(u => !members.Any(m => m.user!.id == u.id.ToString())).Select(u => u.id.ToString())];
-                    if (remainingMembers.Count > 0)
-                    {
-                        members.AddRange(await ctx.Guild.GetMembers(ctx.client, [.. userConfigs.Select(u => u.id.ToString())]));
-                    }
-                }
+                List<UserConfig> userConfigs = await Users.GetConfigsFromRobloxIds(robloxIds);
+                List<Member>? members = await Users.GetMembersFromConfigs(userConfigs, ctx);
 
                 StringBuilder strings = new();
                 foreach (var log in joinlogs)
@@ -148,7 +84,7 @@ namespace Whispbot.Commands.ERLC
                             {
                                 title = $"{{string.title.joinlogs}}",
                                 description = strings.ToString(),
-                                footer = new EmbedFooter { text = $"{{string.content.erlcserver.updated}}: {(response.cachedAt is not null ? $"{Math.Round((decimal)(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - response.cachedAt)/1000)}s ago" : "{string.content.erlcserver.justnow}")}" }
+                                footer = new EmbedFooter { text = $"{{string.content.erlcserver.updated}}: {(response!.cachedAt is not null ? $"{Math.Round((decimal)(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - response.cachedAt)/1000)}s ago" : "{string.content.erlcserver.justnow}")}" }
                             }
                         ]
                     }
@@ -156,7 +92,7 @@ namespace Whispbot.Commands.ERLC
             }
             else
             {
-                await ctx.EditResponse($"{{emoji.cross}} [{response.code}] {response.message ?? "An unknown error occured"}.");
+                await ctx.EditResponse($"{{emoji.cross}} [{response!.code}] {response.message ?? "An unknown error occured"}.");
             }
         }
     }

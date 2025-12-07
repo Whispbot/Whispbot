@@ -6,8 +6,8 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using Whispbot.Commands.ERLC.Commands.Debug;
-using Whispbot.Commands.ERLC.Commands.Moderation;
+using Whispbot.Commands.ERLCCommands.Commands.Debug;
+using Whispbot.Commands.ERLCCommands.Commands.Moderation;
 using Whispbot.Databases;
 using Whispbot.Extensions;
 using Whispbot.Tools;
@@ -16,7 +16,7 @@ using YellowMacaroni.Discord.Core;
 using YellowMacaroni.Discord.Extentions;
 using YellowMacaroni.Discord.Sharding;
 
-namespace Whispbot.Commands.ERLC.Commands
+namespace Whispbot.Commands.ERLCCommands.Commands
 {
     public class ERLCCommandManager
     {

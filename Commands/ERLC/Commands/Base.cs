@@ -13,7 +13,7 @@ using YellowMacaroni.Discord.Cache;
 using YellowMacaroni.Discord.Core;
 using YellowMacaroni.Discord.Extentions;
 
-namespace Whispbot.Commands.ERLC.Commands
+namespace Whispbot.Commands.ERLCCommands.Commands
 {
     public abstract class ERLCCommand
     {

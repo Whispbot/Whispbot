@@ -14,7 +14,7 @@ using Whispbot.API;
 using YellowMacaroni.Discord.Extentions;
 using Whispbot.Interactions;
 using Whispbot.Tools;
-using Whispbot.Commands.ERLC.Commands;
+using Whispbot.Commands.ERLCCommands.Commands;
 
 Logger.Initialize();
 
@@ -30,7 +30,6 @@ Log.Information(@$"
                    | |                    
                    |_|                    
 ");
-
 
 string? token = dev ? Environment.GetEnvironmentVariable("DEV_TOKEN") : Environment.GetEnvironmentVariable("CLIENT_TOKEN");
 
@@ -248,7 +247,6 @@ if (!start)
             isLastCluster = parts[1] == "1";
         }
     });
-    
 }
 
 double lastRequestedStart = 0;

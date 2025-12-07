@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Commands;
+using Whispbot.Databases;
 using YellowMacaroni.Discord.Cache;
 using YellowMacaroni.Discord.Core;
 
@@ -31,6 +33,48 @@ namespace Whispbot.Tools
             }
 
             return null;
+        }
+
+        public static async Task<List<UserConfig>> GetConfigsFromRobloxIds(List<long> ids)
+        {
+            List<UserConfig>? userConfigs = WhispCache.UserConfig.FindMany((u, _) => ids.Contains(u.id));
+            List<long> missingIds = [.. ids.Where(id => !userConfigs.Any(u => u.id == id))];
+            if (missingIds.Count > 0)
+            {
+                List<UserConfig>? fetchedConfigs = Postgres.Select<UserConfig>(
+                    @"SELECT * FROM user_config WHERE roblox_id IS NOT NULL AND roblox_id = ANY(@1);",
+                    [missingIds]
+                );
+                if (fetchedConfigs is not null && fetchedConfigs.Count > 0)
+                {
+                    userConfigs.AddRange(fetchedConfigs);
+                    foreach (var config in fetchedConfigs)
+                    {
+                        WhispCache.UserConfig.Insert(config.id.ToString(), config);
+                    }
+                }
+            }
+
+            return userConfigs;
+        }
+
+        public static async Task<List<Member>> GetMembersFromConfigs(List<UserConfig> configs, CommandContext ctx)
+        {
+            Guild? guild = ctx.Guild;
+            if (guild is null) return [];
+
+            List<Member>? members = null;
+            if (configs.Count > 0)
+            {
+                members = guild.members.FindMany((m, _) => configs.Any(u => u.id.ToString() == m.user?.id));
+                List<string> remainingMembers = [.. configs.Where(u => !members.Any(m => m.user!.id == u.id.ToString())).Select(u => u.id.ToString())];
+                if (remainingMembers.Count > 0)
+                {
+                    members.AddRange(await guild.GetMembers(ctx.client, [.. configs.Select(u => u.id.ToString())]));
+                }
+            }
+
+            return members ?? [];
         }
     }
 }

@@ -6,7 +6,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Commands;
-using Whispbot.Commands.ERLC.Commands;
+using Whispbot.Commands.ERLCCommands.Commands;
 using Whispbot.Interactions;
 
 namespace Whispbot

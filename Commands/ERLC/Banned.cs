@@ -13,7 +13,7 @@ using Whispbot.Tools;
 using YellowMacaroni.Discord.Core;
 using YellowMacaroni.Discord.Extentions;
 
-namespace Whispbot.Commands.ERLC
+namespace Whispbot.Commands.ERLCCommands
 {
     public class ERLC_Banned : Command
     {
@@ -52,49 +52,11 @@ namespace Whispbot.Commands.ERLC
                 return;
             }
 
-            List<ERLCServerConfig>? servers = await WhispCache.ERLCServerConfigs.Get(ctx.GuildId);
+            ERLCServerConfig? server = await ERLC.TryGetServer(ctx);
+            if (server is null) return;
 
-            if (servers is null || servers.Count == 0)
-            {
-                await ctx.Reply("{emoji.cross} {string.errors.erlcserver.notfound}");
-                return;
-            }
-
-            ERLCServerConfig? server = Tools.ERLC.GetServerFromString(servers, ctx.args.Join(" "));
-
-            if (server is null)
-            {
-                await ctx.Reply("{emoji.cross} {string.errors.erlcserver.notfound}");
-                return;
-            }
-
-            if (server.api_key is null)
-            {
-                await ctx.Reply("{emoji.cross} {string.errors.erlcserver.nokey}");
-                return;
-            }
-
-            var response = Tools.ERLC.CheckCache(Tools.ERLC.Endpoint.ServerBans, server.DecryptedApiKey);
-
-            if (response is null)
-            {
-                await ctx.Reply("{emoji.loading} {string.content.erlcbans.fetching}...");
-                response = await Tools.ERLC.GetBans(server);
-
-                if (response is null)
-                {
-                    await ctx.EditResponse("{emoji.cross} {string.errors.erlcserver.apierror}");
-                    return;
-                }
-            }
-
-            if (Tools.ERLC.ResponseHasError(response, out var errorMessage))
-            {
-                await ctx.EditResponse(errorMessage!);
-                return;
-            }
-
-            Dictionary<string, string>? bans = JsonConvert.DeserializeObject<Dictionary<string, string>>(response.data?.ToString() ?? "{}");
+            var response = await ERLC.GetEndpointData<Dictionary<string, string>>(ctx, server, ERLC.Endpoint.ServerBans);
+            var bans = response?.data;
 
             if (bans is not null)
             {

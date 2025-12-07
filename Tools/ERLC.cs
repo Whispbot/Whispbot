@@ -9,6 +9,8 @@ using System.Security.Cryptography;
 using Whispbot.Databases;
 using YellowMacaroni.Discord.Core;
 using YellowMacaroni.Discord.Extentions;
+using Whispbot.Commands;
+using Microsoft.AspNetCore.Components.Web;
 
 namespace Whispbot.Tools
 {
@@ -178,16 +180,12 @@ namespace Whispbot.Tools
 
         public static async Task<PRC_Response?> GetServerInfo(ERLCServerConfig server)
         {
-            var response = await Request(Endpoint.ServerInfo, server.DecryptedApiKey);
-            if (response is not null) _ = Task.Run(() => PostGetServerInfo(response, server));
-            return response;
+            return await Request(Endpoint.ServerInfo, server.DecryptedApiKey);
         }
 
         public static async Task<PRC_Response?> GetPlayers(ERLCServerConfig server)
         {
-            var response = await Request(Endpoint.ServerPlayers, server.DecryptedApiKey);
-            if (response is not null) _ = Task.Run(() => PostGetPlayers(response, server));
-            return response;
+            return await Request(Endpoint.ServerPlayers, server.DecryptedApiKey);
         }
 
         public static async Task<PRC_Response?> GetJoins(ERLCServerConfig server)
@@ -260,37 +258,6 @@ namespace Whispbot.Tools
             servers.Add(config);
         }
 
-        private static void PostGetServerInfo(PRC_Response response, ERLCServerConfig server)
-        {
-            PRC_Server? serverInfo = JsonConvert.DeserializeObject<PRC_Server>(response.data?.ToString() ?? "{}");
-            if (serverInfo is null) return;
-
-            if (server is null) return;
-            if (server.ingame_players == serverInfo.currentPlayers && server.name == serverInfo.name) return;
-
-            ERLCServerConfig? updatedServer = Postgres.SelectFirst<ERLCServerConfig>(
-                @"UPDATE erlc_servers SET name = @2, ingame_players = @3 WHERE api_key = @1 RETURNING *;",
-                [server.DecryptedApiKey, serverInfo.name, serverInfo.currentPlayers]
-            );
-            UpdateServerFromAPIKey(server.DecryptedApiKey, updatedServer);
-        }
-
-        private static void PostGetPlayers(PRC_Response response, ERLCServerConfig server)
-        {
-            List<PRC_Player>? players = JsonConvert.DeserializeObject<List<PRC_Player>>(response.data?.ToString() ?? "[]");
-            if (players is null) return;
-
-            if (server.ingame_players == players.Count) return;
-
-            ERLCServerConfig? updatedServer = Postgres.SelectFirst<ERLCServerConfig>(
-                @"UPDATE erlc_servers SET ingame_players = @2 WHERE api_key = @1 RETURNING *;",
-                [server.DecryptedApiKey, players.Count]
-            );
-            UpdateServerFromAPIKey(server.DecryptedApiKey, updatedServer);
-        }
-
-
-
         public static ERLCServerConfig? GetServerFromString(IEnumerable<ERLCServerConfig> servers, string str)
         {
             var server = servers.FirstOrDefault(s => s.name?.Contains(str, StringComparison.CurrentCultureIgnoreCase) ?? false);
@@ -299,8 +266,66 @@ namespace Whispbot.Tools
             return server;
         }
 
+        public static async Task<ERLCServerConfig?> TryGetServer(CommandContext ctx)
+        {
+            if (ctx.GuildId is null) return null;
 
+            List<ERLCServerConfig>? servers = await WhispCache.ERLCServerConfigs.Get(ctx.GuildId);
 
+            if (servers is null || servers.Count == 0)
+            {
+                await ctx.Reply("{emoji.cross} {string.errors.erlcserver.notfound}.");
+                return null;
+            }
+
+            ERLCServerConfig? server = GetServerFromString(servers, ctx.args.Join(" "));
+
+            if (server is null)
+            {
+                await ctx.Reply("{emoji.cross} {string.errors.erlcserver.notfound}.");
+                return null;
+            }
+
+            if (server.api_key is null)
+            {
+                await ctx.Reply("{emoji.cross} {string.errors.erlcserver.nokey}");
+                return null;
+            }
+
+            return server;
+        }
+
+        public static async Task<PRC_DeserializedResponse<T>?> GetEndpointData<T>(CommandContext ctx, ERLCServerConfig server, Endpoint endpoint) where T : class
+        {
+            var response = CheckCache(endpoint, server.DecryptedApiKey);
+
+            if (response is null)
+            {
+                await ctx.Reply("{emoji.loading} {string.content.erlcplayers.fetching}...");
+                response = await Request(endpoint, server.DecryptedApiKey);
+
+                if (response is null)
+                {
+                    await ctx.EditResponse("{emoji.cross} {string.errors.erlcserver.apierror}");
+                    return null;
+                }
+            }
+
+            if (ResponseHasError(response, out var errorMessage))
+            {
+                await ctx.EditResponse(errorMessage!);
+                return null;
+            }
+
+            T? data = JsonConvert.DeserializeObject<T>(response.data?.ToString() ?? "[]");
+            return new PRC_DeserializedResponse<T>
+            {
+                code = response.code,
+                message = response.message,
+                data = data,
+                cachedAt = response.cachedAt
+            };
+        }
 
         public static class ERLC_Commands
         {
@@ -346,11 +371,6 @@ namespace Whispbot.Tools
             };
         }
 
-
-
-
-
-
         public class PRC_Response
         {
             public ErrorCode? code = ErrorCode.Unknown;
@@ -359,21 +379,26 @@ namespace Whispbot.Tools
             public long? cachedAt = null;
         }
 
+        public class PRC_DeserializedResponse<T>: PRC_Response
+        {
+            public new T? data = default;
+        }
+
         //    Endpoint                     Path                      Method          Return Type                         Requires Server Key
         public static readonly Dictionary<Endpoint, (string, HttpMethod, Type?, bool)> endpoints = new() {
-        { Endpoint.ServerCommand,     ("/v1/server/command",     HttpMethod.Post, null,                               true ) },
-        { Endpoint.ServerInfo,        ("/v1/server",             HttpMethod.Get,  typeof(PRC_Server),                 true ) },
-        { Endpoint.ServerPlayers,     ("/v1/server/players",     HttpMethod.Get,  typeof(List<PRC_Player>),           true ) },
-        { Endpoint.ServerJoinlogs,    ("/v1/server/joinlogs",    HttpMethod.Get,  typeof(List<PRC_JoinLog>),          true ) },
-        { Endpoint.ServerQueue,       ("/v1/server/queue",       HttpMethod.Get,  typeof(List<double>),               true ) },
-        { Endpoint.ServerKilllogs,    ("/v1/server/killlogs",    HttpMethod.Get,  typeof(List<PRC_KillLog>),          true ) },
-        { Endpoint.ServerCommandlogs, ("/v1/server/commandlogs", HttpMethod.Get,  typeof(List<PRC_CommandLog>),       true ) },
-        { Endpoint.ServerModcalls,    ("/v1/server/modcalls",    HttpMethod.Get,  typeof(List<PRC_CallLog>),          true ) },
-        { Endpoint.ServerBans,        ("/v1/server/bans",        HttpMethod.Get,  typeof(Dictionary<string, string>), true ) },
-        { Endpoint.ServerVehicles,    ("/v1/server/vehicles",    HttpMethod.Get,  typeof(List<PRC_Vehicle>),          true ) },
-        { Endpoint.ServerStaff,       ("/v1/server/staff",       HttpMethod.Get,  typeof(PRC_Staff),                  true ) },
-        { Endpoint.ResetAPIKey,       ("/v1/api-key/reset",      HttpMethod.Get,  null,                               false) },
-    };
+            { Endpoint.ServerCommand,     ("/v1/server/command",     HttpMethod.Post, null,                               true ) },
+            { Endpoint.ServerInfo,        ("/v1/server",             HttpMethod.Get,  typeof(PRC_Server),                 true ) },
+            { Endpoint.ServerPlayers,     ("/v1/server/players",     HttpMethod.Get,  typeof(List<PRC_Player>),           true ) },
+            { Endpoint.ServerJoinlogs,    ("/v1/server/joinlogs",    HttpMethod.Get,  typeof(List<PRC_JoinLog>),          true ) },
+            { Endpoint.ServerQueue,       ("/v1/server/queue",       HttpMethod.Get,  typeof(List<double>),               true ) },
+            { Endpoint.ServerKilllogs,    ("/v1/server/killlogs",    HttpMethod.Get,  typeof(List<PRC_KillLog>),          true ) },
+            { Endpoint.ServerCommandlogs, ("/v1/server/commandlogs", HttpMethod.Get,  typeof(List<PRC_CommandLog>),       true ) },
+            { Endpoint.ServerModcalls,    ("/v1/server/modcalls",    HttpMethod.Get,  typeof(List<PRC_CallLog>),          true ) },
+            { Endpoint.ServerBans,        ("/v1/server/bans",        HttpMethod.Get,  typeof(Dictionary<string, string>), true ) },
+            { Endpoint.ServerVehicles,    ("/v1/server/vehicles",    HttpMethod.Get,  typeof(List<PRC_Vehicle>),          true ) },
+            { Endpoint.ServerStaff,       ("/v1/server/staff",       HttpMethod.Get,  typeof(PRC_Staff),                  true ) },
+            { Endpoint.ResetAPIKey,       ("/v1/api-key/reset",      HttpMethod.Get,  null,                               false) },
+        };
 
         public enum Endpoint
         {

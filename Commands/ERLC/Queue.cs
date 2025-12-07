@@ -13,7 +13,7 @@ using Whispbot.Tools;
 using YellowMacaroni.Discord.Core;
 using YellowMacaroni.Discord.Extentions;
 
-namespace Whispbot.Commands.ERLC
+namespace Whispbot.Commands.ERLCCommands
 {
     public class ERLC_Queue : Command
     {
@@ -42,49 +42,11 @@ namespace Whispbot.Commands.ERLC
             if (!await WhispPermissions.CheckModuleMessage(ctx, Module.ERLC)) return;
             if (!await WhispPermissions.CheckPermissionsMessage(ctx, BotPermissions.UseERLC)) return;
 
-            List<ERLCServerConfig>? servers = await WhispCache.ERLCServerConfigs.Get(ctx.GuildId);
+            ERLCServerConfig? server = await ERLC.TryGetServer(ctx);
+            if (server is null) return;
 
-            if (servers is null || servers.Count == 0)
-            {
-                await ctx.Reply("{emoji.cross} {string.errors.erlcserver.notfound}.");
-                return;
-            }
-
-            ERLCServerConfig? server = Tools.ERLC.GetServerFromString(servers, ctx.args.Join(" "));
-
-            if (server is null)
-            {
-                await ctx.Reply("{emoji.cross} {string.errors.erlcserver.notfound}.");
-                return;
-            }
-
-            if (server.api_key is null)
-            {
-                await ctx.Reply("{emoji.cross} {string.errors.erlcserver.nokey}");
-                return;
-            }
-
-            var response = Tools.ERLC.CheckCache(Tools.ERLC.Endpoint.ServerQueue, server.DecryptedApiKey);
-
-            if (response is null)
-            {
-                await ctx.Reply("{emoji.loading} {string.content.erlcqueue.fetching}...");
-                response = await Tools.ERLC.GetQueue(server);
-
-                if (response is null)
-                {
-                    await ctx.EditResponse("{emoji.cross} {string.errors.erlcserver.apierror}.");
-                    return;
-                }
-            }
-
-            if (Tools.ERLC.ResponseHasError(response, out var errorMessage))
-            {
-                await ctx.EditResponse(errorMessage!);
-                return;
-            }
-
-            List<long>? queue = JsonConvert.DeserializeObject<List<long>>(response.data?.ToString() ?? "[]");
+            var response = await ERLC.GetEndpointData<List<long>>(ctx, server, ERLC.Endpoint.ServerQueue);
+            var queue = response?.data;
 
             if (queue is not null)
             {
@@ -98,39 +60,9 @@ namespace Whispbot.Commands.ERLC
                 queue = queue[..Math.Min(queueLength, 20)];
 
                 List<string> userIds = [..queue.Select(u => u.ToString())];
-                List<Roblox.RobloxUser> relatedUsers = Roblox.Users.FindMany((u,_) => userIds.Contains(u.id));
-                userIds = [..userIds.Except(relatedUsers.Select(u => u.id))];
-                if (userIds.Count > 0)
-                {
-                    relatedUsers.AddRange(await Roblox.GetUserById(userIds) ?? []);
-                }
-
-                List<UserConfig> userConfigs = WhispCache.UserConfig.FindMany((u, _) => queue.Contains(u.roblox_id ?? -1));
-                List<long> missingIds = [.. queue.Where(id => !userConfigs.Any(u => u.id == id))];
-                if (missingIds.Count > 0)
-                {
-                    List<UserConfig>? fetchedConfigs = Postgres.Select<UserConfig>(
-                        @"SELECT * FROM user_config WHERE roblox_id IS NOT NULL AND roblox_id = ANY(@1);",
-                        [missingIds]
-                    );
-
-                    if (fetchedConfigs is not null && fetchedConfigs.Count > 0)
-                    {
-                        userConfigs.AddRange(fetchedConfigs);
-                        foreach (var config in fetchedConfigs)
-                        {
-                            WhispCache.UserConfig.Insert(config.id.ToString(), config);
-                        }
-                    }
-                }
-
-                List<string> discordIds = [..userConfigs.Select(u => u.id.ToString())];
-                List<Member> members = ctx.Guild?.members.FindMany((m, _) => discordIds.Contains(m.user?.id ?? "")) ?? [];
-                List<string> remainingDiscordIds = [.. discordIds.Except(members.Select(m => m.user?.id!))];
-                if (remainingDiscordIds.Count > 0 && ctx.Guild is not null)
-                {
-                    members.AddRange(await ctx.Guild.GetMembers(ctx.client, remainingDiscordIds) ?? []);
-                }
+                List<Roblox.RobloxUser> relatedUsers = await Roblox.GetUserById(userIds) ?? [];
+                List<UserConfig> userConfigs = await Users.GetConfigsFromRobloxIds([.. relatedUsers.Select(u => long.Parse(u.id))]);
+                List<Member>? members = await Users.GetMembersFromConfigs(userConfigs, ctx);
 
                 StringBuilder sb = new();
 

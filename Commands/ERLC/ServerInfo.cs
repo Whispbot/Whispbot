@@ -13,7 +13,7 @@ using Whispbot.Tools;
 using YellowMacaroni.Discord.Core;
 using YellowMacaroni.Discord.Extentions;
 
-namespace Whispbot.Commands.ERLC
+namespace Whispbot.Commands.ERLCCommands
 {
     public class ERLC_ServerInfo: Command
     {
@@ -37,59 +37,16 @@ namespace Whispbot.Commands.ERLC
             if (!await WhispPermissions.CheckModuleMessage(ctx, Module.ERLC)) return;
             if (!await WhispPermissions.CheckPermissionsMessage(ctx, BotPermissions.UseERLC)) return;
 
-            List<ERLCServerConfig>? servers = await WhispCache.ERLCServerConfigs.Get(ctx.GuildId);
+            ERLCServerConfig? server = await ERLC.TryGetServer(ctx);
+            if (server is null) return;
 
-            if (servers is null || servers.Count == 0)
-            {
-                await ctx.Reply("{emoji.cross} {string.errors.erlcserver.notfound}");
-                return;
-            }
-
-            ERLCServerConfig? server = Tools.ERLC.GetServerFromString(servers, ctx.args.Join(" "));
-
-            if (server is null)
-            {
-                await ctx.Reply("{emoji.cross} {string.errors.erlcserver.notfound}");
-                return;
-            }
-
-            if (server.api_key is null)
-            {
-                await ctx.Reply("{emoji.cross} {string.errors.erlcserver.nokey}");
-                return;
-            }
-
-            var response = Tools.ERLC.CheckCache(Tools.ERLC.Endpoint.ServerInfo, server.DecryptedApiKey);
-
-            if (response is null)
-            {
-                await ctx.Reply("{emoji.loading} {string.content.erlcserver.fetching}...");
-                response = await Tools.ERLC.GetServerInfo(server);
-
-                if (response is null)
-                {
-                    await ctx.EditResponse("{emoji.cross} {string.errors.erlcserver.apierror}");
-                    return;
-                }
-            }
-
-            if (Tools.ERLC.ResponseHasError(response, out var errorMessage))
-            {
-                await ctx.EditResponse(errorMessage!);
-                return;
-            }
-
-            Tools.ERLC.PRC_Server? serverInfo = JsonConvert.DeserializeObject<Tools.ERLC.PRC_Server>(response.data?.ToString() ?? "{}");
+            var response = await ERLC.GetEndpointData<ERLC.PRC_Server>(ctx, server, ERLC.Endpoint.ServerInfo);
+            var serverInfo = response?.data;
 
             if (serverInfo is not null)
             {
                 List<string> userIds = [..serverInfo.coOwnerIds.Select(u=>u.ToString()), serverInfo.ownerId.ToString()];
-                List<Roblox.RobloxUser>? relatedUsers = Roblox.Users.FindMany((u, _) => userIds.Contains(u.id));
-                userIds = [.. userIds.Except(relatedUsers.Select(u => u.id))];
-                if (userIds.Count > 0)
-                {
-                    relatedUsers.AddRange(await Roblox.GetUserById(userIds) ?? []);
-                }
+                List<Roblox.RobloxUser>? relatedUsers = await Roblox.GetUserById(userIds);
                 Roblox.RobloxUser? owner = relatedUsers?.Find(u => u.id == serverInfo.ownerId.ToString());
                 List<Roblox.RobloxUser> coOwners = relatedUsers?.FindAll(u => serverInfo.coOwnerIds.Contains(long.Parse(u.id))) ?? [];
 

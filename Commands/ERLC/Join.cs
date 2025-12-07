@@ -13,7 +13,7 @@ using Whispbot.Tools;
 using YellowMacaroni.Discord.Core;
 using YellowMacaroni.Discord.Extentions;
 
-namespace Whispbot.Commands.ERLC
+namespace Whispbot.Commands.ERLCCommands
 {
     public class ERLC_JoinServer : Command
     {
@@ -37,21 +37,8 @@ namespace Whispbot.Commands.ERLC
             if (!await WhispPermissions.CheckModuleMessage(ctx, Module.ERLC)) return;
             if (!await WhispPermissions.CheckPermissionsMessage(ctx, BotPermissions.UseERLC)) return;
 
-            List<ERLCServerConfig>? servers = await WhispCache.ERLCServerConfigs.Get(ctx.GuildId);
-
-            if (servers is null || servers.Count == 0)
-            {
-                await ctx.Reply("{emoji.cross} {string.errors.erlcserver.notfound}");
-                return;
-            }
-
-            ERLCServerConfig? server = Tools.ERLC.GetServerFromString(servers, ctx.args.Join(" "));
-
-            if (server is null)
-            {
-                await ctx.Reply("{emoji.cross} {string.errors.erlcserver.notfound}");
-                return;
-            }
+            ERLCServerConfig? server = await ERLC.TryGetServer(ctx);
+            if (server is null) return;
 
             string url = $"https://whisp.bot/join-erlc/{server.id}";
 

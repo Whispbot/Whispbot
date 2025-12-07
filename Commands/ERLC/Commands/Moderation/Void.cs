@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using YellowMacaroni.Discord.Extentions;
 
-namespace Whispbot.Commands.ERLC.Commands.Moderation
+namespace Whispbot.Commands.ERLCCommands.Commands.Moderation
 {
     public class VoidRobloxModeration : ERLCCommand
     {

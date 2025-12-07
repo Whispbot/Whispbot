@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Tools;
 
-namespace Whispbot.Commands.ERLC.Commands
+namespace Whispbot.Commands.ERLCCommands.Commands
 {
     public static class ERLCCommandUtils
     {
