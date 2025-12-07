@@ -1,4 +1,4 @@
-﻿using Serilog;
+using Serilog;
 using StackExchange.Redis;
 using System;
 using System.Collections.Generic;
@@ -39,7 +39,6 @@ namespace Whispbot
 
         public event EventHandler? OnElected;
         public event EventHandler? OnLostLeadership;
-
 
         public Replica(string deployment, string replica, int total_replicas)
         {

@@ -1,4 +1,4 @@
-﻿using Serilog;
+using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -45,7 +45,6 @@ namespace Whispbot.Commands.Shifts
                 "SELECT * FROM shifts WHERE guild_id = @1 AND end_time IS NULL;",
                 [long.Parse(ctx.GuildId)]
             );
-
 
             if (activeShifts is null)
             {

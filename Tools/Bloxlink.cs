@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -36,8 +36,6 @@ namespace Whispbot.Tools
             return JsonConvert.DeserializeObject<BloxlinkRobloxUser>(content);
         }
 
-
-
         public class BloxlinkRobloxUser
         {
             public string RobloxID = "";
@@ -45,7 +43,6 @@ namespace Whispbot.Tools
         }
         public class BloxlinkRobloxUserResolved
         {
-
         }
     }
 }

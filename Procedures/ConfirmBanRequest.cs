@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -182,7 +182,6 @@ namespace Whispbot
             {
                 return (null, "{string.errors.rmbr.banrequestsdisabled}");
             }
-
 
             BanRequest? banRequest = Postgres.SelectFirst<BanRequest>(
                 @"

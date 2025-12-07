@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -9,7 +9,6 @@ using YellowMacaroni.Discord.Core;
 
 namespace Whispbot
 {
-
     public static class DiscordLogger
     {
         private static HttpClient _client = new();

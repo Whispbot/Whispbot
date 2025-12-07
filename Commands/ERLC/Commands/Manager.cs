@@ -1,4 +1,4 @@
-﻿using Serilog;
+using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -29,7 +29,6 @@ namespace Whispbot.Commands.ERLCCommands.Commands
 
         public ERLCCommandManager()
         {
-
             #region Commands
 
             RegisterCommand(new ServerInfo());
@@ -258,11 +257,6 @@ namespace Whispbot.Commands.ERLCCommands.Commands
                 Attach(shard.client);
             }
         }
-
-
-
-
-
 
         public class RatelimitData
         {

@@ -1,4 +1,4 @@
-﻿using Serilog;
+using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -59,7 +59,6 @@ namespace Whispbot.Tools
 
             return permissions;
         }
-
 
         public static async Task<bool> CheckPermissionsMessage(CommandContext ctx, BotPermissions permissions)
         {

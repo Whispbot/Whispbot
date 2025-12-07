@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -53,7 +53,6 @@ namespace Whispbot
 
         public static async Task<MessageBuilder> GetRMLogMessage(RobloxModeration moderation)
         {
-
             User? moderator = await DiscordCache.Users.Get(moderation.moderator_id.ToString());
             Roblox.RobloxUser? target = await Roblox.GetUserById(moderation.target_id.ToString());
 
@@ -185,6 +184,5 @@ namespace Whispbot
 
     public enum RobloxModerationFlags
     {
-
     }
 }

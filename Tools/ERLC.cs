@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -442,9 +442,6 @@ namespace Whispbot.Tools
             RescourseRestricted = 9998,
             OutOfDate = 9999
         }
-
-
-
 
         public class PRC_Server
         {
