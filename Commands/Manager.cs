@@ -99,10 +99,12 @@ namespace Whispbot.Commands
         {
             if (message.webhook_id is not null)
             {
+                // Relay ER:LC commands to ERLC command handler
                 Config.erlcCommands?.HandleMessage(client, message);
                 return;
             }
 
+            // Get guild config if message is sent in a server
             GuildConfig? guildConfig = message.channel?.guild_id is not null ? await WhispCache.GuildConfig.Get(message.channel.guild_id) : null;
 
             string prefix = guildConfig?.prefix ?? Config.prefix;
@@ -110,71 +112,109 @@ namespace Whispbot.Commands
 
             string staffPrefix = Config.staffPrefix;
 
-            if (message.content.StartsWith(mention)) prefix = mention;
+            if (message.content.StartsWith(mention)) prefix = mention; // Allow <@botid> as prefix
 
             if (message.content.StartsWith(prefix, StringComparison.CurrentCultureIgnoreCase))
             {
-                List<string> args = [.. message.content[prefix.Length..].Split(' ', StringSplitOptions.RemoveEmptyEntries)];
-                string content = args.Join(" ");
-
-                Command? command = GetCommandByName(content, out int length);
-                args.RemoveRange(0, length);
-
-                if (command is null) return;
-
-                MatchCollection matches = Regex.Matches(args.Join(" "), @"--(\w+)");
-                List<string> flags = [.. matches.Select(m => m.Groups[1].Value)];
-                args = [.. args.Where(a => !flags.Contains(a))];
-
-                var ctx = new CommandContext(client, message, args, flags);
-
-                if (ctx.GuildConfig is null)
-                {
-                    await ctx.Reply("{emoji.warning} {string.errors.dbfailed}");
-                    return;
-                }
-
-                if (ctx.GuildConfig.version != Config.EnvId) return;
-                
-                if (ctx.UserConfig?.ack_required ?? false)
-                {
-                    await ctx.Reply(Actions.GenerateAcknowledgeMessage(long.Parse(ctx.UserId ?? "0")));
-
-                    return;
-                }
-
-                if (await IsRatelimited(ctx, command)) return;
-
-                try
-                {
-                    await command.ExecuteAsync(ctx);
-                }
-                catch (Exception ex)
-                {
-                    var id = SentrySdk.CaptureException(ex);
-                    Log.Error($"An error occured while executing '{command.Name}'\nUser: @{ctx.User?.username} ({ctx.UserId})\nGuild: {ctx.Guild?.name} ({ctx.GuildId})\n\n", ex);
-                    await SendErrorMessage(ctx, id);
-                }
+                // General command
+                await HandleCommand(client, message, prefix);
             }
-            else if 
-            (
-                message.content.StartsWith(staffPrefix, StringComparison.CurrentCultureIgnoreCase)
-                //                          |   Support Server  |             ->          |     Member    |               ->            |  Has Staff Role?  |
-                && (DiscordCache.Guilds.Get("1096509172784300174").WaitFor()?.members.Get(message.author.id).WaitFor()?.roles?.Contains("1256333207599841435") ?? false)
-            )
+            else if (message.content.StartsWith(staffPrefix, StringComparison.CurrentCultureIgnoreCase) && await IsStaff(message.author.id))
             {
-                List<string> args = [.. message.content[staffPrefix.Length..].Split(' ', StringSplitOptions.RemoveEmptyEntries)];
-                string content = args.Join(" ");
-
-                Command? command = GetCommandByName(content, out int length);
-                args.RemoveRange(0, length);
-
-                MatchCollection matches = Regex.Matches(args.Join(" "), @"--(\w+)");
-                List<string> flags = [.. matches.Select(m => m.Groups[1].Value)];
-                args = [.. args.Where(a => !flags.Contains(a))];
-
-                command?.ExecuteAsync(new CommandContext(client, message, args, flags));
+                // Staff command
+                await HandleStaffCommand(client, message, prefix);
             }
+        }
+
+        public async Task HandleCommand(Client client, Message message, string prefix)
+        {
+            List<string> args = [.. message.content[prefix.Length..].Split(' ', StringSplitOptions.RemoveEmptyEntries)];
+            string content = args.Join(" ");
+
+            Command? command = GetCommandByName(content, out int length);
+            args.RemoveRange(0, length);
+            if (command is null) return;
+
+            // Extract flags (args that start with --) from args
+            MatchCollection matches = Regex.Matches(args.Join(" "), @"--(\w+)");
+            List<string> flags = [.. matches.Select(m => m.Groups[1].Value)];
+            args = [.. args.Where(a => !flags.Contains(a))];
+
+            var ctx = new CommandContext(client, message, args, flags);
+
+            if (ctx.GuildConfig is not null && ctx.GuildConfig.version != Config.EnvId) return; // Ignore messages from guilds using different environments
+
+            if (ctx.UserConfig?.ack_required ?? false) // Banned user
+            {
+                await ctx.Reply(Actions.GenerateAcknowledgeMessage(long.Parse(ctx.UserId ?? "0")));
+                return;
+            }
+
+            if (await IsRatelimited(ctx, command)) return;
+
+            try
+            {
+                await command.ExecuteAsync(ctx);
+            }
+            catch (Exception ex)
+            {
+                var id = SentrySdk.CaptureException(ex); // Send to Sentry
+
+                Log.Error($"An error occured while executing '{command.Name}'\nUser: @{ctx.User?.username} ({ctx.UserId})\nGuild: {ctx.Guild?.name} ({ctx.GuildId})\n\n", ex);
+
+                await SendErrorMessage(ctx, id);
+            }
+        }
+
+        public async Task HandleStaffCommand(Client client, Message message, string prefix)
+        {
+            List<string> args = [.. message.content[prefix.Length..].Split(' ', StringSplitOptions.RemoveEmptyEntries)];
+            string content = args.Join(" ");
+
+            Command? command = GetCommandByName(content, out int length);
+            args.RemoveRange(0, length);
+
+            // Extract flags (args that start with --) from args
+            MatchCollection matches = Regex.Matches(args.Join(" "), @"--(\w+)");
+            List<string> flags = [.. matches.Select(m => m.Groups[1].Value)];
+            args = [.. args.Where(a => !flags.Contains(a))];
+
+            command?.ExecuteAsync(new CommandContext(client, message, args, flags));
+        }
+
+        private bool _hasWarnedMissingEnv = false;
+        public async Task<bool> IsStaff(string moderatorId)
+        {
+            string? supportServerId = Environment.GetEnvironmentVariable("WHISP_SUPPORT_SERVER_ID");
+            string? staffRoleId = Environment.GetEnvironmentVariable("WHISP_STAFF_ROLE_ID");
+
+            if (supportServerId is null || staffRoleId is null)
+            {
+                if (!_hasWarnedMissingEnv)
+                {
+                    Log.Warning("WHISP_SUPPORT_SERVER_ID or WHISP_STAFF_ROLE_ID environment variables are not set. Staff commands will not work.");
+                    _hasWarnedMissingEnv = true;
+                }
+                return false;
+            }
+
+            string[] staffRoleIds = staffRoleId.Split(',');
+
+            Guild? guild = await DiscordCache.Guilds.Get(supportServerId);
+            if (guild is null) return false;
+
+            Member? member = await guild.members.Get(moderatorId);
+            if (member is null || member.roles is null) return false;
+
+            foreach (string roleId in staffRoleIds)
+            {
+                if (member.roles.Contains(roleId.Trim()))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         public Command? GetCommandByName(string name, out int length)

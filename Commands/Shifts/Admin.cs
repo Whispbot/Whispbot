@@ -1,4 +1,6 @@
-﻿using Serilog;
+﻿using Microsoft.AspNetCore.Mvc.RazorPages;
+using Serilog;
+using StackExchange.Redis;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -203,25 +205,151 @@ namespace Whispbot.Commands.Shifts
             };
         }
 
+        private static List<Shift>? GetShifts(
+            string guildId,
+            string userId,
+            ShiftType? type,
+            int page
+        )
+        {
+            int i = 3;
+
+            var parameters = new List<object>
+            {
+                long.Parse(userId),
+                long.Parse(guildId)
+            };
+
+            if (type is not null)
+            {
+                parameters.Add(type.id);
+            }
+
+            int offsetIndex = i++;
+            parameters.Add((page - 1) * 5);
+
+            string typeFilter = type is not null ? $" AND type = @{3}" : string.Empty;
+
+            string query =
+                $@"
+                SELECT *
+                FROM shifts
+                WHERE moderator_id = @1 AND guild_id = @2{typeFilter}
+                ORDER BY start_time DESC
+                LIMIT 5 OFFSET @{offsetIndex};
+                ";
+
+            return Postgres.Select<Shift>(query, parameters);
+        }
+
+        private static long GetShiftCount(string guildId, string userId, ShiftType? type)
+        {
+            var parameters = new List<object>
+            {
+                long.Parse(userId),
+                long.Parse(guildId)
+            };
+
+            if (type is not null)
+            {
+                parameters.Add(type.id);
+            }
+
+            string typeFilter = type is not null ? " AND type = @3" : string.Empty;
+
+            PostgresCount? countReq =
+                Postgres.SelectFirst<PostgresCount>(
+                $@"
+                SELECT COUNT(*) AS count
+                FROM shifts
+                WHERE moderator_id = @1 AND guild_id = @2{typeFilter}
+                ",
+                parameters
+            );
+
+            return countReq?.count ?? 0;
+        }
+
+        public static List<Component> GetShiftDisplays(List<Shift> shifts, List<ShiftType>? types)
+        {
+            List<Component> components = [];
+
+            foreach (var shift in shifts)
+            {
+                long startSeconds = shift.start_time.ToUnixTimeSeconds();
+                long? endSeconds = shift.end_time?.ToUnixTimeSeconds();
+                long duration = (endSeconds ?? DateTimeOffset.UtcNow.ToUnixTimeSeconds()) - startSeconds;
+
+                string endText = "{string.content.shiftadmin.notfinished}";
+                if (endSeconds is not null)
+                {
+                    endText = $"<t:{endSeconds}:f>";
+                }
+
+                string idLine = $"`{shift.id}`";
+                string startLine = $"**{{string.content.shiftadminlist.started}}**: <t:{startSeconds}:f>";
+                string endLine = $"{{string.content.shiftadminlist.ended}}**: {endText}";
+                string durationLine = $"**{{string.content.shiftadminlist.duration}}:** {Time.ConvertMillisecondsToString(duration, ", ", true, 60000)}";
+                string typeLine = $"**{{string.content.shiftadminlist.type}}:** {types?.Find(t => t.id == shift.type)?.name ?? "unknown"}";
+
+                components.Add(
+                    new TextDisplayBuilder($"{idLine}\n{startLine}\n{endLine}\n{durationLine}\n{typeLine}")
+                );
+            }
+
+            return components;
+        }
+
+        public static ActionRowBuilder GetPagination(
+            string guildId,
+            string adminId, 
+            string userId, 
+            ShiftType type, 
+            int page
+        )
+        {
+            long totalCount = GetShiftCount(guildId, userId, type);
+
+            return new ActionRowBuilder
+            {
+                components = [
+                    new ButtonBuilder
+                    {
+                        custom_id = $"sa_main {adminId} {userId} {type?.id}",
+                        emoji = Strings.GetEmoji("back"),
+                        style = ButtonStyle.Secondary
+                    },
+                    new ButtonBuilder
+                    {
+                        custom_id = $"sa_list {adminId} {userId} {type?.id ?? 0} {page - 1}",
+                        emoji = Strings.GetEmoji("left"),
+                        style = ButtonStyle.Primary,
+                        disabled = page <= 1
+                    },
+                    new ButtonBuilder
+                    {
+                        custom_id = "null",
+                        label = $"{page}/{Math.Ceiling((double)totalCount / 5)}",
+                        style = ButtonStyle.Primary,
+                        disabled = true
+                    },
+                    new ButtonBuilder
+                    {
+                        custom_id = $"sa_list {adminId} {userId} {type?.id ?? 0} {page + 1}",
+                        emoji = Strings.GetEmoji("right"),
+                        style = ButtonStyle.Primary,
+                        disabled = page * 5 >= totalCount
+                    }
+                ]
+            };
+        }
+
         public static async Task<MessageBuilder> GetListMessage(string guildId, string userId, string adminId, ShiftType? type = null, int page = 1)
         {
             Task<User?> userTask = DiscordCache.Users.Get(userId);
             Task<List<ShiftType>?> typeTask = WhispCache.ShiftTypes.Get(guildId);
-            int i = 3;
-            List<Shift>? shifts = Postgres.Select<Shift>(@"
-                SELECT *
-                FROM shifts
-                WHERE moderator_id = @1 AND guild_id = @2" + (type is not null ? $" AND type = @{i++}" : "") + @$"
-                ORDER BY start_time DESC
-                LIMIT 5 OFFSET @{i++};
-            ", [long.Parse(userId), long.Parse(guildId), .. (type is not null ? new List<long> { type.id } : []), (page - 1) * 5]);
-            PostgresCount? countReq = Postgres.SelectFirst<PostgresCount>(@"
-                SELECT COUNT(*) AS count
-                FROM shifts
-                WHERE moderator_id = @1 AND guild_id = @2" + (type is not null ? " AND type = @3" : ""),
-                [long.Parse(userId), long.Parse(guildId), .. (type is not null ? new List<long> { type.id } : [])]
-            );
-            long totalCount = countReq?.count ?? 0;
+
+            List<Shift>? shifts = GetShifts(guildId, userId, type, page);
 
             if (shifts is null || shifts.Count == 0)
             {
@@ -234,6 +362,8 @@ namespace Whispbot.Commands.Shifts
             User? user = await userTask;
             List<ShiftType>? types = await typeTask;
 
+            List<Component> shiftDisplays = GetShiftDisplays(shifts, types);
+
             return new MessageBuilder
             {
                 components = [
@@ -241,42 +371,12 @@ namespace Whispbot.Commands.Shifts
                     {
                         components = [
                             new TextDisplayBuilder($"## {{strings.title.shiftadmin.list}}\n-# @{user?.username ?? "unknown"}"),
-                            ..shifts.SelectMany<Shift, Component>(s => [new TextDisplayBuilder($"`{s.id}`\n**{{string.content.shiftadminlist.started}}**: <t:{s.start_time.ToUnixTimeSeconds()}:f>\n**{{string.content.shiftadminlist.ended}}**: {(s.end_time is not null ? $"<t:{s.end_time.Value.ToUnixTimeSeconds()}:f>" : "{string.content.shiftadmin.notfinished}")}\n**{{string.content.shiftadminlist.duration}}:** {Time.ConvertMillisecondsToString(((s.end_time ?? DateTimeOffset.UtcNow) - s.start_time).TotalMilliseconds, ", ", true, 60000)}\n**{{string.content.shiftadminlist.type}}:** {types?.Find(t => t.id == s.type)?.name ?? "unknown"}"), new SeperatorBuilder()]).SkipLast(1),
+                            ..shiftDisplays,
                             new TextDisplayBuilder($"-# Type: {type?.name ?? "all"}")
                         ]
                     },
-                    new ActionRowBuilder
-                    {
-                        components = [
-                            new ButtonBuilder
-                            {
-                                custom_id = $"sa_main {adminId} {userId} {type?.id}",
-                                emoji = Strings.GetEmoji("back"),
-                                style = ButtonStyle.Secondary
-                            },
-                            new ButtonBuilder
-                            {
-                                custom_id = $"sa_list {adminId} {userId} {type?.id ?? 0} {page - 1}",
-                                emoji = Strings.GetEmoji("left"),
-                                style = ButtonStyle.Primary,
-                                disabled = page <= 1
-                            },
-                            new ButtonBuilder
-                            {
-                                custom_id = "null",
-                                label = $"{page}/{Math.Ceiling((double)totalCount / 5)}",
-                                style = ButtonStyle.Primary,
-                                disabled = true
-                            },
-                            new ButtonBuilder
-                            {
-                                custom_id = $"sa_list {adminId} {userId} {type?.id ?? 0} {page + 1}",
-                                emoji = Strings.GetEmoji("right"),
-                                style = ButtonStyle.Primary,
-                                disabled = page * 5 >= totalCount
-                            }
-                        ]
-                    }
+                    GetPagination(guildId, adminId, userId, type, page)
+                    
                 ],
                 flags = MessageFlags.IsComponentsV2
             };
