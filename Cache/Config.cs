@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Hosting;
 using Newtonsoft.Json;
 using Npgsql;
 using Serilog;
@@ -138,14 +138,12 @@ namespace Whispbot
         public long? default_log_channel_id;
     }
 
-
     public class ShiftConfig
     {
         public long id = 0;
 
         public long? default_log_channel_id = null;
     }
-
 
     public class UserConfig
     {

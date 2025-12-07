@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -68,7 +68,6 @@ namespace Whispbot.Commands
         public GuildConfig? GuildConfig => GuildId is not null ? WhispCache.GuildConfig.Get(GuildId).WaitFor() : null;
 
         public Tools.Strings.Language Language => (Tools.Strings.Language)(UserConfig?.language ?? GuildConfig?.default_language ?? 0);
-
 
         public async Task<(Message?, DiscordError?)> Reply(MessageBuilder content)
         {

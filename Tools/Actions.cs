@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging.Abstractions;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -22,7 +22,7 @@ namespace Whispbot.Tools
             proofs ??= [];
 
             Postgres.Execute(@"INSERT INTO actions_proof (action_id, proof_type, proof_id, proof_content, reason) VALUES " +
-                string.Join(", ", proofs.Select((_, i) => $"(@1, @{i * 3 + 2}, @{i * 3 + 3}, @{i * 3 + 4}, @{i * 3 + 5})")) +
+                string.Join(", ", proofs.Select((_, i) => $"(@1, @{(i * 3) + 2}, @{(i * 3) + 3}, @{(i * 3) + 4}, @{(i * 3) + 5})")) +
                 ";",
                 [insert.id, .. proofs.SelectMany<ProofInsert, object>(p => [(int)p.type, p.id, p.content ?? "", p.reason ?? ""])]
             );

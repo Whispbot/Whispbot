@@ -1,4 +1,4 @@
-﻿using Serilog;
+using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -39,7 +39,6 @@ namespace Whispbot.Commands.Roblox_Moderation
                 await ctx.Reply("{emoji.cross} {string.errors.rmcase.missingargs}.");
                 return;
             }
-
 
             RobloxModeration? updatedModeration;
             if (ctx.args[0].Equals("last", StringComparison.InvariantCultureIgnoreCase))

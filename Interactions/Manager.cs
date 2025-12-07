@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -62,7 +62,6 @@ namespace Whispbot.Interactions
             RegisterInteraction(new BanRequestApprove());
             RegisterInteraction(new BanRequestApproveModal());
             RegisterInteraction(new BanRequestDeny());
-
 
             Log.Debug($"[Debug] Loaded {_interactions.Count} interactions");
         }

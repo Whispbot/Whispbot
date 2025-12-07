@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.DataProtection.KeyManagement;
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Newtonsoft.Json;
 using Serilog;
 using System;
@@ -66,8 +66,6 @@ namespace Whispbot.Commands.ERLCCommands
                 await ctx.Reply("{emoji.cross} {string.errors.erlcplayer.notfound}");
                 return;
             }
-
-
 
             await ctx.Reply(new MessageBuilder
             {

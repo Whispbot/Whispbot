@@ -1,4 +1,4 @@
-﻿using Serilog;
+using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -43,7 +43,6 @@ namespace Whispbot.Commands.Staff
             {
                 duration = (DateTimeOffset.UtcNow.Ticks - start) / TimeSpan.TicksPerMillisecond;
             }
-
 
             if (results is null)
             {
