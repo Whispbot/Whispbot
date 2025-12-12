@@ -31,6 +31,7 @@ Log.Information(@$"
                    |_|                    
 ");
 
+// Since env vars are copied from railwaay deployment, use different env vars for dev and prod
 string? token = dev ? Environment.GetEnvironmentVariable("DEV_TOKEN") : Environment.GetEnvironmentVariable("CLIENT_TOKEN");
 
 if (token is null)
@@ -40,11 +41,13 @@ if (token is null)
     return;
 }
 
+// -- Init Databases and Services --
 _ = Task.Run(Redis.Init);
 _ = Task.Run(Postgres.Init);
 _ = Task.Run(SentryConnection.Init);
 _ = Task.Run(Strings.GetLanguages);
 
+// Thread for API (communication between services / health check)
 Thread APIThread = new(new ThreadStart(() =>
 {
     if (Config.IsDev)
@@ -65,6 +68,7 @@ Thread APIThread = new(new ThreadStart(() =>
 };
 APIThread.Start();
 
+// Thread for cache updater (pg listener)
 Thread CacheThread = new(new ThreadStart(async () =>
 {
     await UpdateHandler.ListenForUpdates();
@@ -78,20 +82,16 @@ CacheThread.Start();
 int clusters = 1;
 if (!dev)
 {
+    // Fetch the number of replicas from railway instead of hardcoding value
     clusters = await Railway.getReplicaCount();
 }
 
 Log.Information($"Starting cluster. Total clusters: {clusters}.");
 
-Config.replica = new(
-    Config.deploymentId,
-    Config.replicaId ?? Guid.NewGuid().ToString(),
-    clusters
-);
 
 ISubscriber? pubSub = null;
 
-while (pubSub is null)
+while (pubSub is null && clusters > 1) // Redis pubsub vital for clustering; must wait for start
 {
     pubSub = Redis.GetSubscriber();
     if (pubSub is null) {
@@ -100,12 +100,20 @@ while (pubSub is null)
     }
 }
 
-if (!Config.IsDev)
+if (clusters > 1) // We dont need to cluster if there is only 1 of them
 {
-    await Config.replica.Start();
+    Config.replica = new(
+        Config.deploymentId,
+        Config.replicaId ?? Guid.NewGuid().ToString(),
+        clusters
+    );
 
+    await Config.replica.Start(); // Init replica manager
+
+    // Waits until replica has recieved a heartbeat and is active
     while (!Config.replica.active) Thread.Sleep(100);
 
+    // Registers and assigns clusters
     void register(RedisValue message)
     {
         string[] parts = message.ToString().Split(':');
@@ -119,30 +127,31 @@ if (!Config.IsDev)
         pubSub.Publish($"{Config.deploymentId}-replicas", JsonConvert.SerializeObject(Config.replicas));
     }
 
+    // Leader handles cluster assignment
     if (Config.replica.IsLeader)
     {
         Config.cluster = 0;
         Config.replicas.Add(Config.replicaId);
 
-        pubSub.Subscribe("register", (channel, message) => { register(message); });
+        pubSub!.Subscribe("register", (channel, message) => { register(message); });
 
         _ = DiscordLogger.Log($"[{{dt}}] {{emoji.loading}} Re-clustering {clusters} clusters...".Process());
     }
     else
     {
-        pubSub.Subscribe($"{Config.deploymentId}-replicas", (channel, message) =>
+        pubSub!.Subscribe($"{Config.deploymentId}-replicas", (channel, message) =>
         {
             Config.replicas = JsonConvert.DeserializeObject<List<string>>(message.ToString()) ?? [];
             Config.cluster = Config.replicas.IndexOf(Config.replicaId);
         });
     }
 
-    Config.replica.OnElected += (_, _) =>
+    Config.replica.OnElected += (_, _) => // Subscribe to registration while elected
     {
         pubSub.Subscribe("register", (channel, message) => { register(message); });
     };
 
-    Config.replica.OnLostLeadership += (_, _) =>
+    Config.replica.OnLostLeadership += (_, _) => // ^^^
     {
         pubSub.Unsubscribe("register");
     };
@@ -158,8 +167,16 @@ if (!Config.IsDev)
 else
 {
     Config.cluster = 0;
-    Config.replicas.Add("dev");
-    Log.Warning("In development mode, skipping cluster init");
+    if (Config.replicaId is not null)
+    {
+        Config.replicas.Add(Config.replicaId);
+    }
+    else
+    {
+        Config.replicas.Add("dev");
+    }
+
+    Log.Warning("Only 1 cluster, skipping cluster init");
 }
 
 string? shardsEnv = Config.IsDev ? null : Environment.GetEnvironmentVariable("SHARDS");
@@ -177,6 +194,7 @@ ShardingManager sharding = new(
     shards
 );
 
+// Calculate which shards this cluster will handle
 int shardCount = sharding.shards.Count;
 int clusterStart = (int)(Config.cluster * ((float)shardCount/(float)clusters));
 int clusterEnd = (int)((Config.cluster + 1) * ((float)shardCount/(float)clusters));
@@ -217,10 +235,7 @@ foreach (Shard shard in sharding.shards)
 
     shard.client.Error += (client, error) =>
     {
-        if (Config.IsDev)
-        {
-            Log.Error(error, $"An error occured on shard {shard.id} of cluster {Config.cluster}");
-        }
+        Log.Error(error, $"An error occured on shard {shard.id} of cluster {Config.cluster}");
 
         _ = DiscordLogger.Log($"[{{dt}}] {{emoji.clockedout}} Shard `{shard.id}` of cluster `{Config.cluster}` encountered an error.\n```\n{error}\n```");
     };
@@ -234,10 +249,10 @@ foreach (Shard shard in sharding.shards)
 
 bool start = Config.cluster == 0;
 bool isLastCluster = false;
-if (!start)
+if (!start) // Wait for start signal if not cluster 0
 {
-    if (Config.IsDev) Log.Debug("[Debug] Waiting for start signal...");
-    pubSub.Subscribe($"start", (channel, message) =>
+    Log.Debug("Waiting for start signal...");
+    pubSub!.Subscribe($"start", (channel, message) =>
     {
         string[] parts = message.ToString().Split(':');
         string replica = parts[0];
@@ -250,7 +265,7 @@ if (!start)
 }
 
 double lastRequestedStart = 0;
-while (!start) 
+while (!start) // Wait for start signal, but periodically request if can start in-case of missed message or restart
 { 
     Thread.Sleep(100);
     if (DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - lastRequestedStart > 5000)
@@ -266,17 +281,19 @@ _ = DiscordLogger.Log($"[{{dt}}] {{emoji.break}} Cluster `{Config.cluster}` is s
 _ = Task.Run(() =>
 {
     string? nextReplica = Config.replicas.ElementAtOrDefault(Config.cluster + 1);
-    while (!sharding.shards.All(s => s.client.ready)) Thread.Sleep(100);
+    while (!sharding.shards.All(s => s.client.ready)) Thread.Sleep(100); // Wait for all shards to be ready
     _ = DiscordLogger.Log($"[{{dt}}] {{emoji.clockedin}} Cluster `{Config.cluster}` is ready.".Process());
 
-    Thread.Sleep(5000);
+    Thread.Sleep(5000); // Wait 5 seconds (Discord's wait between identifies) before starting next cluster
     if (nextReplica is not null && !isLastCluster)
     {
+        // Signal next cluster to start
         pubSub.Publish("start", $"{nextReplica}:0");
         Log.Information($"All cluster {Config.cluster} shards started, sending command to start cluster {Config.cluster + 1}.");
     }
     else
     {
+        // Last cluster, listen for clusters that have restarted and are requesting start
         Log.Information($"All cluster {Config.cluster} shards started, all cluters started.");
         pubSub.Subscribe($"{Config.deploymentId}-can-start", (channel, message) =>
         {

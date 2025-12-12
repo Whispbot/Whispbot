@@ -14,7 +14,7 @@ namespace Whispbot
         {
             Log.Logger = new LoggerConfiguration()
                 .MinimumLevel.Is(Config.IsDev ? Serilog.Events.LogEventLevel.Verbose : Serilog.Events.LogEventLevel.Information)
-                .WriteTo.Console(outputTemplate: $"[{{Timestamp:HH:mm:ss}} {{Level:u3}}] {(Config.replicaId is not null ? $"[{Config.replicaId}] " : "")}{{Message:lj}}{{NewLine}}{{Exception}}", theme: SystemConsoleTheme.Colored)
+                .WriteTo.Console(outputTemplate: $"[{{Timestamp:HH:mm:ss.fff}}][{{Level:u3}}] {(Config.replicaId is not null ? $"[{Config.replicaId}] " : "")}{{Message:lj}}{{NewLine}}{{Exception}}", theme: SystemConsoleTheme.Colored)
                 .CreateLogger();
         }
 
