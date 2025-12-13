@@ -117,7 +117,7 @@ namespace Whispbot.Commands
                 List<string> args = [.. message.content[prefix.Length..].Split(' ', StringSplitOptions.RemoveEmptyEntries)];
                 string content = args.Join(" ");
 
-                Command? command = GetCommandByName(content, out int length);
+                Command? command = GetCommandByName(content, commands, out int length);
                 args.RemoveRange(0, length);
 
                 if (command is null) return;
@@ -159,14 +159,14 @@ namespace Whispbot.Commands
             else if 
             (
                 message.content.StartsWith(staffPrefix, StringComparison.CurrentCultureIgnoreCase)
-                //                          |   Support Server  |             ->          |     Member    |               ->            |  Has Staff Role?  |
+                //                          |   Support Server  |           ->         |     Member    |             ->           |  Has Staff Role?  |
                 && (DiscordCache.Guilds.Get("1096509172784300174").Result?.members.Get(message.author.id).Result?.roles?.Contains("1256333207599841435") ?? false)
             )
             {
                 List<string> args = [.. message.content[staffPrefix.Length..].Split(' ', StringSplitOptions.RemoveEmptyEntries)];
                 string content = args.Join(" ");
 
-                Command? command = GetCommandByName(content, out int length);
+                Command? command = GetCommandByName(content, staffCommands, out int length);
                 args.RemoveRange(0, length);
 
                 MatchCollection matches = Regex.Matches(args.Join(" "), @"--(\w+)");
@@ -177,13 +177,13 @@ namespace Whispbot.Commands
             }
         }
 
-        public Command? GetCommandByName(string name, out int length)
+        public Command? GetCommandByName(string name, List<Command> cmds, out int length)
         {
             Command? command = null;
             int commandLength = 0;
             for (int len = MaxLength; len > 0; len--)
             {
-                Command? activeCommand = commands.Find(c =>
+                Command? activeCommand = cmds.Find(c =>
                 {
                     foreach (string alias in c.Aliases)
                     {
@@ -202,8 +202,16 @@ namespace Whispbot.Commands
                 }
             }
 
-            length = commandLength;
-            return command;
+            if (command is not null)
+            {
+                length = commandLength;
+                return command;
+            }
+            else
+            {
+                length = 0;
+                return null;
+            }
         }
 
         public async Task<bool> IsRatelimited(CommandContext ctx, Command command)
