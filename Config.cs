@@ -23,7 +23,7 @@ namespace Whispbot
         public static string deploymentId = Environment.GetEnvironmentVariable("RAILWAY_DEPLOYMENT_ID") ?? "dev";
         public static string serviceId = Environment.GetEnvironmentVariable("RAILWAY_SERVICE_ID") ?? "dev";
         public static string environmentId = Environment.GetEnvironmentVariable("RAILWAY_ENVIRONMENT_ID") ?? "dev";
-        public static string staffPrefix = Config.IsDev ? ">>>" : ">>";
+        public static string staffPrefix = IsDev ? ">>>" : Environment.GetEnvironmentVariable("WHISP_STAFF_PREFIX") ?? ">>>";
         public static string mainGuild = "1096509172784300174";
 
         private static EnvironmentType? _envId = null;

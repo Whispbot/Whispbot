@@ -160,7 +160,7 @@ namespace Whispbot.Commands
             (
                 message.content.StartsWith(staffPrefix, StringComparison.CurrentCultureIgnoreCase)
                 //                          |   Support Server  |             ->          |     Member    |               ->            |  Has Staff Role?  |
-                && (DiscordCache.Guilds.Get("1096509172784300174").WaitFor()?.members.Get(message.author.id).WaitFor()?.roles?.Contains("1256333207599841435") ?? false)
+                && (DiscordCache.Guilds.Get("1096509172784300174").Result?.members.Get(message.author.id).Result?.roles?.Contains("1256333207599841435") ?? false)
             )
             {
                 List<string> args = [.. message.content[staffPrefix.Length..].Split(' ', StringSplitOptions.RemoveEmptyEntries)];
