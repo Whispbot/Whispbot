@@ -53,9 +53,6 @@ namespace Whispbot.Tools
         {
             if (!_initialized) Init();
 
-            var cachedValue = CheckCache(endpoint, apiKey);
-            if (cachedValue is not null) return cachedValue;
-
             var (url, method, _, requiresKey) = endpoints[endpoint];
 
             HttpRequestMessage request = new(method, url)
@@ -76,11 +73,20 @@ namespace Whispbot.Tools
                 }
             }
 
-            HttpResponseMessage response = await _client.SendAsync(request);
+            try
+            {
+                HttpResponseMessage response = await _client.SendAsync(request);
 
-            PRC_Response? data = JsonConvert.DeserializeObject<PRC_Response>(await response.Content.ReadAsStringAsync());
+                PRC_Response? data = JsonConvert.DeserializeObject<PRC_Response>(await response.Content.ReadAsStringAsync());
 
-            return data;
+                return data;
+            }
+            catch (Exception ex)
+            {
+                SentrySdk.CaptureException(ex);
+                Log.Error(ex, $"An error occured while making a request to the PRC API.\nEndpoint: {endpoint}\nAPI Key: {(apiKey is not null ? HashApiKey(apiKey) : "N/A")}");
+                return null;
+            }
         }
 
         public static string HashString(string input)
@@ -317,14 +323,22 @@ namespace Whispbot.Tools
                 return null;
             }
 
-            T? data = JsonConvert.DeserializeObject<T>(response.data?.ToString() ?? "[]");
-            return new PRC_DeserializedResponse<T>
+            try
             {
-                code = response.code,
-                message = response.message,
-                data = data,
-                cachedAt = response.cachedAt
-            };
+                T? data = JsonConvert.DeserializeObject<T>(response.data?.ToString() ?? "[]");
+                return new PRC_DeserializedResponse<T>
+                {
+                    code = response.code,
+                    message = response.message,
+                    data = data,
+                    cachedAt = response.cachedAt
+                };
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Parsing ERLC data failed.");
+                return null;
+            }
         }
 
         public static class ERLC_Commands
@@ -363,6 +377,8 @@ namespace Whispbot.Tools
                 { "unmod",           new (1, "[user/id]") },
                 { "ban",             new (1, "[user/id]") },
                 { "unban",           new (1, "[user/id]") },
+                { "loadlayout",      new (1, "[layout]") },
+                { "unloadlayout",    new (1, "[layout]") },
                 { "shutdown",        new (0, "") }
             };
             public static readonly Dictionary<string, (int, string)> ownerCommands = new() {
