@@ -12,17 +12,17 @@ namespace Whispbot
 {
     public static class DiscordLogger
     {
-        private static HttpClient _client = new();
-        private static string? _webhookUrl = Environment.GetEnvironmentVariable("DISCORD_WEBHOOK_URL");
-        private static bool hasWarned = false;
+        private readonly static HttpClient _client = new();
+        private readonly static string? _webhookUrl = Environment.GetEnvironmentVariable("DISCORD_WEBHOOK_URL");
+        private static bool _hasWarned = false;
 
         public static async Task Log(MessageBuilder message)
         {
             if (string.IsNullOrEmpty(_webhookUrl))
             {
-                if (!hasWarned)
+                if (!_hasWarned)
                 {
-                    hasWarned = true;
+                    _hasWarned = true;
                     Serilog.Log.Fatal("Discord webhook URL is not set. Please set the DISCORD_WEBHOOK_URL environment variable.");
                 }
 

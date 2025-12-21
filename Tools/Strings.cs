@@ -22,7 +22,7 @@ namespace Whispbot.Tools
 
         public static string Process(string content, Language language = 0, Dictionary<string, string>? arguments = null, bool hasUserInput = false)
         {
-            MatchCollection matches = Regex.Matches(content, @"\{((emoji|string|dt)[^}]+)\}");
+            MatchCollection matches = Regex.Matches(content, @"\{((emoji|string|dt)(?(?=[.])[.][^}\n]+|))\}");
             Dictionary<string, string>? thisLanguage = LanguageStrings.GetValueOrDefault(language);
             Dictionary<string, string>? defaultLanguage = LanguageStrings.GetValueOrDefault(Language.EnglishUK);
 
@@ -42,7 +42,7 @@ namespace Whispbot.Tools
                     {
                         content = content.Replace(match.Value, emoji.ToString());
                     }
-                } 
+                }
                 else if (type == "dt")
                 {
                     double s = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
