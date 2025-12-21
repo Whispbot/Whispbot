@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Extensions;
 using YellowMacaroni.Discord.Core;
 
 namespace Whispbot
@@ -31,7 +32,7 @@ namespace Whispbot
             try
             {
                 await _client.PostAsync(_webhookUrl, new StringContent(
-                    JsonConvert.SerializeObject(message),
+                    JsonConvert.SerializeObject(message).Process(),
                     Encoding.UTF8,
                     "application/json"
                 ));
