@@ -83,7 +83,7 @@ namespace Whispbot.Commands.ERLCCommands
                             {
                                 title = $"{{string.title.erlcvehicles}} ({vehicles.Count})",
                                 description = strings.ToString(),
-                                footer = new EmbedFooter { text = $"{{string.content.erlcserver.updated}}: {(response!.cachedAt is not null ? $"{Math.Round((decimal)(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - response.cachedAt)/1000)}s ago" : "{string.content.erlcserver.justnow}")}" }
+                                footer = new EmbedFooter { text = await ERLC.GenerateFooter(response!) }
                             }
                         ]
                     }

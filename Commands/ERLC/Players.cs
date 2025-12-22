@@ -141,7 +141,7 @@ namespace Whispbot.Commands.ERLCCommands
                                 title = $"{{string.title.erlcserver.players}} [{players.Count}]",
                                 description = teams.Count == 0 ? "{string.errors.erlcserver.empty}" : null,
                                 fields = [.. teams.ForAll((kvp) => new EmbedField() { name = $"{kvp.Key} [{players.Sum(p=> p.team == kvp.Key ? 1 : 0 )}]", value = kvp.Value.ToString(), inline = false })],
-                                footer = new EmbedFooter { text = $"{{string.content.erlcserver.updated}}: {(response!.cachedAt is not null ? $"{Math.Round((decimal)(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - response.cachedAt)/1000)}s ago" : "{string.content.erlcserver.justnow}")}" }
+                                footer = new EmbedFooter { text = await ERLC.GenerateFooter(response!) }
                             }
                         ]
                     }
@@ -149,7 +149,7 @@ namespace Whispbot.Commands.ERLCCommands
             }
             else
             {
-                await ctx.EditResponse($"{{emoji.cross}} [{response!.code}] {response.message ?? "An unknown error occured"}.");
+                await ctx.EditResponse($"{{emoji.cross}} [{response?.code}] {response?.message ?? "An unknown error occured"}.");
             }
         }
     }

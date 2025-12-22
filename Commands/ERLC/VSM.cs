@@ -138,7 +138,7 @@ namespace Whispbot.Commands.ERLCCommands
 
                 await ctx.Reply("{emoji.loading} {string.content.erlcvsm.sending}...");
 
-                var response = await Tools.ERLC.SendCommand(server, $":{commandName} {ctx.args.Join(" ")}");
+                var response = await ERLC.SendCommand(server, $":{commandName} {ctx.args.Join(" ")}");
 
                 if (response is null)
                 {
@@ -146,7 +146,7 @@ namespace Whispbot.Commands.ERLCCommands
                     return;
                 }
 
-                if (Tools.ERLC.ResponseHasError(response, out var errorMessage))
+                if (ERLC.ResponseHasError(response, out var errorMessage))
                 {
                     await ctx.EditResponse(errorMessage!);
                     return;

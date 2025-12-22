@@ -347,6 +347,7 @@ namespace Whispbot.Tools
                     code = response.code,
                     message = response.message,
                     data = data,
+                    server = server,
                     cachedAt = response.cachedAt
                 };
             }
@@ -355,6 +356,18 @@ namespace Whispbot.Tools
                 Log.Error(ex, "Parsing ERLC data failed.");
                 return null;
             }
+        }
+
+        public static async Task<string> GenerateFooter<T>(PRC_DeserializedResponse<T> response)
+        {
+            List<ERLCServerConfig>? servers = response.server?.guild_id is not null ? await WhispCache.ERLCServerConfigs.Get(response.server.guild_id.ToString()) : null;
+            string serverName = "";
+            if ((servers?.Count ?? 0) > 0)
+            {
+                serverName = $" | {{string.content.erlcserver.server}}: {response.server!.code ?? "..."}";
+            }
+
+            return $"{{string.content.erlcserver.updated}}: {(response.cachedAt is not null ? $"{Math.Round((decimal)(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - response.cachedAt) / 1000)}s ago" : "{string.content.erlcserver.justnow}")}{serverName}";
         }
 
         public static class ERLC_Commands
@@ -409,6 +422,7 @@ namespace Whispbot.Tools
             public string? message = null;
             public object? data = null;
             public long? cachedAt = null;
+            public ERLCServerConfig? server = null;
         }
 
         public class PRC_DeserializedResponse<T>: PRC_Response
