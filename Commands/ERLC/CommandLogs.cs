@@ -54,7 +54,7 @@ namespace Whispbot.Commands.ERLCCommands
                 commandLogs.Sort((a, b) => b.Timestamp.CompareTo(a.Timestamp));
                 commandLogs = [.. commandLogs.Take(20)];
 
-                List<long> robloxIds = [.. commandLogs.Select(j => long.Parse(j.Player.Split(":")[1]))];
+                List<long> robloxIds = [.. commandLogs.Where(j => j.Player != "Remote Server").Select(j => long.Parse(j.Player.Split(":")[1]))];
                 robloxIds = [..robloxIds.Distinct()];
 
                 List<UserConfig> userConfigs = await Users.GetConfigsFromRobloxIds(robloxIds);
@@ -63,7 +63,7 @@ namespace Whispbot.Commands.ERLCCommands
                 StringBuilder strings = new();
                 foreach (var log in commandLogs)
                 {
-                    UserConfig? config = userConfigs?.Find(u => u.roblox_id.ToString() == log.Player.Split(":")[1]);
+                    UserConfig? config = log.Player == "Remote Server" ? null : userConfigs?.Find(u => u.roblox_id.ToString() == log.Player.Split(":")[1]);
                     Member? member = members?.Find(m => m.user?.id == config?.id.ToString());
 
                     StringBuilder flags = new();
@@ -87,7 +87,7 @@ namespace Whispbot.Commands.ERLCCommands
                         command = command.Replace(":kick", "").Trim();
                     }
 
-                    strings.AppendLine($"[<t:{log.Timestamp}:T>] {flags}{(flags.Length > 0 ? " " : "")}**@{log.Player.Split(":")[0]}** {action} `{command[0..(Math.Min(50, command.Length))]}{(command.Length > 50 ? "..." : "")}`.");
+                    strings.AppendLine($"[<t:{log.Timestamp}:T>] {flags}{(flags.Length > 0 ? " " : "")}**@{(log.Player == "Remote Server" ? "VSM" : log.Player.Split(":")[0])}** {action} `{command[0..(Math.Min(50, command.Length))]}{(command.Length > 50 ? "..." : "")}`.");
                 }
 
                 await ctx.EditResponse(
