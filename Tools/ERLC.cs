@@ -267,7 +267,7 @@ namespace Whispbot.Tools
         public static ERLCServerConfig? GetServerFromString(IEnumerable<ERLCServerConfig> servers, string str)
         {
             var server = servers.FirstOrDefault(s => s.name?.Contains(str, StringComparison.CurrentCultureIgnoreCase) ?? false);
-            server ??= servers.FirstOrDefault(s => s.name is null);
+            server ??= servers.FirstOrDefault(s => s.code?.Contains(str, StringComparison.CurrentCultureIgnoreCase) ?? false);
 
             return server;
         }
