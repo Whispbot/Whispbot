@@ -158,6 +158,7 @@ namespace Whispbot
     {
         public Guid id;
         public long guild_id = 0;
+        public bool is_default = false;
         public string api_key = "";
         private string? _decrypted_api_key = null;
         public string DecryptedApiKey => _decrypted_api_key ??= Tools.ERLC.DecryptApiKey(api_key);

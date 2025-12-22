@@ -284,7 +284,23 @@ namespace Whispbot.Tools
                 return null;
             }
 
-            ERLCServerConfig? server = GetServerFromString(servers, ctx.args.Join(" "));
+            string searchString = ctx.args.Count > 0 ? ctx.args.Join(" ") : "";
+
+            if (String.IsNullOrWhiteSpace(searchString))
+            {
+                ERLCServerConfig? defaultServer = servers.Count == 1 ? servers[0] : servers.FirstOrDefault(s => s.is_default);
+                if (defaultServer is not null)
+                {
+                    return defaultServer;
+                }
+                else
+                {
+                    await ctx.Reply("{emoji.cross} {string.errors.erlcserver.nodefault}");
+                    return null;
+                }
+            }
+
+            ERLCServerConfig? server = GetServerFromString(servers, searchString);
 
             if (server is null)
             {
