@@ -37,14 +37,14 @@ namespace Whispbot.Commands.Shifts
             User? user = ctx.args.Count > 0 ? await Users.GetUserByString(ctx.args[0], ctx.GuildId) : ctx.User;
             if (user is null)
             {
-                await ctx.Reply("{emoji.cross} {strings.errors.general.invaliduser}");
+                await ctx.Reply("{emoji.cross} {string.errors.general.invaliduser}");
                 return;
             }
 
             List<ShiftType>? shiftTypes = await WhispCache.ShiftTypes.Get(ctx.GuildId);
             if (shiftTypes is null)
             {
-                await ctx.Reply("{emoji.cross} {strings.errors.clockin.dbfailed}");
+                await ctx.Reply("{emoji.cross} {string.errors.clockin.dbfailed}");
                 return;
             }
 
@@ -120,7 +120,7 @@ namespace Whispbot.Commands.Shifts
             {
                 return new MessageBuilder
                 {
-                    content = "{emoji.warning} {strings.errors.shiftadmin.failedgetdata}"
+                    content = "{emoji.warning} {string.errors.shiftadmin.failedgetdata}"
                 };
             }
 
@@ -133,8 +133,8 @@ namespace Whispbot.Commands.Shifts
             User? user = await userTask;
 
             List<TextDisplay> topComponents = [
-                new TextDisplayBuilder($"## {{strings.title.shiftadmin}}\n-# @{user?.username ?? "unknown"}"),
-                new TextDisplayBuilder($"**{{strings.title.shift.alltime}}:** {data.totalCount} ({Time.ConvertMillisecondsToString(data.totalDuration * 1000, ", ", true)})\n**{{strings.title.shift.weekly}}:** {data.weeklyCount} ({Time.ConvertMillisecondsToString(data.weeklyDuration * 1000, ", ", true)})\n**{{strings.title.shiftadmin.trend}}**: {{strings.content.shiftadmin.{(increase ? "increase" : decrease ? "decrease" : "same")}:percent={percent}}}"),
+                new TextDisplayBuilder($"## {{string.title.shiftadmin}}\n-# @{user?.username ?? "unknown"}"),
+                new TextDisplayBuilder($"**{{string.title.shift.alltime}}:** {data.totalCount} ({Time.ConvertMillisecondsToString(data.totalDuration * 1000, ", ", true)})\n**{{string.title.shift.weekly}}:** {data.weeklyCount} ({Time.ConvertMillisecondsToString(data.weeklyDuration * 1000, ", ", true)})\n**{{string.title.shiftadmin.trend}}**: {{string.content.shiftadmin.{(increase ? "increase" : decrease ? "decrease" : "same")}:percent={percent}}}"),
             ];
 
             return new MessageBuilder
@@ -150,7 +150,7 @@ namespace Whispbot.Commands.Shifts
                                 }
                             } : [.. topComponents]),
                             new Seperator(),
-                            new TextDisplayBuilder(recentShifts.Count > 0 ? $"**{{strings.content.shiftadmin.recentshifts}}**:\n{recentShifts.ConvertAll(s => $"{types?.Find(t => t.id == s.type)?.name ?? "*{strings.errors.shiftadmin.unknowntype}*"} @ <t:{s.start_time.ToUnixTimeSeconds()}:R> {(s.end_time is not null ? $"{{strings.content.shiftadmin.for}} {Time.ConvertMillisecondsToString((s.end_time - s.start_time).Value.TotalMilliseconds, ", ", true, 60000)}" : "{strings.content.shiftadmin.untilnow}")}").Join("\n")}" : "{strings.errors.shiftadmin.norecentshifts}."),
+                            new TextDisplayBuilder(recentShifts.Count > 0 ? $"**{{string.content.shiftadmin.recentshifts}}**:\n{recentShifts.ConvertAll(s => $"{types?.Find(t => t.id == s.type)?.name ?? "*{string.errors.shiftadmin.unknowntype}*"} @ <t:{s.start_time.ToUnixTimeSeconds()}:R> {(s.end_time is not null ? $"{{string.content.shiftadmin.for}} {Time.ConvertMillisecondsToString((s.end_time - s.start_time).Value.TotalMilliseconds, ", ", true, 60000)}" : "{string.content.shiftadmin.untilnow}")}").Join("\n")}" : "{string.errors.shiftadmin.norecentshifts}."),
                             new TextDisplayBuilder($"-# Type: {type?.name ?? "all"}")
                         ]
                     },
@@ -158,7 +158,7 @@ namespace Whispbot.Commands.Shifts
                         new ButtonBuilder
                         {
                             custom_id = $"sa_clockin {adminId} {userId} {type?.id}",
-                            label = "{strings.button.shift.clockin}",
+                            label = "{string.button.shift.clockin}",
                             style = ButtonStyle.Success,
                             emoji = Strings.GetEmoji("shiftstart"),
                             disabled = data.currentShiftStart is not null
@@ -166,7 +166,7 @@ namespace Whispbot.Commands.Shifts
                         new ButtonBuilder
                         {
                             custom_id = $"sa_clockout {adminId} {userId} {type?.id}",
-                            label = "{strings.button.shift.clockout}",
+                            label = "{string.button.shift.clockout}",
                             style = ButtonStyle.Danger,
                             emoji = Strings.GetEmoji("shiftstop"),
                             disabled = data.currentShiftStart is null
@@ -174,7 +174,7 @@ namespace Whispbot.Commands.Shifts
                         new ButtonBuilder
                         {
                             custom_id = $"sa_modify {adminId} {userId}",
-                            label = "{strings.button.shiftadmin.modify}",
+                            label = "{string.button.shiftadmin.modify}",
                             style = ButtonStyle.Primary,
                             emoji = Strings.GetEmoji("pen"),
                             disabled = data.totalCount == 0
@@ -184,7 +184,7 @@ namespace Whispbot.Commands.Shifts
                         new ButtonBuilder
                         {
                             custom_id = $"sa_list {adminId} {userId} {type?.id ?? 0} 1",
-                            label = "{strings.button.shiftadmin.listshifts}",
+                            label = "{string.button.shiftadmin.listshifts}",
                             style = ButtonStyle.Secondary,
                             emoji = Strings.GetEmoji("folder"),
                             disabled = data.totalCount == 0
@@ -192,7 +192,7 @@ namespace Whispbot.Commands.Shifts
                         new ButtonBuilder
                         {
                             custom_id = $"sa_wipe {adminId} {userId} {type?.id}",
-                            label = "{strings.button.shiftadmin.wipeshifts}",
+                            label = "{string.button.shiftadmin.wipeshifts}",
                             style = ButtonStyle.Danger,
                             emoji = Strings.GetEmoji("delete"),
                             disabled = data.totalCount == 0
@@ -227,7 +227,7 @@ namespace Whispbot.Commands.Shifts
             {
                 return new MessageBuilder
                 {
-                    content = "{ emoji.warning} {strings.errors.shiftadmin.failedgetdata}"
+                    content = "{ emoji.warning} {string.errors.shiftadmin.failedgetdata}"
                 };
             }
 
@@ -240,7 +240,7 @@ namespace Whispbot.Commands.Shifts
                     new ContainerBuilder
                     {
                         components = [
-                            new TextDisplayBuilder($"## {{strings.title.shiftadmin.list}}\n-# @{user?.username ?? "unknown"}"),
+                            new TextDisplayBuilder($"## {{string.title.shiftadmin.list}}\n-# @{user?.username ?? "unknown"}"),
                             ..shifts.SelectMany<Shift, Component>(s => [new TextDisplayBuilder($"`{s.id}`\n**{{string.content.shiftadminlist.started}}**: <t:{s.start_time.ToUnixTimeSeconds()}:f>\n**{{string.content.shiftadminlist.ended}}**: {(s.end_time is not null ? $"<t:{s.end_time.Value.ToUnixTimeSeconds()}:f>" : "{string.content.shiftadmin.notfinished}")}\n**{{string.content.shiftadminlist.duration}}:** {Time.ConvertMillisecondsToString(((s.end_time ?? DateTimeOffset.UtcNow) - s.start_time).TotalMilliseconds, ", ", true, 60000)}\n**{{string.content.shiftadminlist.type}}:** {types?.Find(t => t.id == s.type)?.name ?? "unknown"}"), new SeperatorBuilder()]).SkipLast(1),
                             new TextDisplayBuilder($"-# Type: {type?.name ?? "all"}")
                         ]
@@ -292,8 +292,8 @@ namespace Whispbot.Commands.Shifts
                     new ContainerBuilder
                     {
                         components = [
-                            new TextDisplayBuilder($"## {{strings.title.shiftadmin.modify}}\n-# {shift.id}"),
-                            new TextDisplayBuilder($"**{{strings.content.shiftadminmodify.started}}:** <t:{shift.start_time.ToUnixTimeSeconds()}:f>\n**{{strings.content.shiftadminmodify.ended}}:** <t:{shift.end_time?.ToUnixTimeSeconds()}:f>\n**{{strings.content.shiftadminmodify.duration}}:** {Time.ConvertMillisecondsToString(((shift.end_time ?? DateTimeOffset.UtcNow) - shift.start_time).TotalMilliseconds, ", ", true, 60000)}\n**{{strings.content.shiftadminmodify.type}}:** {types?.Find(t => t.id == shift.type)?.name ?? "unknown"}")
+                            new TextDisplayBuilder($"## {{string.title.shiftadmin.modify}}\n-# {shift.id}"),
+                            new TextDisplayBuilder($"**{{string.content.shiftadminmodify.started}}:** <t:{shift.start_time.ToUnixTimeSeconds()}:f>\n**{{string.content.shiftadminmodify.ended}}:** <t:{shift.end_time?.ToUnixTimeSeconds()}:f>\n**{{string.content.shiftadminmodify.duration}}:** {Time.ConvertMillisecondsToString(((shift.end_time ?? DateTimeOffset.UtcNow) - shift.start_time).TotalMilliseconds, ", ", true, 60000)}\n**{{string.content.shiftadminmodify.type}}:** {types?.Find(t => t.id == shift.type)?.name ?? "unknown"}")
                         ]
                     },
                     new ActionRowBuilder(
@@ -306,21 +306,21 @@ namespace Whispbot.Commands.Shifts
                         new ButtonBuilder
                         {
                             custom_id = $"sa_addtime {adminId} {shift.id}",
-                            label = "{strings.button.shiftadmin.addtime}",
+                            label = "{string.button.shiftadmin.addtime}",
                             style = ButtonStyle.Success,
                             emoji = Strings.GetEmoji("clockplus")
                         },
                         new ButtonBuilder
                         {
                             custom_id = $"sa_removetime {adminId} {shift.id}",
-                            label = "{strings.button.shiftadmin.removetime}",
+                            label = "{string.button.shiftadmin.removetime}",
                             style = ButtonStyle.Danger,
                             emoji = Strings.GetEmoji("clockminus")
                         },
                         new ButtonBuilder
                         {
                             custom_id = $"sa_settime {adminId} {shift.id}",
-                            label = "{strings.button.shiftadmin.settime}",
+                            label = "{string.button.shiftadmin.settime}",
                             style = ButtonStyle.Primary,
                             emoji = Strings.GetEmoji("clockedit")
                         }
@@ -329,14 +329,14 @@ namespace Whispbot.Commands.Shifts
                         new ButtonBuilder
                         {
                             custom_id = $"sa_changetype {adminId} {shift.id}",
-                            label = "{strings.button.shiftadmin.changetype}",
+                            label = "{string.button.shiftadmin.changetype}",
                             style = ButtonStyle.Primary,
                             emoji = Strings.GetEmoji("pen")
                         },
                         new ButtonBuilder
                         {
                             custom_id = $"sa_delete {adminId} {shift.moderator_id} {shift.type} {shift.id}",
-                            label = "{strings.button.shiftadmin.deleteshift}",
+                            label = "{string.button.shiftadmin.deleteshift}",
                             style = ButtonStyle.Danger,
                             emoji = Strings.GetEmoji("delete")
                         }

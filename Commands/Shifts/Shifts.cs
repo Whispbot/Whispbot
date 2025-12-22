@@ -53,7 +53,7 @@ namespace Whispbot.Commands.Shifts
 
             if (data is null)
             {
-                await ctx.Reply("{emoji.warning} {strings.errors.shifts.dbfailed}");
+                await ctx.Reply("{emoji.warning} {string.errors.shifts.dbfailed}");
                 return;
             }
 
@@ -83,15 +83,15 @@ namespace Whispbot.Commands.Shifts
                     new ContainerBuilder
                     {
                         components = [
-                            new TextDisplayBuilder("## {strings.title.shift}"),
+                            new TextDisplayBuilder("## {string.title.shift}"),
                             ..(currentShiftStart is not null ? [
-                                new TextDisplayBuilder($"{{emoji.clockedin}} {{strings.content.shift.clockedin}} <t:{currentShiftStart.Value.ToUnixTimeSeconds()}:R>."),
+                                new TextDisplayBuilder($"{{emoji.clockedin}} {{string.content.shift.clockedin}} <t:{currentShiftStart.Value.ToUnixTimeSeconds()}:R>."),
                                 new Seperator()
                             ] : status && shift?.end_time is not null ? new List<Component> {
-                                new TextDisplayBuilder($"{{emoji.clockedout}} {{strings.content.shift.clockedout}} {Time.ConvertMillisecondsToString((shift.end_time - shift.start_time).Value.TotalMilliseconds)}."),
+                                new TextDisplayBuilder($"{{emoji.clockedout}} {{string.content.shift.clockedout}} {Time.ConvertMillisecondsToString((shift.end_time - shift.start_time).Value.TotalMilliseconds)}."),
                                 new Seperator()
                             } : []),
-                            new TextDisplayBuilder($"{{strings.title.shift.alltime}}: {totalCount} ({Time.ConvertMillisecondsToString(totalDuration * 1000, ", ", true, 60000)})\n{{strings.title.shift.weekly}}: {weeklyCount} ({Time.ConvertMillisecondsToString(weeklyDuration * 1000, ", ", true, 60000)})"),
+                            new TextDisplayBuilder($"{{string.title.shift.alltime}}: {totalCount} ({Time.ConvertMillisecondsToString(totalDuration * 1000, ", ", true, 60000)})\n{{string.title.shift.weekly}}: {weeklyCount} ({Time.ConvertMillisecondsToString(weeklyDuration * 1000, ", ", true, 60000)})"),
                             new TextDisplayBuilder($"-# Type: {type?.name ?? "all"}")
                         ],
                         accent_color = (status ? new Color(150, 0, 0) : currentShiftStart is not null ? new Color(0, 150, 0) : null)?.ToInt(),
@@ -101,14 +101,14 @@ namespace Whispbot.Commands.Shifts
                         components = [
                             new ButtonBuilder
                             {
-                                label = "{strings.button.shift.clockin}",
+                                label = "{string.button.shift.clockin}",
                                 style = ButtonStyle.Success,
                                 custom_id = $"clockin {userId} {type?.id}",
                                 disabled = currentShiftStart is not null
                             },
                             new ButtonBuilder
                             {
-                                label = "{strings.button.shift.clockout}",
+                                label = "{string.button.shift.clockout}",
                                 style = ButtonStyle.Danger,
                                 custom_id = $"clockout {userId} {type?.id}",
                                 disabled = currentShiftStart is null

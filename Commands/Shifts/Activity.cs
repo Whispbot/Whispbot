@@ -45,12 +45,12 @@ namespace Whispbot.Commands.Shifts
 
             if (ctx.args.Count < 1)
             {
-                await ctx.Reply("{emoji.warning} {strings.errors.shiftactivity.noduration}");
+                await ctx.Reply("{emoji.warning} {string.errors.shiftactivity.noduration}");
                 return;
             }
             if (ctx.args.Count < 2)
             {
-                await ctx.Reply("{emoji.warning} {strings.errors.shiftactivity.norequirement}");
+                await ctx.Reply("{emoji.warning} {string.errors.shiftactivity.norequirement}");
                 return;
             }
 
@@ -101,12 +101,12 @@ namespace Whispbot.Commands.Shifts
 
             if (userActivities is null)
             {
-                await ctx.Reply("{emoji.warning} {strings.errors.shiftactivity.dbfailed}");
+                await ctx.Reply("{emoji.warning} {string.errors.shiftactivity.dbfailed}");
                 return;
             }
             if (userActivities.Count == 0)
             {
-                await ctx.Reply("{emoji.warning} {strings.errors.shiftactivity.nodata}");
+                await ctx.Reply("{emoji.warning} {string.errors.shiftactivity.nodata}");
                 return;
             }
 
@@ -122,7 +122,7 @@ namespace Whispbot.Commands.Shifts
 
                 if (permissionRoles is null)
                 {
-                    await ctx.Reply("{emoji.warning} {strings.errors.shiftactivity.dbfailed}");
+                    await ctx.Reply("{emoji.warning} {string.errors.shiftactivity.dbfailed}");
                     return;
                 }
 

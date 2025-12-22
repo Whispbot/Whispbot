@@ -30,7 +30,7 @@ namespace Whispbot.Interactions.Shifts
 
             await ctx.ShowModal(new ModalBuilder
             {
-                title = "{strings.button.shiftadmin.changetype}",
+                title = "{string.button.shiftadmin.changetype}",
                 custom_id = $"sa_changetype {ctx.args[0]} {ctx.args[1]}",
                 components = [
                     new LabelBuilder("Select new type", new StringSelectBuilder("new_type")

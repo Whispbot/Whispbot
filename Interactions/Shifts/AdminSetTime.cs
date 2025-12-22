@@ -24,7 +24,7 @@ namespace Whispbot.Interactions.Shifts
             ModalBuilder modal = new()
             {
                 custom_id = $"sa_settime {ctx.args[0]} {ctx.args[1]}",
-                title = "{strings.button.shiftadmin.settime}",
+                title = "{string.button.shiftadmin.settime}",
                 components = [
                     new ActionRowBuilder(
                         new TextInputBuilder("Time To Set")
