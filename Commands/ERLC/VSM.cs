@@ -121,7 +121,7 @@ namespace Whispbot.Commands.ERLCCommands
                 }
                 else
                 {
-                    server = servers.FirstOrDefault();
+                    server = servers.FirstOrDefault(s => s.is_default);
                 }
 
                 if (server is null)
