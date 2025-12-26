@@ -24,10 +24,13 @@ namespace Whispbot
               @"SELECT 
                     gc.*,
                     to_jsonb(mrm) AS roblox_moderation,
-                    to_jsonb(ms) AS shifts
+                    to_jsonb(ms) AS shifts,
+                    COALESCE(jsonb_agg(ff.name), '[]'::jsonb) AS feature_flags
                 FROM guild_config gc 
                 LEFT JOIN module_roblox_moderation mrm ON gc.id = mrm.id
                 LEFT JOIN module_shifts ms ON gc.id = ms.id
+                LEFT JOIN guild_feature_flags gff ON gff.guild_id = gc.id
+                LEFT JOIN feature_flags ff ON ff.id = gff.feature_flag_id
                 WHERE gc.id = @1;",
               [long.Parse(key)]
             );
@@ -41,7 +44,13 @@ namespace Whispbot
         public static readonly Collection<UserConfig> UserConfig = new(async (key, args) =>
         {
             UserConfig? existingRecord = Postgres.SelectFirst<UserConfig>(
-              @"SELECT * FROM user_config WHERE id = @1;",
+              @"SELECT 
+                    uc.*,
+                    COALESCE(jsonb_agg(ff.name), '[]'::jsonb) AS feature_flags
+                FROM user_config uc
+                LEFT JOIN user_feature_flags uff ON uff.user_id = uc.id
+                LEFT JOIN feature_flags ff ON ff.id = uff.feature_flag_id
+                WHERE id = @1;",
               [long.Parse(key)]
             );
 
@@ -117,6 +126,7 @@ namespace Whispbot
         public string? name;
         public string? icon_url;
         public EnvironmentType version = EnvironmentType.Prod;
+        public List<string> feature_flags = [];
         public long enabled_modules = 0;
         public string? prefix;
 
@@ -152,6 +162,8 @@ namespace Whispbot
         public DateTimeOffset created_at = DateTimeOffset.MinValue;
         public int? language = 0;
         public bool ack_required = false;
+
+        public List<string> feature_flags = [];
     }
 
     public class ERLCServerConfig
