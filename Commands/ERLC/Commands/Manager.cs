@@ -228,11 +228,33 @@ namespace Whispbot.Commands.ERLCCommands.Commands
                     return;
                 }
 
-                var (moderation, error) = await Procedures.CreateModeration(ctx.GuildId, ctx.UserId, target.id, modType, "No reason provided");
+                string reason = ctx.args.Join(" ");
+                if (string.IsNullOrEmpty(reason))
+                {
+                    reason = "No reason provided";
+                }
+
+                var (moderation, error) = await Procedures.CreateModeration(ctx.GuildId, ctx.UserId, target.id, modType, reason);
 
                 if (moderation is not null)
                 {
-                    await ctx.Reply(action == "kicked" ? "{string.content.erlccommand.log.kicklogged}" : "{string.content.erlccommand.log.banlogged}");
+                    if (ctx.flags.Contains("bolo"))
+                    {
+                        var (bolo, boloError) = await Procedures.CreateBanRequest(ctx.GuildId, ctx.UserId, target.id, reason);
+
+                        if (bolo is not null)
+                        {
+                            await ctx.Reply("{string.content.erlccommand.log.kickandbrlogged}");
+                        }
+                        else
+                        {
+                            await ctx.Reply($"{{string.content.erlccommand.log.kicklogged}}. {error ?? "{ string.errors.erlccommand.log.bolofailed}"}.");
+                        }
+                    }
+                    else
+                    {
+                        await ctx.Reply(action == "kicked" ? "{string.content.erlccommand.log.kicklogged}" : "{string.content.erlccommand.log.banlogged}");
+                    }
                 }
                 else
                 {
