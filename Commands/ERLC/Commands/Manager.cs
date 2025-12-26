@@ -233,8 +233,12 @@ namespace Whispbot.Commands.ERLCCommands.Commands
                 {
                     reason = "No reason provided";
                 }
+                else
+                {
+                    reason = reason.Replace(" - Player Not In Game", "");
+                }
 
-                var (moderation, error) = await Procedures.CreateModeration(ctx.GuildId, ctx.UserId, target.id, modType, reason);
+                    var (moderation, error) = await Procedures.CreateModeration(ctx.GuildId, ctx.UserId, target.id, modType, reason);
 
                 if (moderation is not null)
                 {
