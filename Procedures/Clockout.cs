@@ -24,7 +24,7 @@ namespace Whispbot
 
             if (type.role_id is not null && moderator is not null)
             {
-                Task _ = moderator.RemoveRole(type.role_id?.ToString() ?? "", $"Clocked out of shift type '{type.name}'.");
+                Task _ = moderator.RemoveRole(type.role_id!.ToString(), $"Clocked out of shift type '{type.name}'.");
             }
 
             GuildConfig? config = await WhispCache.GuildConfig.Get(guildId.ToString());
