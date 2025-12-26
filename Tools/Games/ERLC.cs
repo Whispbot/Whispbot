@@ -323,7 +323,7 @@ namespace Whispbot.Tools
 
             if (response is null)
             {
-                await ctx.Reply("{emoji.loading} {string.content.erlcplayers.fetching}...");
+                await ctx.Reply("{emoji.loading} {string.content.erlc.fetching}...");
                 response = await Request(endpoint, server.DecryptedApiKey);
 
                 if (response is null)
