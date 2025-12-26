@@ -73,7 +73,8 @@ namespace Whispbot.Commands.ERLCCommands
                                         banned ?
                                         $"{{emoji.tick}} **@{user.name}** {{string.content.erlcserver.banned}} {server.name}." :
                                         $"{{emoji.cross}} **@{user.name}** {{string.content.erlcserver.notbanned}} {server.name}."
-                                    )
+                                    ),
+                                    new TextDisplayBuilder($"-# {await ERLC.GenerateFooter(response!)}")
                                 ],
                                 accent = banned ? new Color(0, 150, 0) : new Color(150, 0, 0)
                             }
