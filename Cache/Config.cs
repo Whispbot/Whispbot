@@ -22,18 +22,20 @@ namespace Whispbot
         {
             GuildConfig? existingRecord = Postgres.SelectFirst<GuildConfig>(
               @"SELECT
-                    gc.*,
-                    to_jsonb(mrm) AS roblox_moderation,
-                    to_jsonb(ms) AS shifts,
-                    COALESCE(jsonb_agg(ff.name), '[]'::jsonb) AS feature_flags
+                  gc.*,
+                  to_jsonb(mrm) AS roblox_moderation,
+                  to_jsonb(ms) AS shifts,
+                  COALESCE(
+                    jsonb_agg(DISTINCT ff.name) FILTER (WHERE ff.name IS NOT NULL),
+                    '[]'::jsonb
+                  ) AS feature_flags
                 FROM guild_config gc
                 LEFT JOIN module_roblox_moderation mrm ON gc.id = mrm.id
                 LEFT JOIN module_shifts ms ON gc.id = ms.id
                 LEFT JOIN guild_feature_flags gff ON gff.guild_id = gc.id
                 LEFT JOIN feature_flags ff ON ff.id = gff.feature_flag_id
-                WHERE gc.id = 884351371095203850
-                GROUP BY 
-                    gc.id, gc.name, gc.icon_url, gc.version, gc.enabled_modules, gc.created_at, gc.updated_at, gc.default_language, gc.prefix;",
+                WHERE gc.id = @1
+                GROUP BY gc.id, mrm.id, ms.id;",
               [long.Parse(key)]
             );
 
