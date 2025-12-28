@@ -99,8 +99,7 @@ namespace Whispbot.Commands.ERLCCommands.Commands
 
             string serverKey = footer.Replace("Private Server: ", "").Trim();
 
-            ERLCServerConfig? serverConfig = null;
-            if (!serverMap.TryGetValue(serverKey, out serverConfig))
+            if (!serverMap.TryGetValue(serverKey, out ERLCServerConfig? serverConfig))
             {
                 serverConfig = Postgres.SelectFirst<ERLCServerConfig>(
                     "SELECT * FROM erlc_servers WHERE guild_id = @1 AND code = @2",
@@ -126,6 +125,8 @@ namespace Whispbot.Commands.ERLCCommands.Commands
                 }
                 return;
             }
+
+            if (ctx.GuildConfig?.version != Config.EnvId) return;
 
             if (action == "used the command:")
             {
