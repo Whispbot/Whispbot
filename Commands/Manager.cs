@@ -68,6 +68,7 @@ namespace Whispbot.Commands
             RegisterStaffCommand(new UpdateLanguages());
             RegisterStaffCommand(new AIRequest());
             RegisterStaffCommand(new ResolveError());
+            RegisterStaffCommand(new GuildFeatureFlags());
             #endregion
 
             Log.Debug($"Loaded {commands.Count} commands");
@@ -86,14 +87,7 @@ namespace Whispbot.Commands
         }
 
         private int? _maxLength = null;
-        public int MaxLength
-        {
-            get
-            {
-                _maxLength ??= commands.Max(c => c.Aliases.Max(a => a.Split(" ").Length));
-                return _maxLength ?? 0;
-            }
-        }
+        public int MaxLength => _maxLength ??= commands.Max(c => c.Aliases.Max(a => a.Split(" ").Length));
 
         public async Task HandleMessage(Client client, Message message)
         {

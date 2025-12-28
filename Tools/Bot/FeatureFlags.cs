@@ -138,6 +138,11 @@ namespace Whispbot.Tools.Bot
             public DateTimeOffset? finish_at;
         }
 
+        public class FeatureFlagUpdate
+        {
+            public byte status = 0;
+        }
+
         public enum FeatureFlagType
         {
             Manual,
