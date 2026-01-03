@@ -40,7 +40,6 @@ namespace Whispbot.Commands.ERLCCommands
             }
 
             if (!await WhispPermissions.CheckModuleMessage(ctx, Module.ERLC)) return;
-            if (!await WhispPermissions.CheckPermissionsMessage(ctx, BotPermissions.UseERLC)) return;
 
             ERLCServerConfig? server = await ERLC.TryGetServer(ctx);
             if (server is null) return;
