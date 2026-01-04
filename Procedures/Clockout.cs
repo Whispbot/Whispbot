@@ -24,7 +24,7 @@ namespace Whispbot
 
             if (type.role_id is not null && moderator is not null)
             {
-                Task _ = moderator.RemoveRole(type.role_id!.ToString(), $"Clocked out of shift type '{type.name}'.");
+                await moderator.RemoveRole(type.role_id!.ToString(), $"Clocked out of shift type '{type.name}'.");
             }
 
             GuildConfig? config = await WhispCache.GuildConfig.Get(guildId.ToString());
@@ -36,7 +36,7 @@ namespace Whispbot
             Channel? logChannel = await DiscordCache.Channels.Get(logChannelId);
             if (logChannel is null) return;
 
-            Task __ = logChannel.Send(new MessageBuilder()
+            await logChannel.Send(new MessageBuilder()
             {
                 embeds = [
                     new EmbedBuilder()
