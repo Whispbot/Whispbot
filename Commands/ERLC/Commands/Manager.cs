@@ -97,6 +97,8 @@ namespace Whispbot.Commands.ERLCCommands.Commands
 
             if (username == "Remote Server") return;
 
+            using var _ = Tracer.Start($"ERLCCommand: {(action == "used the command:" ? commandName : action)}");
+
             string serverKey = footer.Replace("Private Server: ", "").Trim();
 
             if (!serverMap.TryGetValue(serverKey, out ERLCServerConfig? serverConfig))
@@ -109,7 +111,7 @@ namespace Whispbot.Commands.ERLCCommands.Commands
                 serverMap[serverKey] = serverConfig;
             }
 
-            if (serverConfig is null) return;
+            if (serverConfig is null || serverConfig.guild_id.ToString() != message.channel.guild_id) return;
 
             MatchCollection matches = Regex.Matches(commandArgs, @"--(\w+)");
             List<string> flags = [.. matches.Select(m => m.Groups[1].Value.ToLower())];

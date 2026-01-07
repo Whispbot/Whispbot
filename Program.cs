@@ -46,6 +46,7 @@ _ = Task.Run(Redis.Init);
 _ = Task.Run(Postgres.Init);
 _ = Task.Run(SentryConnection.Init);
 _ = Task.Run(Strings.GetLanguages);
+// Tracer.CreateListener();
 
 // Thread for API (communication between services / health check)
 Thread APIThread = new(new ThreadStart(() =>

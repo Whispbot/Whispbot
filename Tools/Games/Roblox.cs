@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using YellowMacaroni.Discord.Cache;
 using YellowMacaroni.Discord.Core;
+using static Microsoft.Extensions.Logging.EventSource.LoggingEventSource;
 
 namespace Whispbot.Tools
 {
@@ -50,6 +51,7 @@ namespace Whispbot.Tools
         public static async Task<RobloxUser?> GetUserById(string id)
         {
             if (!_initialized) if (!Init()) return null;
+            using var _ = Tracer.Start($"Roblox.GetById: {id}");
 
             var cachedValue = Users.FromCache(id);
             if (cachedValue is not null) return cachedValue;
@@ -73,6 +75,7 @@ namespace Whispbot.Tools
         public static async Task<string?> GetUserIdByUsername(string username)
         {
             if (!_initialized) if (!Init()) return null;
+            using var _ = Tracer.Start($"Roblox.GetByUsername: {username}");
 
             if (userIds.TryGetValue(username.ToLower(), out string? cachedValue) && cachedValue is not null) return cachedValue;
 
@@ -97,6 +100,7 @@ namespace Whispbot.Tools
         public static async Task<List<RobloxUser>?> GetUserById(List<string> ids)
         {
             if (!_initialized) if (!Init()) return null;
+            using var _ = Tracer.Start($"Roblox.GetByIds: {ids.Count} users");
 
             List<RobloxUser> cachedUsers = Users.FindMany((u, _) => ids.Contains(u.id));
             List<string> idsToFetch = [.. ids.Except(cachedUsers.Select(u => u.id))];
@@ -123,6 +127,7 @@ namespace Whispbot.Tools
         public static async Task<List<RobloxUser>?> SearchUsers(string keyword, int limit = 10)
         {
             if (!_initialized) if (!Init()) return null;
+            using var _ = Tracer.Start($"Roblox.SearchUsername: {keyword}");
 
             limit = Math.Clamp(limit, 1, 100);
             var result = await _client.GetAsync($"https://users.roblox.com/v1/users/search?keyword={keyword}&limit={limit}");
@@ -141,6 +146,7 @@ namespace Whispbot.Tools
         public static async Task<List<RobloxUser>?> GetUserByUsername(List<string> usernames)
         {
             if (!_initialized) if (!Init()) return null;
+            using var _ = Tracer.Start($"Roblox.GetByUsernames: {usernames.Count} users");
 
             var result = await _client.PostAsync("https://users.roblox.com/v1/usernames/users", new StringContent(JsonConvert.SerializeObject(new
             {
@@ -161,6 +167,8 @@ namespace Whispbot.Tools
             {
                 return cachedAvatar.Item2;
             }
+
+            using var _ = Tracer.Start($"Roblox.GetAvatar: {id}");
 
             var result = await _client.GetAsync($"https://thumbnails.roblox.com/v1/users/avatar?userIds={id}&size={size}x{size}&format=Png&isCircular=false");
 

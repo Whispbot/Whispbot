@@ -91,13 +91,16 @@ namespace Whispbot.Commands
 
         public async Task HandleMessage(Client client, Message message)
         {
+            using var messageTrace = Tracer.Start("Message");
             if (message.webhook_id is not null)
             {
                 Config.erlcCommands?.HandleMessage(client, message);
                 return;
             }
 
-            GuildConfig? guildConfig = message.channel?.guild_id is not null ? await WhispCache.GuildConfig.Get(message.channel.guild_id) : null;
+            GuildConfig? guildConfig = null;
+            using (Tracer.Start("FetchGuildConfig"))
+                guildConfig = message.channel?.guild_id is not null ? await WhispCache.GuildConfig.Get(message.channel.guild_id) : null;
 
             string prefix = guildConfig?.prefix ?? Config.prefix;
             string mention = $"<@{client.readyData?.user.id}>";
@@ -115,6 +118,8 @@ namespace Whispbot.Commands
                 args.RemoveRange(0, length);
 
                 if (command is null) return;
+
+                using var commandTrace = Tracer.Start($"Command: {command.Name}");
 
                 MatchCollection matches = Regex.Matches(args.Join(" "), @"--(\w+)");
                 List<string> flags = [.. matches.Select(m => m.Groups[1].Value)];
@@ -141,7 +146,7 @@ namespace Whispbot.Commands
 
                 try
                 {
-                    await command.ExecuteAsync(ctx);
+                    using (Tracer.Start("ExecuteCommand")) await command.ExecuteAsync(ctx);
                 }
                 catch (Exception ex)
                 {

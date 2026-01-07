@@ -1,16 +1,17 @@
+using Microsoft.AspNetCore.Components.Web;
 using Newtonsoft.Json;
 using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
-using System.Security.Cryptography;
+using Whispbot.Commands;
 using Whispbot.Databases;
 using YellowMacaroni.Discord.Core;
 using YellowMacaroni.Discord.Extentions;
-using Whispbot.Commands;
-using Microsoft.AspNetCore.Components.Web;
+using static Microsoft.Extensions.Logging.EventSource.LoggingEventSource;
 
 namespace Whispbot.Tools
 {
@@ -36,6 +37,8 @@ namespace Whispbot.Tools
             var (_, method, _, _) = endpoints[endpoint];
             if (method != HttpMethod.Get) return null;
 
+            using var _ = Tracer.Start($"ERLC.CheckCache: {endpoint}");
+
             string cacheKey = $"prcapiworker:{endpoint}:{(apiKey is not null ? HashString(apiKey) : "unauthenticated")}";
 
             var redis = Redis.GetDatabase();
@@ -51,6 +54,7 @@ namespace Whispbot.Tools
 
         public static async Task<PRC_Response?> Request(Endpoint endpoint, string? apiKey = null, StringContent? content = null)
         {
+            using var _ = Tracer.Start($"ERKC.FetchData: {endpoint}");
             if (!_initialized) Init();
 
             var (url, method, _, requiresKey) = endpoints[endpoint];
@@ -319,6 +323,8 @@ namespace Whispbot.Tools
 
         public static async Task<PRC_DeserializedResponse<T>?> GetEndpointData<T>(CommandContext ctx, ERLCServerConfig server, Endpoint endpoint) where T : class
         {
+            using var _ = Tracer.Start($"ERLC.GetEndpoint: {endpoint}");
+
             var response = CheckCache(endpoint, server.DecryptedApiKey);
 
             if (response is null)

@@ -20,6 +20,8 @@ namespace Whispbot
     {
         public static readonly Collection<GuildConfig> GuildConfig = new(async (key, args) =>
         {
+            using var _ = Tracer.Start("FetchGuildConfig");
+
             GuildConfig? existingRecord = Postgres.SelectFirst<GuildConfig>(
               @"SELECT
                   gc.*,
@@ -47,6 +49,8 @@ namespace Whispbot
 
         public static readonly Collection<UserConfig> UserConfig = new(async (key, args) =>
         {
+            using var _ = Tracer.Start("FetchUserConfig");
+
             UserConfig? existingRecord = Postgres.SelectFirst<UserConfig>(
               @"SELECT 
                     uc.*,
@@ -66,6 +70,8 @@ namespace Whispbot
 
         public static readonly Collection<List<ERLCServerConfig>> ERLCServerConfigs = new(async (key, args) =>
         {
+            using var _ = Tracer.Start("FetchERLCServerConfigs");
+
             return Postgres.Select<ERLCServerConfig>(
                 @"SELECT * FROM erlc_servers WHERE guild_id = @1;",
                 [long.Parse(key)]
@@ -74,6 +80,8 @@ namespace Whispbot
 
         public static readonly Collection<List<ShiftType>> ShiftTypes = new(async (key, args) =>
         {
+            using var _ = Tracer.Start("FetchShiftTypes");
+
             List<ShiftType>? types = Postgres.Select<ShiftType>(
                 @"SELECT * FROM shift_types WHERE guild_id = @1;",
                 [long.Parse(key)]
@@ -97,6 +105,8 @@ namespace Whispbot
 
         public static readonly Collection<List<RobloxModerationType>> RobloxModerationTypes = new(async (key, args) =>
         {
+            using var _ = Tracer.Start("FetchRobloxModerationTypes");
+
             List<RobloxModerationType>? types = Postgres.Select<RobloxModerationType>(
                 @"SELECT * FROM roblox_moderation_types WHERE guild_id = @1;",
                 [long.Parse(key)]

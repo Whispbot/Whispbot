@@ -10,6 +10,7 @@ using Whispbot.Extensions;
 using YellowMacaroni.Discord.Cache;
 using YellowMacaroni.Discord.Core;
 using YellowMacaroni.Discord.Extentions;
+using static Microsoft.Extensions.Logging.EventSource.LoggingEventSource;
 
 namespace Whispbot.Commands
 {
@@ -73,6 +74,7 @@ namespace Whispbot.Commands
         {
             if (message.channel is null) return (null, new(new()));
 
+            using var _ = Tracer.Start("Reply");
             (Message? sentMessage, DiscordError? error) = await message.channel.Send(JsonConvert.DeserializeObject(JsonConvert.SerializeObject(content).Process(Language)) ?? new MessageBuilder() { content = "Something went wrong..." });
 
             if (sentMessage is not null) repliedMessage = sentMessage;
@@ -87,6 +89,8 @@ namespace Whispbot.Commands
 
         public async Task<(Message?, DiscordError?)> EditResponse(MessageBuilder content)
         {
+            using var _ = Tracer.Start($"EditReply");
+
             if (repliedMessage is not null)
             {
                 return await repliedMessage.Edit(JsonConvert.DeserializeObject(JsonConvert.SerializeObject(content).Process(Language)) ?? new MessageBuilder() { content = "Something went wrong..." });

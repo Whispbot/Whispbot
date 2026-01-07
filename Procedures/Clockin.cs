@@ -25,7 +25,12 @@ namespace Whispbot
 
             if (type.role_id is not null)
             {
-                await moderator.AddRole(type.role_id!.ToString(), $"Clocked in to shift type '{type.name}'.");
+                var err = await moderator.AddRole(type.role_id!.ToString(), $"Clocked in to shift type '{type.name}'.");
+
+                if (err is not null)
+                {
+                    Log.Warning($"Failed to add role {type.role_id} for {moderatorId}\n{err}");
+                }
             }
 
             GuildConfig? config = await WhispCache.GuildConfig.Get(guildId.ToString());

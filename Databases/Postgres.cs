@@ -277,6 +277,7 @@ namespace Whispbot.Databases
 
         public static List<T>? Select<T>(string sql, List<object>? args = null, NpgsqlTransaction? transaction = null) where T : new()
         {
+            using var activity = Tracer.Start("Postgres.Select");
             NpgsqlConnection? connection = transaction?.Connection;
             bool connectionOwned = false;
             if (connection == null)
@@ -304,6 +305,7 @@ namespace Whispbot.Databases
 
         public static List<dynamic>? Select(string sql, List<object>? args = null, NpgsqlTransaction? transaction = null)
         {
+            using var activity = Tracer.Start("Postgres.Select");
             NpgsqlConnection? connection = transaction?.Connection;
             bool connectionOwned = false;
             if (connection == null)
@@ -331,6 +333,7 @@ namespace Whispbot.Databases
 
         public static T? SelectFirst<T>(string sql, List<object>? args = null, NpgsqlTransaction? transaction = null) where T : new()
         {
+            using var activity = Tracer.Start("Postgres.SelectFirst");
             NpgsqlConnection? connection = transaction?.Connection;
             bool connectionOwned = false;
             if (connection == null)
@@ -358,6 +361,7 @@ namespace Whispbot.Databases
 
         public static int Execute(string sql, List<object>? args = null, NpgsqlTransaction? transaction = null)
         {
+            using var activity = Tracer.Start("Postgres.Execute");
             NpgsqlConnection? connection = transaction?.Connection;
             bool connectionOwned = false;
             if (connection == null)
