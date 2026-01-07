@@ -36,7 +36,7 @@ namespace Whispbot.Interactions.Roblox
                 if (ctx.interaction.message is not null) { Task __ = ctx.EditMessage(Commands.General.Connections.GetConnectionsMessage(false, ctx.UserId, robloxUser)); }
 
                 UserConfig? updatedConfig = Postgres.SelectFirst<UserConfig>(
-                    @"INSERT INTO user_config(id, roblox_id) VALUES (@1, @2) ON CONFLICT DO UPDATE SET roblox_id = @2;",
+                    @"INSERT INTO user_config(id, roblox_id) VALUES (@1, @2) ON CONFLICT (id) DO UPDATE SET roblox_id = @2;",
                     [long.Parse(ctx.UserId), long.Parse(bloxlinkUser.RobloxID)]
                 );
 
