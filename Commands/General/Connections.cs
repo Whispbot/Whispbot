@@ -26,25 +26,19 @@ namespace Whispbot.Commands.General
 
             UserConfig? userConfig = await WhispCache.UserConfig.Get(ctx.User.id);
 
-            if (userConfig is null)
-            {
-                await ctx.Reply("{emoji.cross} {string.errors.userconfig.notfound}");
-                return;
-            }
+            RobloxUser? robloxUser = userConfig?.roblox_id is not null ? Users.FromCache(userConfig.roblox_id.Value.ToString()) : null;
 
-            Tools.Roblox.RobloxUser? robloxUser = userConfig.roblox_id is not null ? Tools.Roblox.Users.FromCache(userConfig.roblox_id.Value.ToString()) : null;
-
-            if (userConfig.roblox_id is not null && robloxUser is null)
+            if (userConfig?.roblox_id is not null && robloxUser is null)
             {
                 await ctx.Reply(new MessageBuilder() { components = [new TextDisplayBuilder("{emoji.loading} {string.content.connections.fetchingroblox}...")], flags = MessageFlags.IsComponentsV2 });
 
-                robloxUser = await Tools.Roblox.GetUserById(userConfig.roblox_id.Value);
+                robloxUser = await GetUserById(userConfig.roblox_id.Value);
             }
 
             await ctx.EditResponse(GetConnectionsMessage(false, ctx.User.id, robloxUser));
         }
 
-        public static MessageBuilder GetConnectionsMessage(bool updating, string userId, Tools.Roblox.RobloxUser? robloxUser)
+        public static MessageBuilder GetConnectionsMessage(bool updating, string userId, RobloxUser? robloxUser)
         {
             bool roblox = robloxUser is not null;
 
