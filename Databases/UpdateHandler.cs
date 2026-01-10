@@ -58,6 +58,10 @@ namespace Whispbot.Databases
                     {
                         List<ERLCServerConfig>? newServers = await ERLCServerConfigs.Fetch(data.id.ToString());
                     }
+                    else if (data.table == "permission_roles")
+                    {
+                        List<PermissionRole>? newRoles = await WhispPermissions.permissionRoles.Fetch(data.id.ToString());
+                    }
                 }
                 else if (e.Channel == "language_update")
                 {
