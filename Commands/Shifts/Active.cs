@@ -42,7 +42,7 @@ namespace Whispbot.Commands.Shifts
             }
 
             List<Shift>? activeShifts = Postgres.Select<Shift>(
-                "SELECT * FROM shifts WHERE guild_id = @1 AND end_time IS NULL;",
+                "SELECT * FROM shifts WHERE guild_id = @1 AND end_time IS NULL ORDER BY start_time;",
                 [long.Parse(ctx.GuildId)]
             );
 
