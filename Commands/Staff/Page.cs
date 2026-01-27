@@ -31,7 +31,7 @@ namespace Whispbot.Commands.Staff
             }
 
             string? description = ctx.args.Join(" ").Split("::").Skip(1).Join(" ");
-            if (string.IsNullOrEmpty(description)) description = null;
+            description += $"\n\nSent by @{ctx.User?.username} ({ctx.UserId})";
 
             var message = (await ctx.Reply("{emoji.loading} Sending page...")).Item1;
 
