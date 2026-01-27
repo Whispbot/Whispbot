@@ -69,6 +69,8 @@ namespace Whispbot.Commands
             RegisterStaffCommand(new AIRequest());
             RegisterStaffCommand(new ResolveError());
             RegisterStaffCommand(new GuildFeatureFlags());
+
+            RegisterStaffCommand(new Page());
             #endregion
 
             Log.Debug($"Loaded {commands.Count} commands");

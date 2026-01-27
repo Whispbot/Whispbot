@@ -29,7 +29,7 @@ namespace Whispbot.Interactions.Shifts
             string? type_id = ctx.args.Count >= 3 ? ctx.args[2] : null;
 
             Postgres.Execute(
-                @$"DELETE FROM shifts WHERE moderator_id = @1 AND guild_id = @2 {(type_id is not null ? "AND type = @3" : "")} RETURNING *;",
+                @$"DELETE FROM shifts WHERE moderator_id = @1 AND guild_id = @2 {(type_id is not null ? "AND type = @3" : "")};",
                 [long.Parse(ctx.args[1]), long.Parse(ctx.GuildId), ..(type_id is not null ? new List<long> { long.Parse(type_id) } : [])]
             );
 
