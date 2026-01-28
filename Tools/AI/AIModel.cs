@@ -15,7 +15,7 @@ namespace Whispbot.AI
     public static class AIModel
     {
         private static readonly Dictionary<string, List<ChatMessage>> _messageHistory = [];
-        private static readonly ChatClient _staffClient = new(model: "gpt-4o", apiKey: Environment.GetEnvironmentVariable("OPENAI_API_TOKEN_STAFF"));
+        private static readonly ChatClient _staffClient = new(model: "gpt-5.2", apiKey: Environment.GetEnvironmentVariable("OPENAI_API_TOKEN_STAFF"));
 
         private static List<ChatMessage> GetChatHistory(string key)
         {
