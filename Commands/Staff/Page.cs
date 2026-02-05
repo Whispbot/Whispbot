@@ -23,7 +23,7 @@ namespace Whispbot.Commands.Staff
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
         {
-            string title = ctx.args.Join(" ").Split("::")[0];
+            string title = ctx.args.Join(" ").Split("::")[0]; // >page title::description
             if (string.IsNullOrEmpty(title))
             {
                 await ctx.Reply("{emoji.cross} Please provide a reason.");
@@ -31,36 +31,38 @@ namespace Whispbot.Commands.Staff
             }
 
             string? description = ctx.args.Join(" ").Split("::").Skip(1).Join(" ");
-            description += $"\n\nSent by @{ctx.User?.username} ({ctx.UserId})";
+            description += $"\n\nSent by @{ctx.User?.username} ({ctx.UserId})"; // Sign page to avoid annoying fucks abusing
 
-            var message = (await ctx.Reply("{emoji.loading} Sending page...")).Item1;
+            var (message, _) = await ctx.Reply("{emoji.loading} Sending page...");
 
-            var page = await Incident.TriggerEscalation(title, description);
+            var page = await Incident.TriggerEscalation(title, description); // Trigger page
 
-            if (message is null) return;
+            if (message is null) return; // Cant edit message, just return
             if (page.Item2 is not null)
             {
                 await message.Edit("{emoji.cross} Failed to send page.".Process());
             }
             else if (page.Item1 is not null)
             {
-                int numFailed = 0;
+                int numFailed = 0; // Stop updating data if either its failing to get data or everyone has acked
                 await message.Edit(GetMessageData(page.Item1.escalation, DateTimeOffset.UtcNow, false, ref numFailed, out bool _));
 
                 DateTimeOffset firstUpdate = DateTimeOffset.UtcNow;
-                while ((DateTime.UtcNow - firstUpdate).TotalSeconds < 360)
+                while ((DateTime.UtcNow - firstUpdate).TotalSeconds < 360) // 6 minutes should be enough time to ack or fail
                 {
-                    await Task.Delay(10000);
+                    Thread.Sleep(10000); // Update every 10 seconds
 
                     var escalation = await Incident.GetEscalation(page.Item1.escalation.id);
-                    Log.Information(escalation.Item1?.escalation.ToJson() ?? "no dat");
+
                     if (escalation.Item1 is not null)
                     {
                         await message.Edit(GetMessageData(escalation.Item1.escalation, firstUpdate, false, ref numFailed, out bool shouldStop));
-                        if (shouldStop) return;
+                        if (shouldStop) return; // Everyone has acked
                     }
                     else numFailed++;
                 }
+
+                Thread.Sleep(5000);
 
                 var finalEscalation = await Incident.GetEscalation(page.Item1.escalation.id);
                 if (finalEscalation.Item1 is not null) await message.Edit(GetMessageData(finalEscalation.Item1.escalation, firstUpdate, true, ref numFailed, out bool _));
@@ -78,18 +80,25 @@ namespace Whispbot.Commands.Staff
                 {
                     if (!allUsers.Any(u => u.id == user.id))
                     {
-                        allUsers.Add(user);
+                        allUsers.Add(user); // Users may be spread across events, collect them all
                     }
 
                     if (!userAck.GetValueOrDefault(user.id, false))
                     {
-                        userAck[user.id] = ev.@event == "acked";
+                        userAck[user.id] = ev.@event == "acked"; // Check if the user has ever acked
                     }
                 }
             }
 
-            if (allUsers.Count == 0) { numFailed++; }
-            else if (allUsers.Count(u => userAck.GetValueOrDefault(u.id, false)) == allUsers.Count) numFailed += 3;
+            if (allUsers.Count == 0)
+            {
+                numFailed++; // No users to page, something went wrong or no one is on call
+            } 
+            else if (allUsers.Count(u => userAck.GetValueOrDefault(u.id, false)) == allUsers.Count) 
+            { 
+                numFailed += 3; // Everyone has acked, stop updating
+            }
+
             if (numFailed >= 3) { shouldStop = true; } else { shouldStop = false; }
 
             foreach (var user in allUsers)

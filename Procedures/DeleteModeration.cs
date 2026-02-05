@@ -17,6 +17,11 @@ namespace Whispbot
 {
     public static partial class Procedures
     {
+        /// <summary>
+        /// Deletes the log message for this case
+        /// </summary>
+        /// <param name="moderation">The deleted moderation</param>
+        /// <returns></returns>
         public static async Task PostRMDelete(RobloxModeration moderation)
         {
             if (moderation.message_id is null) return;
@@ -40,19 +45,31 @@ namespace Whispbot
             await log.Delete();
         }
 
+        /// <summary>
+        /// Deletes a roblox moderation
+        /// </summary>
+        /// <param name="guildId">The guild which the case is in</param>
+        /// <param name="moderatorId">The moderator who is deleting the case</param>
+        /// <param name="caseId">The ID of the case to delete</param>
+        /// <returns></returns>
         public static async Task<RobloxModeration?> DeleteRM(string guildId, string moderatorId, int caseId)
         {
+            // Decides if the moderator can delete cases at all
+            bool hasDeletePerms = await WhispPermissions.HasPermission(guildId, moderatorId, BotPermissions.UseRobloxModerations);
+            if (!hasDeletePerms) return null;
+
+            // Decides if the moderator can delete other people's cases
             bool hasAdminPerms = await WhispPermissions.HasPermission(guildId, moderatorId, BotPermissions.ManageRobloxModerations);
 
             RobloxModeration? moderation;
-            if (caseId == -1)
+            if (caseId == -1) // Own last case
             {
                 moderation = Postgres.SelectFirst<RobloxModeration>(
                     "UPDATE roblox_moderations SET is_deleted = TRUE WHERE guild_id = @1 AND moderator_id = @2 AND \"case\" = (SELECT \"case\" FROM roblox_moderations WHERE guild_id = @1 AND moderator_id = @2 ORDER BY created_at DESC LIMIT 1) RETURNING *",
                     [long.Parse(guildId), long.Parse(moderatorId)]
                 );
             }
-            else if (caseId == -2)
+            else if (caseId == -2) // Server last case (admin only)
             {
                 if (hasAdminPerms)
                 {
@@ -63,7 +80,7 @@ namespace Whispbot
                 }
                 else moderation = null;
             }
-            else
+            else // Specific case
             {
                 moderation = Postgres.SelectFirst<RobloxModeration>(
                     $"UPDATE roblox_moderations SET is_deleted = TRUE WHERE guild_id = @1 AND \"case\" = @2{(hasAdminPerms ? "" : " AND moderator_id = @3")} RETURNING *",

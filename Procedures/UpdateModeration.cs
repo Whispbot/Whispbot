@@ -17,6 +17,11 @@ namespace Whispbot
 {
     public static partial class Procedures
     {
+        /// <summary>
+        /// After modifying a Roblox moderation, update the log message
+        /// </summary>
+        /// <param name="moderation">The moderation which has just been edited</param>
+        /// <returns></returns>
         public static async Task PostRMModify(RobloxModeration moderation)
         {
             if (moderation.message_id is null) return;
@@ -40,13 +45,26 @@ namespace Whispbot
             await log.Edit(await GetRMLogMessage(moderation));
         }
 
+        /// <summary>
+        /// Change the reason of a Roblox moderation
+        /// </summary>
+        /// <param name="guildId">The guild ID related to the case</param>
+        /// <param name="moderatorId">The moderator who is modifying the case</param>
+        /// <param name="reason">The new reason</param>
+        /// <param name="caseId">The ID of the case (why did i make this the last param)</param>
+        /// <returns>The modified <see cref="RobloxModeration"/> or null if failed</returns>
         public static async Task<RobloxModeration?> ChangeRMReason(string guildId, string moderatorId, string reason, int caseId)
         {
+            // Decides if the moderator can edit cases at all
+            bool hasDeletePerms = await WhispPermissions.HasPermission(guildId, moderatorId, BotPermissions.UseRobloxModerations);
+            if (!hasDeletePerms) return null;
+
+            // Decides if the moderator can edit other people's cases
             bool hasAdminPerms = await WhispPermissions.HasPermission(guildId, moderatorId, BotPermissions.ManageRobloxModerations);
 
             RobloxModeration? moderation = null;
 
-            if (caseId == -1)
+            if (caseId == -1) // Edit own last case
             {
                 moderation = Postgres.SelectFirst<RobloxModeration>(
                     @"
@@ -63,7 +81,7 @@ namespace Whispbot
                     [reason, long.Parse(moderatorId), long.Parse(guildId)]
                 );
             }
-            else if (caseId == -2)
+            else if (caseId == -2) // Edit last case in guild (admin only)
             {
                 if (hasAdminPerms)
                 {
@@ -83,7 +101,7 @@ namespace Whispbot
                     );
                 }
             }
-            else
+            else // Edit specific case
             {
                 moderation = Postgres.SelectFirst<RobloxModeration>(
                     @"
@@ -101,13 +119,26 @@ namespace Whispbot
             return moderation;
         }
 
+        /// <summary>
+        /// Change the type of a Roblox moderation
+        /// </summary>
+        /// <param name="guildId">The ID of the case's guild</param>
+        /// <param name="moderatorId">The ID of the moderator updating this case</param>
+        /// <param name="type">The new type</param>
+        /// <param name="caseId">The ID of the case to be edited</param>
+        /// <returns></returns>
         public static async Task<RobloxModeration?> ChangeRMType(string guildId, string moderatorId, RobloxModerationType type, int caseId)
         {
+            // Decides if the moderator can edit cases at all
+            bool hasDeletePerms = await WhispPermissions.HasPermission(guildId, moderatorId, BotPermissions.UseRobloxModerations);
+            if (!hasDeletePerms) return null;
+
+            // Decides if the moderator can edit other people's cases
             bool hasAdminPerms = await WhispPermissions.HasPermission(guildId, moderatorId, BotPermissions.ManageRobloxModerations);
 
             RobloxModeration? moderation = null;
 
-            if (caseId == -1)
+            if (caseId == -1) // Edit own last case
             {
                 moderation = Postgres.SelectFirst<RobloxModeration>(
                     @"
@@ -124,7 +155,7 @@ namespace Whispbot
                     [type.id, long.Parse(moderatorId), long.Parse(guildId)]
                 );
             }
-            else if (caseId == -2)
+            else if (caseId == -2) // Edit last case in guild (admin only)
             {
                 if (hasAdminPerms)
                 {
@@ -144,7 +175,7 @@ namespace Whispbot
                     );
                 }
             }
-            else
+            else // Edit specific case
             {
                 moderation = Postgres.SelectFirst<RobloxModeration>(
                     @"

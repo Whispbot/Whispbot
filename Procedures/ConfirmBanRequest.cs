@@ -17,6 +17,11 @@ namespace Whispbot
 {
     public static partial class Procedures
     {
+        /// <summary>
+        /// Creates a message object representing the log message for a ban request without making any API calls
+        /// </summary>
+        /// <param name="banRequest">The ban request to get the message for</param>
+        /// <returns>The <see cref="Message"/> or null if failed to get appropriate data</returns>
         public static async Task<Message?> GetBanRequestLogMessage(BanRequest banRequest)
         {
             if (banRequest.message_id is null) return null;
@@ -34,6 +39,11 @@ namespace Whispbot
             };
         }
 
+        /// <summary>
+        /// Updates the log message after modifying it
+        /// </summary>
+        /// <param name="banRequest">The modified ban request</param>
+        /// <returns></returns>
         public static async Task PostModifyBanRequest(BanRequest banRequest)
         {
             Message? logMessage = await GetBanRequestLogMessage(banRequest);
@@ -42,6 +52,11 @@ namespace Whispbot
             await logMessage.Edit(await GetBanRequestMessage(banRequest));
         }
 
+        /// <summary>
+        /// Deletes the log message after being completed
+        /// </summary>
+        /// <param name="banRequest">The deleted ban request</param>
+        /// <returns></returns>
         public static async Task PostRemoveBanRequest(BanRequest banRequest)
         {
             Message? logMessage = await GetBanRequestLogMessage(banRequest);
@@ -50,6 +65,12 @@ namespace Whispbot
             await logMessage.Delete("Request completed");
         }
 
+        /// <summary>
+        /// Update the ban request as failed with the given error message  
+        /// </summary>
+        /// <param name="banRequest">The failed ban request</param>
+        /// <param name="error">The error provided from the API</param>
+        /// <returns></returns>
         public static async Task OnBanRequestFail(BanRequest banRequest, string error)
         {
             BanRequest? updatedRequest = Postgres.SelectFirst<BanRequest>(
@@ -64,6 +85,12 @@ namespace Whispbot
             if (updatedRequest is not null) await PostModifyBanRequest(updatedRequest);
         }
 
+        /// <summary>
+        /// Sends the ban command to the ERLC server and updates the ban request (and log) to reflect that
+        /// </summary>
+        /// <param name="banRequest">The request that has been approved</param>
+        /// <param name="erlcServer">The ERLC server to send the request to</param>
+        /// <returns></returns>
         public static async Task SendBanRequestCommand(BanRequest banRequest, ERLCServerConfig erlcServer)
         {
             var initialMessageUpdate = PostModifyBanRequest(banRequest);
@@ -86,10 +113,18 @@ namespace Whispbot
                     [result?.message ?? "{string.errors.rmbr.unknownerror}", banRequest.id]
                 );
                 await initialMessageUpdate;
+
                 if (newRequest is not null) await PostModifyBanRequest(newRequest);
             }
         }
 
+        /// <summary>
+        /// Delete a ban request that has been denied
+        /// </summary>
+        /// <param name="id">The id of the ban request</param>
+        /// <param name="guildId">The guild the ban request is from</param>
+        /// <param name="moderatorId">The moderator who denied the ban request</param>
+        /// <returns>(<see cref="BanRequest?"/>, <see cref="string?"/>) where item1 is the deleted ban request and item2 is the error if failed</returns>
         public static async Task<(BanRequest?, string?)> DeleteBanRequest(long id, long guildId, long moderatorId)
         {
             if (!await WhispPermissions.HasPermission(guildId.ToString(), moderatorId.ToString(), BotPermissions.ManageBanRequests))
@@ -113,15 +148,25 @@ namespace Whispbot
             return (null, "{string.errors.rmlog.logfailed}");
         }
 
+        /// <summary>
+        /// Mark a ban request as completed and create the corresponding moderation
+        /// </summary>
+        /// <param name="id"></param>
+        /// <param name="guildId"></param>
+        /// <param name="moderatorId"></param>
+        /// <returns></returns>
         public static async Task<(BanRequest?, string?)> MarkAsBanned(long id, long guildId, long moderatorId)
         {
+            // Makes sure the module is actually enabled
             if (!(await WhispPermissions.CheckModule(guildId.ToString(), Commands.Module.RobloxModeration)).Item1) return (null, "{string.errors.rmlog.moduledisabled}");
 
+            // Makes sure the moderator has permission to do this
             if (!await WhispPermissions.HasPermission(guildId.ToString(), moderatorId.ToString(), BotPermissions.ManageBanRequests))
             {
                 return (null, "{string.errors.rmlog.noperms}");
             }
 
+            // Get the ban type for the server 
             List<RobloxModerationType>? types = await WhispCache.RobloxModerationTypes.Get(guildId.ToString());
             RobloxModerationType? banType = types?.FirstOrDefault(t => t.is_ban_type && !t.is_deleted);
             if (banType is null)
@@ -129,6 +174,7 @@ namespace Whispbot
                 return (null, "{string.errors.rmbr.nobantype}");
             }
 
+            // Transaction to make sure that both operations complete successfully
             using var transaction = Postgres.BeginTransaction();
             if (transaction is null) return (null, "{string.errors.general.dbfailed}");
 
@@ -145,7 +191,7 @@ namespace Whispbot
             {
                 _ = Task.Run(() => PostRemoveBanRequest(banRequest));
 
-                var moderation = await CreateModeration(guildId, moderatorId, banRequest.target_id, banType, $"[Requested] {banRequest.reason}");
+                var moderation = await CreateModeration(guildId, moderatorId, banRequest.target_id, banType, $"[Requested] {banRequest.reason}", 1);
                 if (moderation.Item1 is not null)
                 {
                     transaction.Commit();
@@ -160,8 +206,17 @@ namespace Whispbot
             return (null, "{string.errors.rmlog.logfailed}");
         }
 
+        /// <summary>
+        /// Send the ban command to the ERLC server and mark the ban request as approved
+        /// </summary>
+        /// <param name="id">The ID of the ban request to approve</param>
+        /// <param name="guildId">The guild the ban request is in</param>
+        /// <param name="moderatorId">The moderator which approved the ban request</param>
+        /// <param name="erlcServer">The server to send the command to</param>
+        /// <returns>(<see cref="BanRequest?"/>, <see cref="string?"/>) where item1 is the ban request that has been approved and item2 is the error if failed</returns>
         public static async Task<(BanRequest?, string?)> ApproveBanRequest(long id, long guildId, long moderatorId, ERLCServerConfig erlcServer)
         {
+            // Checks if the module is actually enabled
             if (!(await WhispPermissions.CheckModule(guildId.ToString(), Commands.Module.RobloxModeration | Commands.Module.ERLC)).Item1) return (null, "{string.errors.rmlog.moduledisabled}");
 
             if (erlcServer.api_key is null) return (null, "{string.errors.rmbr.noapikey}");
@@ -171,6 +226,7 @@ namespace Whispbot
                 return (null, "{string.errors.rmlog.noperms}");
             }
 
+            // Get the ban type for the server
             List<RobloxModerationType>? types = await WhispCache.RobloxModerationTypes.Get(guildId.ToString());
             RobloxModerationType? banType = types?.FirstOrDefault(t => t.is_ban_type && !t.is_deleted);
             if (banType is null)

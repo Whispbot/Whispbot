@@ -17,10 +17,19 @@ namespace Whispbot
     {
         public static readonly int max_persons_per_leaderboard_page = 20;
 
+        /// <summary>
+        /// Generate a shift leaderboard message for a guild
+        /// </summary>
+        /// <param name="guildId">The ID of the guild to fetch the data for</param>
+        /// <param name="userId">The ID of the current user so that only they can interact with the buttons</param>
+        /// <param name="page">The page of data to look at</param>
+        /// <param name="typeId">View only a specific type, leave null for all</param>
+        /// <returns>(<see cref="MessageBuilder?"/>, <see cref="string?"/>) where item1 is the message itself and item2 is the error message for when we fail to fetch the data</returns>
         public static async Task<(MessageBuilder?, string?)> GenerateShiftLeaderboard(string guildId, string userId, int page = 1, long? typeId = null)
         {
             int max = max_persons_per_leaderboard_page;
 
+            // Fetch a list of moderators with their total shift time
             Task<List<LeaderboardEntry>?> leaderboardTask = Task.Run(() => Postgres.Select<LeaderboardEntry>(
                 @$"SELECT moderator_id, SUM(EXTRACT(EPOCH FROM (end_time - start_time)) * 1000) AS total_time
                   FROM shifts
@@ -32,6 +41,7 @@ namespace Whispbot
                 [long.Parse(guildId), max, (page - 1) * max, ..typeId is not null ? new long[] { typeId.Value } : []]
             ));
 
+            // Fetch the total count of distinct moderators for pagination
             Task<PostgresCount?> countTask = Task.Run(() => Postgres.SelectFirst<PostgresCount>(
                 @$"SELECT COUNT(DISTINCT moderator_id) AS count
                   FROM shifts
@@ -39,6 +49,7 @@ namespace Whispbot
                 [long.Parse(guildId), ..typeId is not null ? new long[] { typeId.Value } : []]
             ));
 
+            // Run both at the same time for speed since they are independent
             await Task.WhenAll(leaderboardTask, countTask);
 
             List<LeaderboardEntry>? leaderboard = leaderboardTask.Result;

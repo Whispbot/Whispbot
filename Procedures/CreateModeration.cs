@@ -17,7 +17,12 @@ namespace Whispbot
 {
     public static partial class Procedures
     {
-        public static async Task PostCreateModeration(RobloxModeration moderation)
+        /// <summary>
+        /// Posts a moderation log message and updates the moderation with the message ID
+        /// </summary>
+        /// <param name="moderation">The new moderation</param>
+        /// <returns></returns>
+        private static async Task PostCreateModeration(RobloxModeration moderation)
         {
             GuildConfig? guildConfig = await WhispCache.GuildConfig.Get(moderation.guild_id.ToString());
             if (guildConfig is null) return;
@@ -38,7 +43,7 @@ namespace Whispbot
 
                     if (log is not null)
                     {
-                        Postgres.Execute(
+                        Postgres.Execute( // Update moderation with log message ID
                             @"
                         UPDATE roblox_moderations
                         SET message_id = @1
@@ -50,7 +55,12 @@ namespace Whispbot
                 }
             }
         }
-
+        
+        /// <summary>
+        /// Creates a rm log message for a case
+        /// </summary>
+        /// <param name="moderation">The case to make the message for</param>
+        /// <returns><see cref="MessageBuilder"/> with the log message</returns>
         public static async Task<MessageBuilder> GetRMLogMessage(RobloxModeration moderation)
         {
             User? moderator = await DiscordCache.Users.Get(moderation.moderator_id.ToString());
@@ -130,16 +140,28 @@ namespace Whispbot
             }.Process((Strings.Language)(guildConfig?.default_language ?? 0), null, true);
         }
 
+        /// <summary>
+        /// Create a Roblox moderation case
+        /// </summary>
+        /// <param name="guildId">The guild this case is in</param>
+        /// <param name="moderatorId">The moderator creating the case</param>
+        /// <param name="targetId">The roblox user being moderated</param>
+        /// <param name="type">The type of moderation (changes per guild - use <see cref="WhispCache.RobloxModerationTypes"/>)</param>
+        /// <param name="reason">The reason behind the case</param>
+        /// <param name="flags">Flags for the moderation (1 - from ban request)</param>
+        /// <returns>(<see cref="RobloxModeration?"/>, <see cref="string?"/>) where item1 is the new case and item2 is the error if failed to create</returns>
         public static async Task<(RobloxModeration?, string?)> CreateModeration(long guildId, long moderatorId, long targetId, RobloxModerationType type, string reason = "No reason provided", int flags = 0)
         {
+            // Makes sure the rm module is enabled
             if (!(await WhispPermissions.CheckModule(guildId.ToString(), Commands.Module.RobloxModeration)).Item1) return (null, "{string.errors.rmlog.moduledisabled}");
 
+            // Makes sure the moderator has permissions to create the case
             if (!await WhispPermissions.HasPermission(guildId.ToString(), moderatorId.ToString(), BotPermissions.UseRobloxModerations))
             {
                 return (null, "{string.errors.rmlog.noperms}");
             }
 
-            if (type.is_deleted)
+            if (type.is_deleted) // Don't create cases with deleted types
             {
                 return (null, "{string.errors.rmlog.typedeleted}");
             }

@@ -18,6 +18,11 @@ namespace Whispbot
 {
     public static partial class Procedures
     {
+        /// <summary>
+        /// Send the ban request log to the log channel and update ban request with message ID
+        /// </summary>
+        /// <param name="banRequest">The new ban request</param>
+        /// <returns></returns>
         public static async Task PostCreateBanRequest(BanRequest banRequest)
         {
             GuildConfig? guildConfig = await WhispCache.GuildConfig.Get(banRequest.guild_id.ToString());
@@ -49,6 +54,11 @@ namespace Whispbot
             }
         }
 
+        /// <summary>
+        /// Generate a log message for a ban request
+        /// </summary>
+        /// <param name="banRequest">The ban request to create the log for</param>
+        /// <returns><see cref="MessageBuilder"/> of the log</returns>
         public static async Task<MessageBuilder> GetBanRequestMessage(BanRequest banRequest)
         {
             User? moderator = await DiscordCache.Users.Get(banRequest.moderator_id.ToString());
@@ -56,6 +66,7 @@ namespace Whispbot
 
             GuildConfig? guildConfig = await WhispCache.GuildConfig.Get(banRequest.guild_id.ToString());
 
+            // Get ERLC Servers that allow ban requests, if 0 then we just mark as banned instead of approving
             List<ERLCServerConfig>? erlcServers = (await WhispCache.ERLCServerConfigs.Get(banRequest.guild_id.ToString()))?.Where(s => s.allow_ban_requests)?.ToList();
 
             return new MessageBuilder
@@ -128,10 +139,20 @@ namespace Whispbot
             }.Process((Strings.Language)(guildConfig?.default_language ?? 0), null, true);
         }
 
+        /// <summary>
+        /// Creates a ban request log
+        /// </summary>
+        /// <param name="guildId">The server the request is in</param>
+        /// <param name="moderatorId">The moderator making the request</param>
+        /// <param name="targetId">The roblox user being banned</param>
+        /// <param name="reason">The reason for the request</param>
+        /// <returns>(<see cref="BanRequest?"/>, <see cref="string?"/>) where item1 is the new ban request and item2 is the error if failed</returns>
         public static async Task<(BanRequest?, string?)> CreateBanRequest(long guildId, long moderatorId, long targetId, string reason = "No reason provided")
         {
+            // Check if the module is even enabled
             if (!(await WhispPermissions.CheckModule(guildId.ToString(), Commands.Module.RobloxModeration)).Item1) return (null, "{string.errors.rmlog.moduledisabled}");
 
+            // Check if the moderator can use ban requests
             if (!await WhispPermissions.HasPermission(guildId.ToString(), moderatorId.ToString(), BotPermissions.UseBanRequests))
             {
                 return (null, "{string.errors.rmlog.noperms}");
@@ -154,6 +175,14 @@ namespace Whispbot
             return (null, "{string.errors.rmlog.logfailed}");
         }
 
+        /// <summary>
+        /// Creates a ban request log
+        /// </summary>
+        /// <param name="guildId">The server the request is in</param>
+        /// <param name="moderatorId">The moderator making the request</param>
+        /// <param name="targetId">The roblox user being banned</param>
+        /// <param name="reason">The reason for the request</param>
+        /// <returns>(<see cref="BanRequest?"/>, <see cref="string?"/>) where item1 is the new ban request and item2 is the error if failed</returns>
         public static async Task<(BanRequest?, string?)> CreateBanRequest(string guildId, string moderatorId, string targetId, string raeson = "No reason provided")
         {
             return await CreateBanRequest(long.Parse(guildId), long.Parse(moderatorId), long.Parse(targetId), raeson);
