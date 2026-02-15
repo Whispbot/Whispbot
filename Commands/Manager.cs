@@ -1,4 +1,5 @@
-﻿using Serilog;
+﻿using Microsoft.AspNetCore.Mvc.Formatters;
+using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -6,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Whispbot.Commands.Discord_Moderation;
 using Whispbot.Commands.ERLCCommands;
 using Whispbot.Commands.General;
 using Whispbot.Commands.Roblox_Moderation;
@@ -63,12 +65,21 @@ namespace Whispbot.Commands
             RegisterCommand(new ERLC_Banned());
             RegisterCommand(new ERLC_VSM());
 
+            RegisterCommand(new Warn());
+            RegisterCommand(new Mute());
+            RegisterCommand(new Unmute());
+            RegisterCommand(new Kick());
+            RegisterCommand(new Softban());
+            RegisterCommand(new Ban());
+            RegisterCommand(new Unban());
+
             RegisterStaffCommand(new Test());
             RegisterStaffCommand(new SQL());
             RegisterStaffCommand(new UpdateLanguages());
             RegisterStaffCommand(new AIRequest());
             RegisterStaffCommand(new ResolveError());
             RegisterStaffCommand(new GuildFeatureFlags());
+            RegisterStaffCommand(new ViewColor());
 
             RegisterStaffCommand(new Page());
             #endregion
@@ -131,7 +142,7 @@ namespace Whispbot.Commands
 
                 if (ctx.GuildConfig is null)
                 {
-                    await ctx.Reply("{emoji.warning} {string.errors.dbfailed}");
+                    await ctx.Reply("{emoji.cross} {string.errors.dbfailed}.");
                     return;
                 }
 

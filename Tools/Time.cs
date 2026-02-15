@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Extensions;
 
 namespace Whispbot.Tools
 {
@@ -10,14 +11,14 @@ namespace Whispbot.Tools
     {
         public static Dictionary<double, List<string>> TimeValues = new()
         {
-            { 1, ["ms", "millisecond", "milliseconds","milli", "millisec", "millisecs", "mili", "milisecs", "milisec", "miliseconds"] },
-            { 1000, ["s", "second", "seconds", "sec", "secs", "secodns"] },
-            { 60_000, ["m", "minute", "minutes", "mins", "min"] },
-            { 3_600_000, ["h", "hour", "hours"] },
-            { 86_400_000, ["d", "day", "days"] },
-            { 604_800_000, ["w", "week", "weeks", "wk", "wks"] },
-            { 2_592_000_000, ["mo", "month", "months", "mos"] },
-            { 31_471_200_000, ["yr", "year", "years", "y", "yrs"] }
+            { 1,                ["{string.duration.short.millisecond}",     "{string.duration.long.millisecond}",   "{string.duration.long.milliseconds}",  "ms",   "millisecond",  "milliseconds", "milli", "millisec", "millisecs", "mili", "milisecs", "milisec", "miliseconds"] },
+            { 1000,             ["{string.duration.short.second}",          "{string.duration.long.second}",        "{string.duration.long.seconds}",       "s",    "second",       "seconds",      "sec", "secs", "secodns"] },
+            { 60_000,           ["{string.duration.short.minute}",          "{string.duration.long.minute}",        "{string.duration.long.minutes}",       "m",    "minute",       "minutes",      "mins", "min"] },
+            { 3_600_000,        ["{string.duration.short.hour}",            "{string.duration.long.hour}",          "{string.duration.long.hours}",         "h",    "hour",         "hours"         ] },
+            { 86_400_000,       ["{string.duration.short.day}",             "{string.duration.long.day}",           "{string.duration.long.days}",          "d",    "day",          "days"          ] },
+            { 604_800_000,      ["{string.duration.short.week}",            "{string.duration.long.week}",          "{string.duration.long.weeks}",         "w",    "week",         "weeks",        "wk", "wks"] },
+            { 2_592_000_000,    ["{string.duration.short.month}",           "{string.duration.long.month}",         "{string.duration.long.months}",        "mo",   "month",        "months",       "mos"] },
+            { 31_471_200_000,   ["{string.duration.short.year}",            "{string.duration.long.year}",          "{string.duration.long.years}", "yr",   "year",         "years",        "y", "yrs"] }
         };
 
         /// <summary>
@@ -138,14 +139,18 @@ namespace Whispbot.Tools
         /// <param name="Seperator">The seperator that should be put between the different lengths of time.<br/><br/>Default: ", "</param>
         /// <param name="Small">Should the format returned be in small mode?<br/><br/>E.G. 69000<br/>true -> 1m, 9s<br/>false -> 1 minute, 9 seconds</param>
         /// <returns>[string] A string in the specified format.</returns>
-        public static string ConvertMillisecondsToString(double Length, string Seperator = ", ", bool Small = false, double RoundTo = 1000)
+        public static string ConvertMillisecondsToString(double Length, string Seperator = ", ", bool Small = false, double RoundTo = 1000, Strings.Language language = Strings.Language.EnglishUK)
         {
-            if (Length <= 0)
+            if (Length == 0)
             {
-                return "0 seconds";
+                return (Small ? "0{string.duration.short.seconds}" : "0 {string.duration.long.seconds}").Process(language);
+            }
+            else if (Length < 0)
+            {
+                return (Small ? "{string.duration.short.forever}" : "{string.duration.long.forever}").Process(language);
             }
 
-            Length = Math.Ceiling(Length / RoundTo) * RoundTo;
+                Length = Math.Ceiling(Length / RoundTo) * RoundTo;
 
             List<string> strings = [];
 
@@ -175,7 +180,7 @@ namespace Whispbot.Tools
                 strings.Add($"{ThisLength}{(Small ? Biggest?.Value[0] : $" {(ThisLength > 1 ? Biggest?.Value[2] : Biggest?.Value[1])}")}");
                 Length -= ThisLength * (Biggest?.Key ?? 1);
             }
-            return string.Join(Seperator, strings);
+            return string.Join(Seperator, strings).Process(language);
         }
 
         public static string ConvertMillisecondsToRelativeString(double ms, bool fromunix = false, string splitter = ", ", bool small = false, double roundto = 1)
@@ -185,10 +190,10 @@ namespace Whispbot.Tools
                 ms -= DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             }
 
-            if (Math.Abs(ms) < 1000) return "just now";
-            if (ms < 0) return $"{ConvertMillisecondsToString(-ms, splitter, small, roundto)} ago";
+            if (Math.Abs(ms) < 1000) return "{string.duration.text.justnow}";
+            if (ms < 0) return $"{ConvertMillisecondsToString(-ms, splitter, small, roundto)} {{string.duration.text.ago}}";
             if (ms > 0) return $"in {ConvertMillisecondsToString(ms, splitter, small, roundto)}";
-            return "just now";
+            return "{string.duration.text.justnow}";
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -8,6 +8,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Whispbot.Databases;
+using Whispbot.Extensions;
 using YellowMacaroni.Discord.Core;
 using YellowMacaroni.Discord.Extentions;
 
@@ -22,7 +23,7 @@ namespace Whispbot.Tools
 
         public static string Process(string content, Language language = 0, Dictionary<string, string>? arguments = null, bool hasUserInput = false)
         {
-            MatchCollection matches = Regex.Matches(content, @"\{((emoji|string|dt)(?(?=[.])[.][^}\n]+|))\}");
+            MatchCollection matches = Regex.Matches(content, @"\{((emoji|string|dt)(?:[^{}]|\{[^{}]*\})*)\}");
             Dictionary<string, string>? thisLanguage = LanguageStrings.GetValueOrDefault(language);
             Dictionary<string, string>? defaultLanguage = LanguageStrings.GetValueOrDefault(Language.EnglishUK);
 
@@ -50,24 +51,34 @@ namespace Whispbot.Tools
                 }
                 else if (type == "string")
                 {
-                    string languageKey = key.Replace("string.", "");
+                    string languageKey = key.ReplaceFirst("string.", "");
 
                     string[] split = languageKey.Split(':');
                     languageKey = split[0].ToLower();
-                    List<string> args = split.Length > 1 ? [.. split[1].Split(',')] : [];
-                    foreach (string arg in args)
+                    if (split.Length > 1)
                     {
-                        string[] argSplit = arg.Split('=');
-                        if (argSplit.Length >= 2) arguments.Add(argSplit[0], argSplit[1]);
+                        var argMatches = Regex.Matches(split[1], @"([^=,\s]+)=((?:(?!,[^=,\s]+=).)*)");
+                        foreach (Match m in argMatches)
+                        {
+                            var k = m.Groups[1].Value;
+                            var v = m.Groups[2].Value;
+                            arguments[k] = v;
+                        }
                     }
 
                     string? value = thisLanguage?.GetValueOrDefault(languageKey) ?? defaultLanguage?.GetValueOrDefault(languageKey);
                     if (value is not null)
                     {
-                        foreach (var arg in arguments)
+                        var args = Regex.Matches(value, @"\{([^{}]+)\}");
+                        foreach (Match arg in args)
                         {
-                            value = value.Replace($"{{{arg.Key.ToLower()}}}", arg.Value);
+                            string? argReplace = arguments.GetValueOrDefault(arg.Groups[1].Value);
+                            if (argReplace is not null)
+                            {
+                                value = value.Replace(arg.Value, argReplace.Process(language, arguments, hasUserInput));
+                            }
                         }
+
                         content = content.Replace(match.Value, value);
                     }
                     else
@@ -97,6 +108,19 @@ namespace Whispbot.Tools
             }
 
             return content.Replace("\\n", "\n");
+        }
+
+        // Source - https://stackoverflow.com/a/141076
+        // Posted by VVS, modified by community. See post 'Timeline' for change history
+        // Retrieved 2026-02-15, License - CC BY-SA 2.5
+        private static string ReplaceFirst(this string text, string search, string replace)
+        {
+            int pos = text.IndexOf(search);
+            if (pos < 0)
+            {
+                return text;
+            }
+            return text.Substring(0, pos) + replace + text.Substring(pos + search.Length);
         }
 
         public static async Task GetEmojis(Client client)

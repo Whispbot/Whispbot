@@ -34,7 +34,7 @@ namespace Whispbot.Commands.Shifts
             if (!await WhispPermissions.CheckModuleMessage(ctx, Module.Shifts)) return;
             if (!await WhispPermissions.CheckPermissionsMessage(ctx, BotPermissions.ManageShifts)) return;
 
-            User? user = ctx.args.Count > 0 ? await Users.GetUserByString(ctx.args[0], ctx.GuildId) : ctx.User;
+            User? user = ctx.args.Count > 0 ? await Users.GetUserByString(ctx.args[0], 0, ctx.GuildId) : ctx.User;
             if (user is null)
             {
                 await ctx.Reply("{emoji.cross} {string.errors.general.invaliduser}");

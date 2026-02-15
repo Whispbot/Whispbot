@@ -22,29 +22,39 @@ namespace Whispbot
         {
             using var _ = Tracer.Start("FetchGuildConfig");
 
-            GuildConfig? existingRecord = Postgres.SelectFirst<GuildConfig>(
-              @"SELECT
-                  gc.*,
-                  to_jsonb(mrm) AS roblox_moderation,
-                  to_jsonb(ms) AS shifts,
-                  COALESCE(
-                    jsonb_agg(DISTINCT ff.name) FILTER (WHERE ff.name IS NOT NULL),
-                    '[]'::jsonb
-                  ) AS feature_flags
-                FROM guild_config gc
-                LEFT JOIN module_roblox_moderation mrm ON gc.id = mrm.id
-                LEFT JOIN module_shifts ms ON gc.id = ms.id
-                LEFT JOIN guild_feature_flags gff ON gff.guild_id = gc.id
-                LEFT JOIN feature_flags ff ON ff.id = gff.feature_flag_id
-                WHERE gc.id = @1
-                GROUP BY gc.id, mrm.id, ms.id;",
-              [long.Parse(key)]
-            );
+            try
+            {
+                GuildConfig? existingRecord = Postgres.SelectFirst<GuildConfig>(
+                  @"SELECT
+                      gc.*,
+                      to_jsonb(mrm) AS roblox_moderation,
+                      to_jsonb(ms) AS shifts,
+                      to_jsonb(mdm) AS discord_moderation,
+                      COALESCE(
+                        jsonb_agg(DISTINCT ff.name) FILTER (WHERE ff.name IS NOT NULL),
+                        '[]'::jsonb
+                      ) AS feature_flags
+                    FROM guild_config gc
+                    LEFT JOIN module_roblox_moderation mrm ON gc.id = mrm.id
+                    LEFT JOIN module_shifts ms ON gc.id = ms.id
+                    LEFT JOIN module_discord_moderation mdm ON gc.id = mdm.id
+                    LEFT JOIN guild_feature_flags gff ON gff.guild_id = gc.id
+                    LEFT JOIN feature_flags ff ON ff.id = gff.feature_flag_id
+                    WHERE gc.id = @1
+                    GROUP BY gc.id, mrm.id, ms.id, mdm.id;",
+                  [long.Parse(key)]
+                );
 
-            return existingRecord ?? Postgres.SelectFirst<GuildConfig>(
-                @"INSERT INTO guild_config (id, name) VALUES (@1, @2) RETURNING *;",
-                [long.Parse(key), DiscordCache.Guilds.Get(key).Result?.name ?? ""]
-            );
+                return existingRecord ?? Postgres.SelectFirst<GuildConfig>(
+                    @"INSERT INTO guild_config (id, name) VALUES (@1, @2) RETURNING *;",
+                    [long.Parse(key), DiscordCache.Guilds.Get(key).Result?.name ?? ""]
+                );
+            } 
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Failed to fetch guild config...");
+                return null;
+            }
         });
 
         public static readonly Collection<UserConfig> UserConfig = new(async (key, args) =>
@@ -148,6 +158,7 @@ namespace Whispbot
 
         public ModuleRobloxModeration? roblox_moderation;
         public ModuleShifts? shifts;
+        public ModuleDiscordModeration? discord_moderation;
     }
 
     public class ModuleRobloxModeration
@@ -162,11 +173,20 @@ namespace Whispbot
         public long? default_log_channel_id;
     }
 
-    public class ShiftConfig
+    public class ModuleDiscordModeration
     {
-        public long id = 0;
+        public long? log_channel_id;
 
-        public long? default_log_channel_id = null;
+        public bool display_case_id = true;
+        public bool display_case_reason = true;
+        public bool delete_trigger_message = true;
+
+        public int default_mute_length_s = 600;
+        public int default_ban_length_s = -1;
+        public int delete_messages_duration_s = 3600;
+
+        public bool require_reason = true;
+        public bool require_duration = false;
     }
 
     public class UserConfig

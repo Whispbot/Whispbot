@@ -13,7 +13,7 @@ namespace Whispbot.Tools
 {
     public static class Users
     {
-        public static async Task<User?> GetUserByString(string input, string? inGuildId = null)
+        public static async Task<User?> GetUserByString(string input, int minLength = 0, string? inGuildId = null)
         {
             if (string.IsNullOrWhiteSpace(input)) return null;
 
@@ -21,10 +21,10 @@ namespace Whispbot.Tools
 
             if (input.Length >= 17 && input.Length <= 20 && long.TryParse(input, out long _))
             {
-                return await DiscordCache.Users.Get(input);
+                return await DiscordCache.Users.Get(input) ?? new User(input);
             }
 
-            if (inGuildId is not null)
+            if (inGuildId is not null && input.Length >= minLength)
             {
                 Guild? guild = await DiscordCache.Guilds.Get(inGuildId);
                 if (guild is null) return null;
@@ -75,6 +75,18 @@ namespace Whispbot.Tools
             }
 
             return members ?? [];
+        }
+
+        public static readonly List<string> usernameEscapeChars = ["\\", "*", "_", "~", "`", ">", "|"];
+
+        public static string FixUsername(string username)
+        {
+            foreach (string c in usernameEscapeChars)
+            {
+                username = username.Replace(c, $"\\{c}");
+            }
+
+            return username;
         }
     }
 }
