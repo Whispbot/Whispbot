@@ -23,7 +23,7 @@ namespace Whispbot.Commands.ERLCCommands
         public override Module Module => Module.ERLC;
         public override bool GuildOnly => true;
         public override List<RateLimit> Ratelimits => [];
-        public override List<string> Aliases => ["vsm", "erlc vsm", "erlc command"];
+        public override List<string> Aliases => ["vsm", "erlc vsm", "erlc command", ":"];
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
         {
