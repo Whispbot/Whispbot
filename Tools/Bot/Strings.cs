@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -122,7 +122,6 @@ namespace Whispbot.Tools
             }
             return text.Substring(0, pos) + replace + text.Substring(pos + search.Length);
         }
-
 
         public static async Task GetEmojis(Client client)
         {
