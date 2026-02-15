@@ -48,7 +48,8 @@ namespace Whispbot.Commands
         Shifts = 1 << 0,
         RobloxModeration = 1 << 1,
         ERLC = 1 << 2,
-        DiscordModeration = 1 << 3
+        DiscordModeration = 1 << 3,
+        Tickets = 1 << 4,
     }
 
     public class CommandContext (Client client, Message message, List<string> args, List<string> flags)
