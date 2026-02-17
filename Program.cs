@@ -328,15 +328,18 @@ if (!newInstanceReady)
 
     Log.Information("Waiting for new instance to be ready.");
 }
-
-
-foreach (Shard shard in sharding.shards)
+else
 {
-    Log.Information($"Stopping shard {shard.id} of cluster {Config.cluster}.");
-    shard.client.Disconnect();
+    foreach (Shard shard in sharding.shards)
+    {
+        Log.Information($"Stopping shard {shard.id} of cluster {Config.cluster}.");
+        shard.client.Disconnect();
 
-    Thread.Sleep(200);
+        Thread.Sleep(200);
+    }
 }
+
+sharding.Hold();    
 
 Log.Information("Goodbye");
 Logger.Shutdown();
