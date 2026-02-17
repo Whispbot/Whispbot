@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -67,7 +67,6 @@ namespace Whispbot
         //public static Task OnBanAdd(GuildBan ban)
         //{
         //    var guild = DiscordCache.Guilds.Get(ban.guild_id!);
-
 
         //    Context context = new Context(ban.user, "", -1, DiscordCache.Guilds.Get(ban.guild_id!));
         //}
