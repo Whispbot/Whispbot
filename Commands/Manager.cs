@@ -29,6 +29,8 @@ namespace Whispbot.Commands
 
         public readonly Dictionary<string, RatelimitData> ratelimits = [];
 
+        public readonly List<string> ignoreGuilds = [];
+
         public CommandManager()
         {
             #region Commands
@@ -104,6 +106,8 @@ namespace Whispbot.Commands
 
         public async Task HandleMessage(Client client, Message message)
         {
+            if (ignoreGuilds.Contains(message.channel?.guild_id?.ToString() ?? "")) return;
+
             using var messageTrace = Tracer.Start("Message");
             if (message.webhook_id is not null)
             {

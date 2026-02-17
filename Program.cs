@@ -223,6 +223,8 @@ foreach (Shard shard in sharding.shards)
             _ = Task.Run(async () => await Strings.GetEmojis(client));
         }
 
+        pubSub?.Publish($"ignore_guilds:{Config.serviceId}", shard.client.readyData?.guilds.Select(g => g.id).Join(","));
+
         _ = DiscordLogger.Log($"[{{dt}}] {{emoji.clockedin}} Shard `{shard.id}` of cluster `{Config.cluster}` is ready.".Process());
         Log.Information($"Cluster {Config.cluster.ToString().PadLeft((Config.replicas.Count - 1).ToString().Length, '0')}, shard {shard.id.ToString().PadLeft((shardCount - 1).ToString().Length, '0')} online!");
     });
@@ -303,12 +305,30 @@ _ = Task.Run(() =>
             pubSub.Unsubscribe($"{Config.deploymentId}-can-start");
             Log.Information($"Cluster {Config.replicas.IndexOf(message.ToString())} taking last cluster from {Config.cluster}.");
         });
+        pubSub?.Publish($"up:{Config.serviceId}", RedisValue.Null);
     }
 });
 
 _ = Task.Run(() => sharding.Start());
 
 await Sigterm.WaitForSigterm();
+
+bool newInstanceReady = Config.IsDev;
+if (!newInstanceReady)
+{
+    pubSub?.Subscribe($"up:{Config.serviceId}", (_, _) =>
+    {
+        newInstanceReady = true;
+        Log.Information("New instance is ready, proceeding with shutdown.");
+    });
+    pubSub?.Subscribe($"ignore_guilds:{Config.serviceId}", (_, v) =>
+    {
+        commands.ignoreGuilds.AddRange(v.ToString().Split(","));
+    });
+
+    Log.Information("Waiting for new instance to be ready.");
+}
+
 
 foreach (Shard shard in sharding.shards)
 {
