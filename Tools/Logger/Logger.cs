@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Serilog;
+using Serilog.Core;
 using Serilog.Sinks.SystemConsole.Themes;
 
 namespace Whispbot
@@ -14,13 +15,22 @@ namespace Whispbot
         {
             Log.Logger = new LoggerConfiguration()
                 .MinimumLevel.Is(Config.IsDev ? Serilog.Events.LogEventLevel.Verbose : Serilog.Events.LogEventLevel.Information)
-                .WriteTo.Console(outputTemplate: $"[{{Timestamp:HH:mm:ss.fff}}][{{Level:u3}}]{(Config.replicaId is not null ? $"[{Config.replicaId.Split("-")[0]}]" : "")} {{Message:lj}}{{NewLine}}{{Exception}}", theme: SystemConsoleTheme.Colored)
+                .Enrich.With(new LogEnricher())
+                .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss.fff}][{Level:u3}][Cluster {ClusterId}] {Message:lj}{NewLine}{Exception}", theme: SystemConsoleTheme.Colored)
                 .CreateLogger();
         }
 
         public static void Shutdown()
         {
             Log.CloseAndFlush();
+        }
+    }
+
+    public class LogEnricher: ILogEventEnricher
+    {
+        public void Enrich(Serilog.Events.LogEvent logEvent, ILogEventPropertyFactory propertyFactory)
+        {
+            logEvent.AddOrUpdateProperty(propertyFactory.CreateProperty("ClusterId", Config.cluster.ToString().PadLeft(Config.replicas.Count.ToString().Length)));
         }
     }
 }

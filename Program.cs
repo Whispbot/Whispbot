@@ -15,6 +15,7 @@ using YellowMacaroni.Discord.Extentions;
 using Whispbot.Interactions;
 using Whispbot.Tools;
 using Whispbot.Commands.ERLCCommands.Commands;
+using Whispbot.Tools.Infra;
 
 Logger.Initialize();
 
@@ -181,7 +182,7 @@ else
 }
 
 string? shardsEnv = Config.IsDev ? null : Environment.GetEnvironmentVariable("SHARDS");
-int? shards = shardsEnv is null ? null : int.Parse(shardsEnv);
+int? shards = 3;// shardsEnv is null ? null : int.Parse(shardsEnv);
 
 ShardingManager sharding = new(
     token,
@@ -268,7 +269,7 @@ if (!start) // Wait for start signal if not cluster 0
 double lastRequestedStart = 0;
 while (!start) // Wait for start signal, but periodically request if can start in-case of missed message or restart
 { 
-    Thread.Sleep(100);
+    Thread.Sleep(1000);
     if (DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - lastRequestedStart > 5000)
     {
         lastRequestedStart = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
@@ -305,7 +306,18 @@ _ = Task.Run(() =>
     }
 });
 
-sharding.Start();
-sharding.Hold();
-Log.Information("Stopping bot...");
+_ = Task.Run(() => sharding.Start());
+
+await Sigterm.WaitForSigterm();
+
+foreach (Shard shard in sharding.shards)
+{
+    Log.Information($"Stopping shard {shard.id} of cluster {Config.cluster}.");
+    shard.client.Disconnect();
+
+    Thread.Sleep(200);
+}
+
+Log.Information("Goodbye");
 Logger.Shutdown();
+Environment.Exit(0);
