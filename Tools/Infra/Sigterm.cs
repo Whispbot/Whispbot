@@ -1,41 +1,39 @@
 ﻿using Serilog;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Runtime.InteropServices;
 
 namespace Whispbot.Tools.Infra
 {
     public static class Sigterm
     {
         public static readonly TaskCompletionSource tsc = new();
-        public static bool recievedSigint = false;
+        public static bool receivedSignal = false;
 
         public static Task WaitForSigterm()
         {
+            // Ctrl + C
             Console.CancelKeyPress += (_, e) =>
             {
                 e.Cancel = true;
-
-                Log.Warning("SIGINT recieved, gracefully shutting down...");
-
-                recievedSigint = true;
-                tsc.SetResult();
+                Log.Warning("SIGINT received, gracefully shutting down...");
+                receivedSignal = true;
+                tsc.TrySetResult();
             };
 
-            AppDomain.CurrentDomain.ProcessExit += (_, e) =>
+            // SIGTERM
+            PosixSignalRegistration.Create(PosixSignal.SIGTERM, context =>
             {
-                if (recievedSigint)
+                context.Cancel = true;
+                if (receivedSignal)
                 {
-                    Log.Warning("Recieved SIGTERM, ignoring due to SIGINT already processing");
+                    Log.Warning("Received SIGTERM, ignoring due to signal already processing");
                 }
                 else
                 {
-                    Log.Warning("Recieved SIGTERM, gracefully shutting down...");
-                    tsc.SetResult();
+                    Log.Warning("Received SIGTERM, gracefully shutting down...");
+                    receivedSignal = true;
+                    tsc.TrySetResult();
                 }
-            };
+            });
 
             return tsc.Task;
         }
