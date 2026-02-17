@@ -15,6 +15,7 @@ using YellowMacaroni.Discord.Cache;
 using Newtonsoft.Json;
 using Serilog;
 using System.ComponentModel.Design.Serialization;
+using System.Net;
 
 namespace Whispbot.API
 {
@@ -30,7 +31,7 @@ namespace Whispbot.API
 
             builder.WebHost.ConfigureKestrel(serverOptions =>
             {
-                serverOptions.ListenAnyIP(int.Parse(port));
+                serverOptions.Listen(IPAddress.IPv6Any, int.Parse(port), listenOptions => { });
             });
 
             builder.Services.ConfigureHttpJsonOptions(options =>
