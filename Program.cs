@@ -182,7 +182,7 @@ else
 }
 
 string? shardsEnv = Config.IsDev ? null : Environment.GetEnvironmentVariable("SHARDS");
-int? shards = 3;// shardsEnv is null ? null : int.Parse(shardsEnv);
+int? shards = shardsEnv is null ? null : int.Parse(shardsEnv);
 
 ShardingManager sharding = new(
     token,
