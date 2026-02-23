@@ -97,7 +97,7 @@ namespace Whispbot
 
             var result = await ERLC.SendCommand(erlcServer, $":ban {banRequest.target_id}");
 
-            if (result?.code == ERLC.ErrorCode.Success)
+            if (result?.Code == ERLC.ErrorCode.Success)
             {
                 await initialMessageUpdate;
                 await MarkAsBanned(banRequest.id, banRequest.guild_id, banRequest.moderator_id);
@@ -110,7 +110,7 @@ namespace Whispbot
                     SET status = FALSE, status_message = @1
                     WHERE id = @2
                     RETURNING *",
-                    [result?.message ?? "{string.errors.rmbr.unknownerror}", banRequest.id]
+                    [result?.Message ?? "{string.errors.rmbr.unknownerror}", banRequest.id]
                 );
                 await initialMessageUpdate;
 
