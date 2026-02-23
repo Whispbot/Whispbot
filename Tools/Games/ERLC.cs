@@ -72,7 +72,8 @@ namespace Whispbot.Tools
             {
                 HttpResponseMessage response = await _client.SendAsync(request);
 
-                PRC_APIResponse? data = JsonConvert.DeserializeObject<PRC_APIResponse>(await response.Content.ReadAsStringAsync());
+                var body = await response.Content.ReadAsStringAsync();
+                PRC_APIResponse? data = JsonConvert.DeserializeObject<PRC_APIResponse>(body);
 
                 return data;
             }

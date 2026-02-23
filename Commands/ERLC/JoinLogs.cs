@@ -41,6 +41,7 @@ namespace Whispbot.Commands.ERLCCommands
             if (server is null) return;
 
             var response = await ERLC.GetServerDataV2(ctx, server);
+            if (response is null) return;
             var joinlogs = response?.Data?.JoinLogs;
 
             if (joinlogs is not null)

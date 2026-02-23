@@ -42,6 +42,7 @@ namespace Whispbot.Commands.ERLCCommands
             if (server is null) return;
 
             var response = await ERLC.GetServerDataV2(ctx, server);
+            if (response is null) return;
             var callLogs = response?.Data?.ModCalls;
 
             if (callLogs is not null)
