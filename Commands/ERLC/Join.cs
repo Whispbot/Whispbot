@@ -40,7 +40,7 @@ namespace Whispbot.Commands.ERLCCommands
             ERLCServerConfig? server = await ERLC.TryGetServer(ctx);
             if (server is null) return;
 
-            string url = $"https://whisp.bot/join-erlc/{server.id}";
+            string url = $"https://beta.whisp.bot/join/erlc/{server.id}";
 
             await ctx.Reply(new MessageBuilder
             {

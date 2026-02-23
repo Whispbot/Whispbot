@@ -8,6 +8,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Commands;
+using Whispbot.Commands.ERLCCommands;
 using Whispbot.Databases;
 using YellowMacaroni.Discord.Core;
 using YellowMacaroni.Discord.Extentions;
@@ -32,14 +33,11 @@ namespace Whispbot.Tools
             _initialized = true;
         }
 
-        public static PRC_Response? CheckCache(Endpoint endpoint, string? apiKey)
+        public static PRC_APIResponse? CheckCache(string? apiKey)
         {                
-            var (_, method, _, _) = endpoints[endpoint];
-            if (method != HttpMethod.Get) return null;
+            using var _ = Tracer.Start($"ERLC.CheckCacheV2");
 
-            using var _ = Tracer.Start($"ERLC.CheckCache: {endpoint}");
-
-            string cacheKey = $"prcapiworker:{endpoint}:{(apiKey is not null ? HashString(apiKey) : "unauthenticated")}";
+            string cacheKey = $"prcapiworker:ServerInfoV2:{(apiKey is not null ? HashString(apiKey) : "unauthenticated")}";
 
             var redis = Redis.GetDatabase();
 
@@ -49,46 +47,67 @@ namespace Whispbot.Tools
             string? timestamp = redis!.StringGet($"{cacheKey}:timestamp");
             long? cachedAtMs = timestamp is not null ? long.Parse(timestamp) : null;
 
-            return new PRC_Response { code = ErrorCode.Cached, message = "Item Cached", data = cacheValue, cachedAt = cachedAtMs };
+            var data = JsonConvert.DeserializeObject<PRC_Server>(cacheValue);
+            if (data is null) return null;
+
+            return new PRC_APIResponse
+            {
+                Data = data,
+                CachedAt = cachedAtMs,
+                Code = ErrorCode.Cached,
+                Message = "Data cached"
+            };
         }
 
-        public static async Task<PRC_Response?> Request(Endpoint endpoint, string? apiKey = null, StringContent? content = null)
+        public static async Task<PRC_APIResponse?> GetServerV2(string apiKey)
         {
-            using var _ = Tracer.Start($"ERKC.FetchData: {endpoint}");
+            using var _ = Tracer.Start($"ERLC.FetchDataV2");
             if (!_initialized) Init();
 
-            var (url, method, _, requiresKey) = endpoints[endpoint];
+            HttpRequestMessage request = new(HttpMethod.Get, "/v2/server?Players=true&Staff=true&JoinLogs=true&Queue=true&KillLogs=true&CommandLogs=true&ModCalls=true&Vehicles=true");
 
-            HttpRequestMessage request = new(method, url)
-            {
-                Content = content
-            };
-
-            if (requiresKey)
-            {
-                if (apiKey is null)
-                {
-                    Log.Error("Attempted to make request to endpoint requiring API key without API key.");
-                    return null;
-                }
-                else
-                {
-                    request.Headers.Add("Server-Key", apiKey);
-                }
-            }
+            request.Headers.Add("Server-Key", apiKey);
 
             try
             {
                 HttpResponseMessage response = await _client.SendAsync(request);
 
-                PRC_Response? data = JsonConvert.DeserializeObject<PRC_Response>(await response.Content.ReadAsStringAsync());
+                PRC_APIResponse? data = JsonConvert.DeserializeObject<PRC_APIResponse>(await response.Content.ReadAsStringAsync());
 
                 return data;
             }
             catch (Exception ex)
             {
                 SentrySdk.CaptureException(ex);
-                Log.Error(ex, $"An error occured while making a request to the PRC API.\nEndpoint: {endpoint}\nAPI Key: {(apiKey is not null ? HashApiKey(apiKey) : "N/A")}");
+                Log.Error(ex, $"An error occured while making a request to the PRC API.\nAPI Key: {(apiKey is not null ? HashApiKey(apiKey) : "N/A")}");
+                return null;
+            }
+        }
+
+        public static async Task<PRC_APIResponse?> SendCommand(ERLCServerConfig server, string command)
+        {
+            using var _ = Tracer.Start("ERLC.SendCommand");
+            if (!_initialized) Init();
+
+            HttpRequestMessage request = new(HttpMethod.Post, "/v1/server/command")
+            {
+                Content = new StringContent(JsonConvert.SerializeObject(new { command }), Encoding.UTF8, "application/json")
+            };
+
+            request.Headers.Add("Server-Key", server.DecryptedApiKey);
+
+            try
+            {
+                var response = await _client.SendAsync(request);
+
+                PRC_APIResponse? data = JsonConvert.DeserializeObject<PRC_APIResponse>(await response.Content.ReadAsStringAsync());
+
+                return data;
+            }
+            catch (Exception ex)
+            {
+                SentrySdk.CaptureException(ex);
+                Log.Error(ex, $"An error occured while making a request to the PRC API.\nAPI Key: {(server.api_key)}");
                 return null;
             }
         }
@@ -160,9 +179,9 @@ namespace Whispbot.Tools
             return HashString(salt + apiKey);
         }
 
-        public static bool ResponseHasError(PRC_Response response, out MessageBuilder? errorMessage)
+        public static bool ResponseHasError(PRC_APIResponse response, out MessageBuilder? errorMessage)
         {
-            if (response.code == ErrorCode.Success || response.code == ErrorCode.Cached)
+            if (response.Data is not null)
             {
                 errorMessage = null;
                 return false;
@@ -175,9 +194,9 @@ namespace Whispbot.Tools
                         new ContainerBuilder
                         {
                             components = [
-                                new TextDisplayBuilder($"## {{string.title.erlcapierror}}\n> {{string.errors.erlcapi.{response.code.ToString()?.ToLower() ?? "generic"}}}."),
+                                new TextDisplayBuilder($"## {{string.title.erlcapierror}}\n> {{string.errors.erlcapi.{response.Code.ToString()?.ToLower() ?? "generic"}}}."),
                                 new SeperatorBuilder(),
-                                new TextDisplayBuilder($"{{string.content.erlcapierror}}.\n```\n[{response.code?.ToInt() ?? -1}] {response.message}\n```")
+                                new TextDisplayBuilder($"{{string.content.erlcapierror}}.\n```\n[{response.Code.ToInt()}] {response.Message}\n```")
                             ],
                             accent = new Color(150, 0, 0)
                         }
@@ -186,86 +205,6 @@ namespace Whispbot.Tools
                 };
                 return true;
             }
-        }
-
-        public static async Task<PRC_Response?> GetServerInfo(ERLCServerConfig server)
-        {
-            return await Request(Endpoint.ServerInfo, server.DecryptedApiKey);
-        }
-
-        public static async Task<PRC_Response?> GetPlayers(ERLCServerConfig server)
-        {
-            return await Request(Endpoint.ServerPlayers, server.DecryptedApiKey);
-        }
-
-        public static async Task<PRC_Response?> GetJoins(ERLCServerConfig server)
-        {
-            return await Request(Endpoint.ServerJoinlogs, server.DecryptedApiKey);
-        }
-
-        public static async Task<PRC_Response?> GetQueue(ERLCServerConfig server)
-        {
-            return await Request(Endpoint.ServerQueue, server.DecryptedApiKey);
-        }
-
-        public static async Task<PRC_Response?> GetKills(ERLCServerConfig server)
-        {
-            return await Request(Endpoint.ServerKilllogs, server.DecryptedApiKey);
-        }
-
-        public static async Task<PRC_Response?> GetCommands(ERLCServerConfig server)
-        {
-            return await Request(Endpoint.ServerCommandlogs, server.DecryptedApiKey);
-        }
-
-        public static async Task<PRC_Response?> GetModcalls(ERLCServerConfig server)
-        {
-            return await Request(Endpoint.ServerModcalls, server.DecryptedApiKey);
-        }
-
-        public static async Task<PRC_Response?> GetBans(ERLCServerConfig server)
-        {
-            return await Request(Endpoint.ServerBans, server.DecryptedApiKey);
-        }
-
-        public static async Task<PRC_Response?> GetVehicles(ERLCServerConfig server)
-        {
-            return await Request(Endpoint.ServerVehicles, server.DecryptedApiKey);
-        }
-
-        public static async Task<PRC_Response?> GetStaff(ERLCServerConfig server)
-        {
-            return await Request(Endpoint.ServerStaff, server.DecryptedApiKey);
-        }
-
-        public static async Task<PRC_Response?> SendCommand(ERLCServerConfig server, string command)
-        {
-            return await Request(Endpoint.ServerCommand, server.DecryptedApiKey, new StringContent(JsonConvert.SerializeObject(new { command }), Encoding.UTF8, "application/json"));
-        }
-
-        public static async Task<PRC_Response?> ResetGlobalKey()
-        {
-            return await Request(Endpoint.ResetAPIKey);
-        }
-
-        private static ERLCServerConfig? GetServerFromAPIKey(string apiKey)
-        {
-            var servers = WhispCache.ERLCServerConfigs.Find((s, _) => s.Any(e => e.api_key == apiKey));
-            var server = servers?.FirstOrDefault(e => e.api_key == apiKey);
-
-            return server;
-        }
-
-        private static void UpdateServerFromAPIKey(string apiKey, ERLCServerConfig? config)
-        {
-            if (config is null) return;
-
-            var servers = WhispCache.ERLCServerConfigs.Find((s, _) => s.Any(e => e.api_key == apiKey));
-            if (servers is null) return;
-            var server = servers.Find(s => s.api_key == apiKey);
-            if (server is null) return;
-            servers.RemoveAt(servers.IndexOf(server));
-            servers.Add(config);
         }
 
         public static ERLCServerConfig? GetServerFromString(IEnumerable<ERLCServerConfig> servers, string str)
@@ -321,16 +260,16 @@ namespace Whispbot.Tools
             return server;
         }
 
-        public static async Task<PRC_DeserializedResponse<T>?> GetEndpointData<T>(CommandContext ctx, ERLCServerConfig server, Endpoint endpoint) where T : class
+        public static async Task<PRC_APIResponse?> GetServerDataV2(CommandContext ctx, ERLCServerConfig server)
         {
-            using var _ = Tracer.Start($"ERLC.GetEndpoint: {endpoint}");
+            using var _ = Tracer.Start($"ERLC.GetServerV2");
 
-            var response = CheckCache(endpoint, server.DecryptedApiKey);
+            var response = CheckCache(server.DecryptedApiKey);
 
             if (response is null)
             {
                 await ctx.Reply("{emoji.loading} {string.content.erlc.fetching}...");
-                response = await Request(endpoint, server.DecryptedApiKey);
+                response = await GetServerV2(server.DecryptedApiKey);
 
                 if (response is null)
                 {
@@ -345,35 +284,17 @@ namespace Whispbot.Tools
                 return null;
             }
 
-            try
-            {
-                T? data = JsonConvert.DeserializeObject<T>(response.data?.ToString() ?? "[]");
-                return new PRC_DeserializedResponse<T>
-                {
-                    code = response.code,
-                    message = response.message,
-                    data = data,
-                    server = server,
-                    cachedAt = response.cachedAt
-                };
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Parsing ERLC data failed.");
-                return null;
-            }
+            return response;
         }
 
-        public static async Task<string> GenerateFooter<T>(PRC_DeserializedResponse<T> response)
-        {
-            List<ERLCServerConfig>? servers = response.server?.guild_id is not null ? await WhispCache.ERLCServerConfigs.Get(response.server.guild_id.ToString()) : null;
-            string serverName = "";
-            if ((servers?.Count ?? 0) > 0)
-            {
-                serverName = $" | {{string.content.erlcserver.server}}: {response.server!.code ?? "..."}";
-            }
+        public static string GenerateFooter(PRC_APIResponse response) => $"{{string.content.erlcserver.updated}}: {(response.CachedAt is not null ? $"{Math.Round((decimal)(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - response.CachedAt) / 1000)}s ago" : "{string.content.erlcserver.justnow}")} | {{string.content.erlcserver.server}}: {response.Data?.JoinKey ?? "..."}";
 
-            return $"{{string.content.erlcserver.updated}}: {(response.cachedAt is not null ? $"{Math.Round((decimal)(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - response.cachedAt) / 1000)}s ago" : "{string.content.erlcserver.justnow}")}{serverName}";
+        public class PRC_APIResponse
+        {
+            public PRC_Server? Data { get; init; }
+            public string? Message { get; init; }
+            public ErrorCode Code { get; init; } = default!;
+            public long? CachedAt { get; init; }
         }
 
         public static class ERLC_Commands
@@ -422,52 +343,6 @@ namespace Whispbot.Tools
             };
         }
 
-        public class PRC_Response
-        {
-            public ErrorCode? code = ErrorCode.Unknown;
-            public string? message = null;
-            public object? data = null;
-            public long? cachedAt = null;
-            public ERLCServerConfig? server = null;
-        }
-
-        public class PRC_DeserializedResponse<T>: PRC_Response
-        {
-            public new T? data = default;
-        }
-
-        //    Endpoint                     Path                      Method          Return Type                         Requires Server Key
-        public static readonly Dictionary<Endpoint, (string, HttpMethod, Type?, bool)> endpoints = new() {
-            { Endpoint.ServerCommand,     ("/v1/server/command",     HttpMethod.Post, null,                               true ) },
-            { Endpoint.ServerInfo,        ("/v1/server",             HttpMethod.Get,  typeof(PRC_Server),                 true ) },
-            { Endpoint.ServerPlayers,     ("/v1/server/players",     HttpMethod.Get,  typeof(List<PRC_Player>),           true ) },
-            { Endpoint.ServerJoinlogs,    ("/v1/server/joinlogs",    HttpMethod.Get,  typeof(List<PRC_JoinLog>),          true ) },
-            { Endpoint.ServerQueue,       ("/v1/server/queue",       HttpMethod.Get,  typeof(List<double>),               true ) },
-            { Endpoint.ServerKilllogs,    ("/v1/server/killlogs",    HttpMethod.Get,  typeof(List<PRC_KillLog>),          true ) },
-            { Endpoint.ServerCommandlogs, ("/v1/server/commandlogs", HttpMethod.Get,  typeof(List<PRC_CommandLog>),       true ) },
-            { Endpoint.ServerModcalls,    ("/v1/server/modcalls",    HttpMethod.Get,  typeof(List<PRC_CallLog>),          true ) },
-            { Endpoint.ServerBans,        ("/v1/server/bans",        HttpMethod.Get,  typeof(Dictionary<string, string>), true ) },
-            { Endpoint.ServerVehicles,    ("/v1/server/vehicles",    HttpMethod.Get,  typeof(List<PRC_Vehicle>),          true ) },
-            { Endpoint.ServerStaff,       ("/v1/server/staff",       HttpMethod.Get,  typeof(PRC_Staff),                  true ) },
-            { Endpoint.ResetAPIKey,       ("/v1/api-key/reset",      HttpMethod.Get,  null,                               false) },
-        };
-
-        public enum Endpoint
-        {
-            ServerCommand,
-            ServerInfo,
-            ServerPlayers,
-            ServerJoinlogs,
-            ServerQueue,
-            ServerKilllogs,
-            ServerCommandlogs,
-            ServerModcalls,
-            ServerBans,
-            ServerVehicles,
-            ServerStaff,
-            ResetAPIKey
-        }
-
         public enum ErrorCode
         {
             Unknown = 0,
@@ -497,177 +372,85 @@ namespace Whispbot.Tools
 
         public class PRC_Server
         {
-            /// <summary>
-            /// The name of the ER:LC server.
-            /// </summary>
-            public string name = "Server Name";
-
-            /// <summary>
-            /// The Roblox user ID of the server owner.
-            /// </summary>
-            public double ownerId = 1;
-
-            /// <summary>
-            /// The Roblox user ID's of the server co-owners.
-            /// </summary>
-            public List<double> coOwnerIds = [];
-
-            /// <summary>
-            /// The number of players currently in the server.
-            /// </summary>
-            public byte currentPlayers = 0;
-
-            /// <summary>
-            /// The maximum number of players allowed in the server.
-            /// </summary>
-            public byte maxPlayers = 40;
-
-            /// <summary>
-            /// The key used to join the server.
-            /// </summary>
-            public string joinKey = "";
-
-            /// <summary>
-            /// The account verification requirement for joining the server.
-            /// </summary>
-            public string accVerifiedReq = "Disabled";
-
-            /// <summary>
-            /// Whether team balance is enabled for the server.
-            /// </summary>
-            public bool teamBalance = true;
+            public string Name { get; init; } = default!;
+            public long OwnerId { get; init; } = default!;
+            public List<long> CoOwnerIds { get; init; } = [];
+            public byte CurrentPlayers { get; init; } = default!;
+            public byte MaxPlayers { get; init; } = default!;
+            public string JoinKey { get; init; } = default!;
+            public string AccVerifiedReq { get; init; } = default!;
+            public bool TeamBalance { get; init; } = default!;
+            public List<PRC_Player>? Players { get; init; }
+            public PRC_Staff? Staff { get; init; }
+            public List<PRC_JoinLog>? JoinLogs { get; init; }
+            public List<long>? Queue { get; init; }
+            public List<PRC_KillLog>? KillLogs { get; init; }
+            public List<PRC_CommandLog>? CommandLogs { get; init; }
+            public List<PRC_CallLog>? ModCalls { get; init; }
+            public List<PRC_Vehicle>? Vehicles { get; init; }
         }
 
         public class PRC_Player
         {
-            /// <summary>
-            /// The player's name in the format "{Username}:{UserId}".
-            /// </summary>
-            public string player = "Roblox:1";
-
-            /// <summary>
-            /// The user's permission level in the server.
-            /// Possible: Server Owner / Server Co-Owner / Server Administrator / Server Moderator / Normal
-            /// </summary>
-            public string permission = "Normal";
-
-            /// <summary>
-            /// The player's callsign, if applicable.
-            /// </summary>
-            public string? callsign = null;
-
-            /// <summary>
-            /// The team the player is currently on.
-            /// </summary>
-            public string team = "Civilian";
+            public string Team { get; init; } = default!;
+            public string Player { get; init; } = default!;
+            public string? Callsign { get; init; }
+            public string Permission { get; init; } = default!;
+            public float WantedStars { get; init; } = default!;
+            public PRC_PlayerLocation Location { get; init; } = default!;
         }
 
-        public class PRC_JoinLog
+        public class PRC_PlayerLocation
         {
-            /// <summary>
-            /// Whether this is a join, if false, is leave.
-            /// </summary>
-            public bool Join = true;
-
-            /// <summary>
-            /// The timestamp of the join/leave in seconds since the Unix epoch.
-            /// </summary>
-            public double Timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-
-            /// <summary>
-            /// The player's name in the format "{Username}:{UserId}".
-            /// </summary>
-            public string Player = "Roblox:1";
-        }
-
-        public class PRC_KillLog
-        {
-            /// <summary>
-            /// The person who was killed in the format "{Username}:{UserId}".
-            /// </summary>
-            public string Killed = "Roblox:1";
-
-            /// <summary>
-            /// The person who killed in the format "{Username}:{UserId}".
-            /// </summary>
-            public string Killer = "Roblox:1";
-
-            /// <summary>
-            /// The timestamp of the kill in seconds since the Unix epoch.
-            /// </summary>
-            public double Timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        }
-
-        public class PRC_CommandLog
-        {
-            /// <summary>
-            /// The player's name in the format "{Username}:{UserId}".
-            /// </summary>
-            public string Player = "Roblox:1";
-
-            /// <summary>
-            /// The timestamp of the command in seconds since the Unix epoch.
-            /// </summary>
-            public double Timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-
-            /// <summary>
-            /// The command that was executed.
-            /// </summary>
-            public string Command = ":h Error Loading Data :(";
-        }
-
-        public class PRC_CallLog
-        {
-            /// <summary>
-            /// The caller's name in the format "{Username}:{UserId}".
-            /// </summary>
-            public string Caller = "Roblox:1";
-
-            /// <summary>
-            /// The moderator's name in the format "{Username}:{UserId}".
-            /// </summary>
-            public string? Moderator = "Roblox:1";
-
-            /// <summary>
-            /// The timestamp of the call in seconds since the Unix epoch.
-            /// </summary>
-            public double Timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        }
-
-        public class PRC_Vehicle
-        {
-            /// <summary>
-            /// The texture on the vehicle, if applicable.
-            /// </summary>
-            public string? Texture = null;
-
-            /// <summary>
-            /// The name of the vehicle in the format "{Year} {Name}".
-            /// </summary>
-            public string Name = "2035 Vroom Vroom Car";
-
-            /// <summary>
-            /// The Roblox username of the vehicle's owner.
-            /// </summary>
-            public string Owner = "Roblox";
+            public float LocationX { get; init; } = -1;
+            public float LocationZ { get; init; } = -1;
+            public string PostalCode { get; init; } = default!;
+            public string StreetName { get; init; } = default!;
+            public string BuildingNumber { get; init; } = default!;
         }
 
         public class PRC_Staff
         {
-            /// <summary>
-            /// The Roblox user IDs of the server co-owners.
-            /// </summary>
-            public List<double> CoOwners = [];
+            public Dictionary<string, string> Admins { get; init; } = [];
+            public Dictionary<string, string> Mods { get; init; } = [];
+            public Dictionary<string, string> Helpers { get; init; } = [];
+        }
 
-            /// <summary>
-            /// A dictionary of server administrators with the key as their Roblox user ID and the value as their username.
-            /// </summary>
-            public Dictionary<string, string> Admins = [];
+        public class PRC_JoinLog
+        {
+            public bool Join { get; init; } = default!;
+            public long Timestamp { get; init; } = default!;
+            public string Player { get; init; } = default!;
+        }
 
-            /// <summary>
-            /// A dictionary of server moderators with the key as their Roblox user ID and the value as their username.
-            /// </summary>
-            public Dictionary<string, string> Mods = [];
+        public class PRC_KillLog
+        {
+            public string Killer { get; init; } = default!;
+            public string Killed { get; init; } = default!;
+            public long Timestamp { get; init; } = default!;
+        }
+
+        public class PRC_CommandLog
+        {
+            public string Player { get; init; } = default!;
+            public string Command { get; init; } = default!;
+            public long Timestamp { get; init; } = default!;
+        }
+
+        public class PRC_CallLog
+        {
+            public string Caller { get; init; } = default!;
+            public string? Moderator { get; init; }
+            public long Timestamp { get; init; } = default!;
+        }
+
+        public class PRC_Vehicle
+        {
+            public string Name { get; init; } = default!;
+            public string Owner { get; init; } = default!;
+            public string? Texture { get; init; }
+            public string ColorHex { get; init; } = default!;
+            public string ColorName { get; init; } = default!;
         }
     }
 }

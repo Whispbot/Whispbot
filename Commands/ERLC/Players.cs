@@ -44,12 +44,12 @@ namespace Whispbot.Commands.ERLCCommands
             ERLCServerConfig? server = await ERLC.TryGetServer(ctx);
             if (server is null) return;
 
-            var response = await ERLC.GetEndpointData<List<ERLC.PRC_Player>>(ctx, server, ERLC.Endpoint.ServerPlayers);
-            var players = response?.data;
+            var response = await ERLC.GetServerDataV2(ctx, server);
+            var players = response?.Data?.Players;
 
             if (players is not null)
             {
-                List<long> playerIds = [.. players.Select(p => long.Parse(p.player.Split(":")[1]))];
+                List<long> playerIds = [.. players.Select(p => long.Parse(p.Player.Split(":")[1]))];
                 List<UserConfig> userConfigs = await Users.GetConfigsFromRobloxIds(playerIds);
                 List<Member>? members = await Users.GetMembersFromConfigs(userConfigs, ctx);
 
@@ -64,9 +64,9 @@ namespace Whispbot.Commands.ERLCCommands
                     { "Server Helper", 1 }
                 };
 
-                players = [.. players.OrderByDescending(p => roles.GetValueOrDefault(p.permission, 0))
+                players = [.. players.OrderByDescending(p => roles.GetValueOrDefault(p.Permission, 0))
                     .ThenByDescending(p => {
-                        string playerId = p.player.Split(':').Length > 1 ? p.player.Split(':')[1] : "N/A";
+                        string playerId = p.Player.Split(':').Length > 1 ? p.Player.Split(':')[1] : "N/A";
                         UserConfig? userConfig = userConfigs?.FirstOrDefault(uc => uc.roblox_id.ToString() == playerId);
                         if (userConfig is not null)
                         {
@@ -79,24 +79,24 @@ namespace Whispbot.Commands.ERLCCommands
                         }
                         return 0;
                     })
-                    .ThenBy(p => p.player)];
+                    .ThenBy(p => p.Player)];
 
                 foreach (var player in players)
                 {
-                    StringBuilder? team = teams.GetValueOrDefault(player.team);
+                    StringBuilder? team = teams.GetValueOrDefault(player.Team);
                     if (team is null)
                     {
                         team = new StringBuilder();
-                        teams[player.team] = team;
+                        teams[player.Team] = team;
                     }
 
-                    string[] split = player.player.Split(':');
+                    string[] split = player.Player.Split(':');
                     string name = split[0];
                     string id = split.Length > 1 ? split[1] : "N/A";
 
                     StringBuilder flags = new();
 
-                    switch (player.permission)
+                    switch (player.Permission)
                     {
                         case "Server Owner":
                             flags.Append("{emoji.owner}");
@@ -127,7 +127,7 @@ namespace Whispbot.Commands.ERLCCommands
                         }
                     }
                     
-                    team.AppendLine($"{flags}{(flags.Length > 0 ? " " : "")}{(player.callsign is not null ? $"[{player.callsign}] " : "")}**@{name}** ({id})");
+                    team.AppendLine($"{flags}{(flags.Length > 0 ? " " : "")}{(player.Callsign is not null ? $"[{player.Callsign}] " : "")}**@{name}** ({id})");
                 }
 
                 await ctx.EditResponse(
@@ -139,8 +139,8 @@ namespace Whispbot.Commands.ERLCCommands
                             {
                                 title = $"{{string.title.erlcserver.players}} [{players.Count}]",
                                 description = teams.Count == 0 ? "{string.errors.erlcserver.empty}" : null,
-                                fields = [.. teams.ForAll((kvp) => new EmbedField() { name = $"{kvp.Key} [{players.Sum(p=> p.team == kvp.Key ? 1 : 0 )}]", value = kvp.Value.ToString(), inline = false })],
-                                footer = new EmbedFooter { text = await ERLC.GenerateFooter(response!) }
+                                fields = [.. teams.ForAll((kvp) => new EmbedField() { name = $"{kvp.Key} [{players.Sum(p=> p.Team == kvp.Key ? 1 : 0 )}]", value = kvp.Value.ToString(), inline = false })],
+                                footer = new EmbedFooter { text = ERLC.GenerateFooter(response!) }
                             }
                         ]
                     }
@@ -148,7 +148,7 @@ namespace Whispbot.Commands.ERLCCommands
             }
             else
             {
-                await ctx.EditResponse($"{{emoji.cross}} [{response?.code}] {response?.message ?? "An unknown error occured"}.");
+                await ctx.EditResponse($"{{emoji.cross}} [{response?.Code}] {response?.Message ?? "An unknown error occured"}.");
             }
         }
     }

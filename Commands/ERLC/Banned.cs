@@ -37,56 +37,58 @@ namespace Whispbot.Commands.ERLCCommands
             if (!await WhispPermissions.CheckModuleMessage(ctx, Module.ERLC)) return;
             if (!await WhispPermissions.CheckPermissionsMessage(ctx, BotPermissions.UseERLC)) return;
 
-            if (ctx.args.Count < 1)
-            {
-                await ctx.Reply("{emoji.cross} {string.errors.erlcbanned.nouserprovided}");
-                return;
-            }
+            await ctx.Reply("This command is temp disabled.");
 
-            Roblox.RobloxUser? user = await Roblox.GetUser(ctx.args[0]);
-            ctx.args.RemoveAt(0);
+            //if (ctx.args.Count < 1)
+            //{
+            //    await ctx.Reply("{emoji.cross} {string.errors.erlcbanned.nouserprovided}");
+            //    return;
+            //}
 
-            if (user is null)
-            {
-                await ctx.Reply("{emoji.cross} {string.errors.erlcbanned.usernotfound}");
-                return;
-            }
+            //Roblox.RobloxUser? user = await Roblox.GetUser(ctx.args[0]);
+            //ctx.args.RemoveAt(0);
 
-            ERLCServerConfig? server = await ERLC.TryGetServer(ctx);
-            if (server is null) return;
+            //if (user is null)
+            //{
+            //    await ctx.Reply("{emoji.cross} {string.errors.erlcbanned.usernotfound}");
+            //    return;
+            //}
 
-            var response = await ERLC.GetEndpointData<Dictionary<string, string>>(ctx, server, ERLC.Endpoint.ServerBans);
-            var bans = response?.data;
+            //ERLCServerConfig? server = await ERLC.TryGetServer(ctx);
+            //if (server is null) return;
 
-            if (bans is not null)
-            {
-                bool banned = bans.ContainsKey(user.id);
+            //var response = await ERLC.GetEndpointData<Dictionary<string, string>>(ctx, server, ERLC.Endpoint.ServerBans);
+            //var bans = response?.data;
 
-                await ctx.EditResponse(
-                    new MessageBuilder
-                    {
-                        components = [
-                            new ContainerBuilder
-                            {
-                                components = [
-                                    new TextDisplayBuilder(
-                                        banned ?
-                                        $"{{emoji.tick}} **@{user.name}** {{string.content.erlcserver.banned}} {server.name}." :
-                                        $"{{emoji.cross}} **@{user.name}** {{string.content.erlcserver.notbanned}} {server.name}."
-                                    ),
-                                    new TextDisplayBuilder($"-# {await ERLC.GenerateFooter(response!)}")
-                                ],
-                                accent = banned ? new Color(0, 150, 0) : new Color(150, 0, 0)
-                            }
-                        ],
-                        flags = MessageFlags.IsComponentsV2
-                    }
-                );
-            }
-            else
-            {
-                await ctx.EditResponse($"{{emoji.cross}} [{response?.code}] {response?.message ?? "An unknown error occured"}.");
-            }
+            //if (bans is not null)
+            //{
+            //    bool banned = bans.ContainsKey(user.id);
+
+            //    await ctx.EditResponse(
+            //        new MessageBuilder
+            //        {
+            //            components = [
+            //                new ContainerBuilder
+            //                {
+            //                    components = [
+            //                        new TextDisplayBuilder(
+            //                            banned ?
+            //                            $"{{emoji.tick}} **@{user.name}** {{string.content.erlcserver.banned}} {server.name}." :
+            //                            $"{{emoji.cross}} **@{user.name}** {{string.content.erlcserver.notbanned}} {server.name}."
+            //                        ),
+            //                        new TextDisplayBuilder($"-# {await ERLC.GenerateFooter(response!)}")
+            //                    ],
+            //                    accent = banned ? new Color(0, 150, 0) : new Color(150, 0, 0)
+            //                }
+            //            ],
+            //            flags = MessageFlags.IsComponentsV2
+            //        }
+            //    );
+            //}
+            //else
+            //{
+            //    await ctx.EditResponse($"{{emoji.cross}} [{response?.code}] {response?.message ?? "An unknown error occured"}.");
+            //}
         }
     }
 }

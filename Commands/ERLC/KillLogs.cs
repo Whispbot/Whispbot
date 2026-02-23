@@ -40,14 +40,14 @@ namespace Whispbot.Commands.ERLCCommands
             ERLCServerConfig? server = await ERLC.TryGetServer(ctx);
             if (server is null) return;
 
-            var response = await ERLC.GetEndpointData<List<ERLC.PRC_KillLog>>(ctx, server, ERLC.Endpoint.ServerKilllogs);
-            var killLogs = response?.data;
+            var response = await ERLC.GetServerDataV2(ctx, server);
+            var killLogs = response?.Data?.KillLogs;
 
             if (killLogs is not null)
             {
                 if (killLogs.Count == 0)
                 {
-                    await ctx.EditResponse($"{{emoji.cross}} {{string.errors.erlckilllogs.nokills}}\n-# {{string.content.erlcserver.updated}}: {(response!.cachedAt is not null ? $"{Math.Round((decimal)(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - response.cachedAt) / 1000)}s ago" : "{string.content.erlcserver.justnow}")}");
+                    await ctx.EditResponse($"{{emoji.cross}} {{string.errors.erlckilllogs.nokills}}\n-# {{string.content.erlcserver.updated}}: {(response!.CachedAt is not null ? $"{Math.Round((decimal)(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - response.CachedAt) / 1000)}s ago" : "{string.content.erlcserver.justnow}")}");
                     return;
                 }
 
@@ -94,7 +94,7 @@ namespace Whispbot.Commands.ERLCCommands
                             {
                                 title = $"{{string.title.killlogs}}",
                                 description = strings.ToString(),
-                                footer = new EmbedFooter { text = await ERLC.GenerateFooter(response!) }
+                                footer = new EmbedFooter { text = ERLC.GenerateFooter(response!) }
                             }
                         ]
                     }
@@ -102,7 +102,7 @@ namespace Whispbot.Commands.ERLCCommands
             }
             else
             {
-                await ctx.EditResponse($"{{emoji.cross}} [{response?.code}] {response?.message ?? "An unknown error occured"}.");
+                await ctx.EditResponse($"{{emoji.cross}} [{response?.Code}] {response?.Message ?? "An unknown error occured"}.");
             }
         }
     }

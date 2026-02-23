@@ -12,18 +12,18 @@ namespace Whispbot.Commands.ERLCCommands.Commands
     {
         public static async Task<string?> GetUserFromPartialName(string partialName, ERLCServerConfig serverConfig)
         {
-            Tools.ERLC.PRC_Response? response = Tools.ERLC.CheckCache(Tools.ERLC.Endpoint.ServerPlayers, serverConfig.DecryptedApiKey) ?? await Tools.ERLC.GetPlayers(serverConfig);
+            ERLC.PRC_APIResponse? response = ERLC.CheckCache(serverConfig.DecryptedApiKey) ?? await ERLC.GetServerV2(serverConfig.DecryptedApiKey);
 
             if (response is null) return null;
-            if ((response.code == Tools.ERLC.ErrorCode.Success || response.code == Tools.ERLC.ErrorCode.Cached) && response.data is not null)
+            if ((response.Code == ERLC.ErrorCode.Success || response.Code == ERLC.ErrorCode.Cached) && response.Data is not null)
             {
-                List<Tools.ERLC.PRC_Player>? players = JsonConvert.DeserializeObject<List<Tools.ERLC.PRC_Player>>(response.data.ToString()!);
+                List<ERLC.PRC_Player>? players = response.Data.Players;
                 if (players is null) return null;
 
-                Tools.ERLC.PRC_Player? matchedPlayer = players.FirstOrDefault(p => p.player.Contains(partialName, StringComparison.OrdinalIgnoreCase));
+                ERLC.PRC_Player? matchedPlayer = players.FirstOrDefault(p => p.Player.Contains(partialName, StringComparison.OrdinalIgnoreCase));
                 if (matchedPlayer is not null)
                 {
-                    return matchedPlayer.player;
+                    return matchedPlayer.Player;
                 }
                 else
                 {
