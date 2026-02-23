@@ -71,7 +71,7 @@ namespace Whispbot.Commands.ERLCCommands
                         if (member.premium_since is not null) flags.Append("{emoji.booster}");
                     }
 
-                    strings.Append($"**{flags}{(flags.Length > 0 ? " " : "")}@{vehicle.Owner}**\n> **{{string.title.erlcvehicles.model}}:** {vehicle.Name}\n> **{{string.title.erlcvehicles.texture}}:** {vehicle.Texture}\n\n");
+                    strings.Append($"**{flags}{(flags.Length > 0 ? " " : "")}@{vehicle.Owner}**\n> **{{string.title.erlcvehicles.model}}:** {vehicle.Name}\n> **{{string.title.erlcvehicles.texture}}:** {(vehicle.Texture == "Standard" ? $"{vehicle.ColorName}" : vehicle.Texture)}\n\n");
                 }
 
                 await ctx.EditResponse(
