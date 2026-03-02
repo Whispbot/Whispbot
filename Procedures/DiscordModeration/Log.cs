@@ -37,17 +37,16 @@ namespace Whispbot
         {
             var context = await GatherContextFromCommand(ctx, type);
 
-            // Why is the permission check before the error check? Because it looks better nerd
+            if (context.Error is not null)
+            {
+                await ctx.Reply($"{{emoji.cross}} {{string.errors.dm.{context.Error}}}.");
+                return;
+            }
+
             var permissionCheck = await HasPermission(context);
             if (!permissionCheck.Item1)
             {
                 await ctx.Reply($"{{emoji.cross}} {permissionCheck.Item2}");
-                return;
-            }
-
-            if (context.Error is not null)
-            {
-                await ctx.Reply($"{{emoji.cross}} {{string.errors.dm.{context.Error}}}.");
                 return;
             }
 
