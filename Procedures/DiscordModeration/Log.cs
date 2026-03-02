@@ -37,7 +37,7 @@ namespace Whispbot
         {
             var context = await GatherContextFromCommand(ctx, type);
 
-            // Make sure user has correct permissions and the module is enabled first for appearance reasons, then check if context failed
+            // Why is the permission check before the error check? Because it looks better nerd
             var permissionCheck = await HasPermission(context);
             if (!permissionCheck.Item1)
             {

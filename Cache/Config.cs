@@ -68,7 +68,7 @@ namespace Whispbot
                 FROM user_config uc
                 LEFT JOIN user_feature_flags uff ON uff.user_id = uc.id
                 LEFT JOIN feature_flags ff ON ff.id = uff.feature_flag_id
-                WHERE id = @1;",
+                WHERE uc.id = @1;",
               [long.Parse(key)]
             );
 
