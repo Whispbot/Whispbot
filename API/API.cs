@@ -62,10 +62,28 @@ namespace Whispbot.API
 
         [StringSyntax("Route")]
         public static Dictionary<string, Dictionary<HttpMethod, RequestDelegate>> routes = new() {
-            { "/ping", new() {
+            { "/health", new() {
                 { Get, async context => {
-                        await context.Response.WriteAsJsonAsync(new {status = "ok"});
+                    if (Config.shardingManager?.shards.All(s => s.client.ready) ?? false)
+                    {
+                        await context.Response.WriteAsJsonAsync(new {
+                            status = "ready", 
+                            shards = Config.shardingManager.shards.Select(s => new
+                            {
+                                s.id,
+                                s.totalShards,
+                                s.client.ready,
+                                s.client.ping,
+                                guilds = s.client.readyData?.guilds.Count ?? 0
+                            })
+                        });
                     }
+                    else
+                    {
+                        context.Response.StatusCode = 503;
+                        await context.Response.WriteAsJsonAsync(new {status = "not ready"});
+                    }
+                }
                 }
             } },
             { "/commands", new()
