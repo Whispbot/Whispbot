@@ -37,6 +37,14 @@ namespace Whispbot
         {
             var context = await GatherContextFromCommand(ctx, type);
 
+            // Make sure user has correct permissions and the module is enabled first for appearance reasons, then check if context failed
+            var permissionCheck = await HasPermission(context);
+            if (!permissionCheck.Item1)
+            {
+                await ctx.Reply($"{{emoji.cross}} {permissionCheck.Item2}");
+                return;
+            }
+
             if (context.Error is not null)
             {
                 await ctx.Reply($"{{emoji.cross}} {{string.errors.dm.{context.Error}}}.");
@@ -50,14 +58,6 @@ namespace Whispbot
             if (guild is null || moderator is null || target is null)
             {
                 await ctx.Reply($"{{emoji.cross}} {{string.errors.dm.invalid_ctx}}.");
-                return;
-            }
-
-            // Make sure user has correct permissions and the module is enabled
-            var permissionCheck = await HasPermission(context);
-            if (!permissionCheck.Item1)
-            {
-                await ctx.Reply($"{{emoji.cross}} {permissionCheck.Item2}");
                 return;
             }
 
