@@ -16,7 +16,7 @@ namespace Whispbot.Tools
     {
         public static long? ModerateUser(long userId, long moderatorId, string reason, ActionType type, DateTimeOffset? end = null, List<ProofInsert>? proofs = null)
         {
-            ModerationInsert? insert = Postgres.SelectFirst<ModerationInsert>(@"INSERT INTO actions (target, moderator, type, reason, ends_at) VALUES (@1, @2, @3, @4, @5) RETURNING id;", [userId, moderatorId, type, reason, end]);
+            ModerationInsert? insert = Postgres.SelectFirst<ModerationInsert>(@"INSERT INTO actions (target, moderator, type, reason, ends_at) VALUES (@1, @2, @3, @4, @5) RETURNING id;", [userId, moderatorId, type, reason, end!]);
             if (insert is null) return null;
 
             proofs ??= [];

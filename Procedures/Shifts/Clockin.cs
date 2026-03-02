@@ -25,7 +25,7 @@ namespace Whispbot
 
             if (type.role_id is not null)
             {
-                var err = await moderator.AddRole(type.role_id!.ToString(), $"Clocked in to shift type '{type.name}'.");
+                var err = await moderator.AddRole(type.role_id!.ToString()!, $"Clocked in to shift type '{type.name}'.");
 
                 if (err is not null)
                 {

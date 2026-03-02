@@ -24,7 +24,7 @@ namespace Whispbot
 
             if (type.role_id is not null && moderator is not null)
             {
-                var err = await moderator.RemoveRole(type.role_id!.ToString(), $"Clocked out of shift type '{type.name}'.");
+                var err = await moderator.RemoveRole(type.role_id!.ToString()!, $"Clocked out of shift type '{type.name}'.");
 
                 if (err is not null)
                 {

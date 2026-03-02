@@ -133,7 +133,7 @@ if (clusters > 1) // We dont need to cluster if there is only 1 of them
     if (Config.replica.IsLeader)
     {
         Config.cluster = 0;
-        Config.replicas.Add(Config.replicaId);
+        Config.replicas.Add(Config.replicaId!);
 
         pubSub!.Subscribe("register", (channel, message) => { register(message); });
 
@@ -144,7 +144,7 @@ if (clusters > 1) // We dont need to cluster if there is only 1 of them
         pubSub!.Subscribe($"{Config.deploymentId}-replicas", (channel, message) =>
         {
             Config.replicas = JsonConvert.DeserializeObject<List<string>>(message.ToString()) ?? [];
-            Config.cluster = Config.replicas.IndexOf(Config.replicaId);
+            Config.cluster = Config.replicas.IndexOf(Config.replicaId!);
         });
     }
 
@@ -259,7 +259,7 @@ bool isLastCluster = false;
 if (!start) // Wait for start signal if not cluster 0
 {
     Log.Debug("Waiting for start signal...");
-    pubSub!.Subscribe($"start", (channel, message) =>
+    pubSub?.Subscribe($"start", (channel, message) =>
     {
         string[] parts = message.ToString().Split(':');
         string replica = parts[0];
@@ -278,7 +278,7 @@ while (!start) // Wait for start signal, but periodically request if can start i
     if (DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - lastRequestedStart > 5000)
     {
         lastRequestedStart = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        pubSub.Publish($"{Config.deploymentId}-can-start", Config.replicaId);
+        pubSub?.Publish($"{Config.deploymentId}-can-start", Config.replicaId);
     }
 }
 
@@ -295,14 +295,14 @@ _ = Task.Run(() =>
     if (nextReplica is not null && !isLastCluster)
     {
         // Signal next cluster to start
-        pubSub.Publish("start", $"{nextReplica}:0");
+        pubSub?.Publish("start", $"{nextReplica}:0");
         Log.Information($"All cluster {Config.cluster} shards started, sending command to start cluster {Config.cluster + 1}.");
     }
     else
     {
         // Last cluster, listen for clusters that have restarted and are requesting start
         Log.Information($"All cluster {Config.cluster} shards started, all cluters started.");
-        pubSub.Subscribe($"{Config.deploymentId}-can-start", (channel, message) =>
+        pubSub?.Subscribe($"{Config.deploymentId}-can-start", (channel, message) =>
         {
             pubSub.Publish("start", $"{message}:1");
             pubSub.Unsubscribe($"{Config.deploymentId}-can-start");

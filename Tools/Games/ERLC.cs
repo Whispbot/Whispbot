@@ -197,7 +197,7 @@ namespace Whispbot.Tools
                             components = [
                                 new TextDisplayBuilder($"## {{string.title.erlcapierror}}\n> {{string.errors.erlcapi.{response.Code.ToString()?.ToLower() ?? "generic"}}}."),
                                 new SeperatorBuilder(),
-                                new TextDisplayBuilder($"{{string.content.erlcapierror}}.\n```\n[{response.Code.ToInt()}] {response.Message}\n```")
+                                new TextDisplayBuilder($"{{string.content.erlcapierror}}.\n```\n[{response.Code?.ToInt()}] {response.Message}\n```")
                             ],
                             accent = new Color(150, 0, 0)
                         }
@@ -294,7 +294,7 @@ namespace Whispbot.Tools
         {
             public PRC_Server? Data { get; init; }
             public string? Message { get; init; }
-            public ErrorCode Code { get; init; } = default!;
+            public ErrorCode? Code { get; init; }
             public long? CachedAt { get; init; }
         }
 
