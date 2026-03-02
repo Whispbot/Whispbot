@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Whispbot.Commands;
 using Whispbot.Commands.ERLCCommands.Commands;
 using Whispbot.Interactions;
+using YellowMacaroni.Discord.Sharding;
 
 namespace Whispbot
 {
@@ -19,12 +20,12 @@ namespace Whispbot
         public static Replica? replica = null;
         public static int cluster = -1;
         public static List<string> replicas = [];
-        public static string? replicaId = Environment.GetEnvironmentVariable("RAILWAY_REPLICA_ID");
-        public static string deploymentId = Environment.GetEnvironmentVariable("RAILWAY_DEPLOYMENT_ID") ?? "dev";
-        public static string serviceId = Environment.GetEnvironmentVariable("RAILWAY_SERVICE_ID") ?? "dev";
-        public static string environmentId = Environment.GetEnvironmentVariable("RAILWAY_ENVIRONMENT_ID") ?? "dev";
-        public static string staffPrefix = IsDev ? ">>>" : Environment.GetEnvironmentVariable("WHISP_STAFF_PREFIX") ?? ">>>";
-        public static string mainGuild = "1096509172784300174";
+        public static readonly string? replicaId = Environment.GetEnvironmentVariable("RAILWAY_REPLICA_ID");
+        public static readonly string deploymentId = Environment.GetEnvironmentVariable("RAILWAY_DEPLOYMENT_ID") ?? "dev";
+        public static readonly string serviceId = Environment.GetEnvironmentVariable("RAILWAY_SERVICE_ID") ?? "dev";
+        public static readonly string environmentId = Environment.GetEnvironmentVariable("RAILWAY_ENVIRONMENT_ID") ?? "dev";
+        public static readonly string staffPrefix = IsDev ? ">>>" : Environment.GetEnvironmentVariable("WHISP_STAFF_PREFIX") ?? ">>>";
+        public static readonly string mainGuild = "1096509172784300174";
 
         private static EnvironmentType? _envId = null;
         public static EnvironmentType EnvId
@@ -52,6 +53,8 @@ namespace Whispbot
         }
         public static readonly string websiteUrl = !IsDev ? Environment.GetEnvironmentVariable("WHISP_WEBSITE_URL") ?? "https://whisp.bot" : "http://localhost:3001";
         public static readonly string prefix = Environment.GetEnvironmentVariable("WHISP_LEGACY_PREFIX") ?? "!";
+
+        public static ShardingManager? shardingManager;
 
         public static CommandManager? commands;
         public static InteractionManager? interactions;

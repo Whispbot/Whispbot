@@ -19,15 +19,7 @@ namespace Whispbot.Commands.Staff
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
         {
-            string? guildId = ctx.message.channel?.guild_id;
-
-            if (guildId is null)
-            {
-                await ctx.Reply("This command can only be used in a server.");
-                return;
-            }
-
-            await Tools.Google.Search("What is the uk minimum wage?");
+            ctx.client.Disconnect();
         }
     }
 }

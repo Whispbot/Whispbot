@@ -195,6 +195,7 @@ ShardingManager sharding = new(
     Intents.AutoModerationExecution,
     shards
 );
+Config.shardingManager = sharding;
 
 // Calculate which shards this cluster will handle
 int shardCount = sharding.shards.Count;
@@ -213,6 +214,8 @@ interactions.Attach(sharding);
 
 ERLCCommandManager erlcCommands = new();
 Config.erlcCommands = erlcCommands;
+
+DiscordPublisher.Start(sharding);
 
 foreach (Shard shard in sharding.shards)
 {
