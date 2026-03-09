@@ -87,6 +87,8 @@ namespace Whispbot.Tools
 
         public static async Task<PRC_APIResponse?> SendCommand(ERLCServerConfig server, string command)
         {
+            if (server.api_key is null || server.DecryptedApiKey == "") return null;
+
             using var _ = Tracer.Start("ERLC.SendCommand");
             if (!_initialized) Init();
 
@@ -160,18 +162,27 @@ namespace Whispbot.Tools
 
         public static string DecryptApiKey(string encryptedApiKey)
         {
-            var fullCipher = Convert.FromBase64String(encryptedApiKey);
+            try
+            {
+                var fullCipher = Convert.FromBase64String(encryptedApiKey);
 
-            using var aes = Aes.Create();
-            aes.Key = Encoding.UTF8.GetBytes(EncryptionKey);
-            var iv = new byte[aes.BlockSize / 8];
-            Array.Copy(fullCipher, iv, iv.Length);
+                using var aes = Aes.Create();
+                aes.Key = Encoding.UTF8.GetBytes(EncryptionKey);
+                var iv = new byte[aes.BlockSize / 8];
+                Array.Copy(fullCipher, iv, iv.Length);
 
-            using var decryptor = aes.CreateDecryptor(aes.Key, iv);
-            using var ms = new MemoryStream(fullCipher, iv.Length, fullCipher.Length - iv.Length);
-            using var cs = new CryptoStream(ms, decryptor, CryptoStreamMode.Read);
-            using var sr = new StreamReader(cs);
-            return sr.ReadToEnd();
+                using var decryptor = aes.CreateDecryptor(aes.Key, iv);
+                using var ms = new MemoryStream(fullCipher, iv.Length, fullCipher.Length - iv.Length);
+                using var cs = new CryptoStream(ms, decryptor, CryptoStreamMode.Read);
+                using var sr = new StreamReader(cs);
+                return sr.ReadToEnd();
+            }
+            catch (ArgumentException)
+            {
+                Log.Warning($"Invalid API key passed: {encryptedApiKey}");
+                Postgres.Execute("UPDATE erlc_servers SET api_key = NULL, hashed_key = NULL WHERE api_key = @1", [encryptedApiKey]);
+                return "";
+            }
         }
 
         public static string HashApiKey(string apiKey)
