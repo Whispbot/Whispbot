@@ -1,10 +1,13 @@
-﻿using Serilog;
+﻿using Amazon.S3.Model;
+using Serilog;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
+using Whispbot.Databases;
+using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot
 {
@@ -16,7 +19,11 @@ namespace Whispbot
 
         private static readonly AsyncLocal<CommandState?> _state = new();
 
-        private static readonly ConcurrentQueue<string> _recentDumps = new();
+        private static readonly ConcurrentQueue<CommandState> _commandActivity = new();
+
+        private static bool _processing = false;
+        private static readonly Random _random = new();
+        private static readonly float _sampleRate = Environment.GetEnvironmentVariable("TRACE_SAMPLE_RATE") is string tsr ? float.Parse(tsr) : 0f;
 
         public static ActivityListener CreateListener()
         {
@@ -64,20 +71,62 @@ namespace Whispbot
 
                     if (activity.Id is { } stoppedId && st.RootId == stoppedId)
                     {
-                        var dump = DumpAndResetInternal(st, activity.DisplayName);
-                        if (dump is null) return;
-
-                        Log.Verbose("\n{PerfTree}", dump);
-
-                        _recentDumps.Enqueue(dump);
-                        while (_recentDumps.Count > 25)
-                            _recentDumps.TryDequeue(out _);
+                        if (st.NodesById.Values.FirstOrDefault(n => n.Name.StartsWith("Command: ")) is NodeBuilder n)
+                        {
+                            if ((_random.NextDouble() * 100) <= _sampleRate)
+                            {
+                                _commandActivity.Enqueue(st);
+                                if (!_processing) Task.Run(() => ProcessCommandActivities());
+                            }
+                        }
                     }
                 }
             };
 
             ActivitySource.AddActivityListener(listener);
             return listener;
+        }
+
+        private static IEnumerable<DatabaseNode> IterableChildren(NodeBuilder builder)
+        {
+            return [
+                ..builder.Children.Select(n => new DatabaseNode(n.Id, n.Name, n.StartTime, n.EndTime, builder.Id)),
+                ..builder.Children.SelectMany(IterableChildren)
+            ];
+        }
+
+        public static void ProcessCommandActivities()
+        {
+            //if (_processing) return;
+            //_processing = true;
+
+            //Thread.Sleep(5000);
+
+
+            //if (!_commandActivity.IsEmpty)
+            //{
+            //    List<CommandState> states = [.. _commandActivity];
+            //    _commandActivity.Clear();
+
+            //    if (states.Count > 100)
+            //    {
+            //        states = [.. states.Take(100)];
+            //        Log.Warning("Too many traces sampled, reduced to 100");
+            //    }
+
+            //    List<NodeBuilder> primaryNodes = [.. states.Select(s => s.NodesById!.GetValueOrDefault(s.RootId, new()))];
+            //    List<NodeBuilder> traces = [.. states.SelectMany(s => s.NodesById.Values.SelectMany(n => n.Children))];
+
+            //    Postgres.Select("INSERT INTO command_traces ()");
+
+            //    Log.Verbose($"Sampled {states.Count} traces and logged to databse.");
+            //}
+            //else
+            //{
+            //    Log.Verbose("No traces sampled???");
+            //}
+
+            //_processing = false;
         }
 
         public static Activity? Start(string name) => ActivitySource.StartActivity(name);
@@ -106,8 +155,8 @@ namespace Whispbot
 
             if (root.Name != "Message") return null;
 
-            Node Build(NodeBuilder b) =>
-                new(b.Name, b.StartTime, b.Duration, b.Children.Select(Build).ToList());
+            static Node Build(NodeBuilder b) =>
+                new(b.Name, b.StartTime, b.Duration, [.. b.Children.Select(Build)]);
 
             var rootNode = Build(root);
 
@@ -168,5 +217,7 @@ namespace Whispbot
             public TimeSpan Duration { get; set; }
             public List<NodeBuilder> Children { get; } = new();
         }
+
+        private sealed record DatabaseNode(string Id, string Name, DateTime Start, DateTime End, string ParentId);
     }
 }
