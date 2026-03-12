@@ -37,16 +37,16 @@ namespace Whispbot
         {
             var context = await GatherContextFromCommand(ctx, type);
 
-            if (context.Error is not null)
-            {
-                await ctx.Reply($"{{emoji.cross}} {{string.errors.dm.{context.Error}}}.");
-                return;
-            }
-
             var permissionCheck = await HasPermission(context);
             if (!permissionCheck.Item1)
             {
                 await ctx.Reply($"{{emoji.cross}} {permissionCheck.Item2}");
+                return;
+            }
+
+            if (context.Error is not null) // Checks for errors after permissions because people complained about getting other errors before permissions
+            {
+                await ctx.Reply($"{{emoji.cross}} {{string.errors.dm.{context.Error}}}.");
                 return;
             }
 

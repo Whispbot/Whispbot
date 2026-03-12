@@ -187,6 +187,8 @@ namespace Whispbot
 
         public bool require_reason = true;
         public bool require_duration = false;
+
+        public bool log_external_moderations = false;
     }
 
     public class UserConfig
