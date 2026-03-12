@@ -1,4 +1,4 @@
-﻿using Amazon.S3.Model;
+using Amazon.S3.Model;
 using Serilog;
 using System;
 using System.Collections.Concurrent;
@@ -102,7 +102,6 @@ namespace Whispbot
 
             //Thread.Sleep(5000);
 
-
             //if (!_commandActivity.IsEmpty)
             //{
             //    List<CommandState> states = [.. _commandActivity];
@@ -172,7 +171,6 @@ namespace Whispbot
             double fraction = n.Duration.TotalMilliseconds / root.Duration.TotalMilliseconds;
             int length = (int)(chars * fraction);
             int startChars = (int)(chars * (n.Start - root.StartTime).TotalMilliseconds / root.Duration.TotalMilliseconds);
-
 
             var lines = new List<string>
             {
