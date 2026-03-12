@@ -73,6 +73,13 @@ namespace Whispbot.Commands.ERLCCommands.Commands
             if (message.embeds.Count == 0) return; // Doesn't contain command data
             if (message.channel?.guild_id is null) return;
 
+            GuildConfig? config = await WhispCache.GuildConfig.Get(message.channel.guild_id);
+            if (config is null) return;
+            if (config.version != Config.EnvId) return; // Make sure commands are only responded to once
+
+            Log.Verbose($"~~~~~~~~~~~~~~");
+            Log.Verbose($"Message ID: {message.id}");
+
             // EMBED CONTENT
             // Title: Command Usage | Player Kicked | Player Banned
             // Description: [Username:UserID](ProfileUrl) [used the command | kicked | banned] `:command args`
@@ -82,7 +89,9 @@ namespace Whispbot.Commands.ERLCCommands.Commands
             string? description = commandEmbed.description;
             string? footer = commandEmbed.footer?.text;
 
-            if (description is null || footer is null || !footer.Contains("Private Server: ")) return;
+            Log.Verbose($"Content: {description}");
+
+            if (description is null || footer is null || !footer.Contains("Private Server: ")) return; // Not valid command log
 
             // 1: Username, 2: UserID, 3: Action, 4: Command, 5: Args https://regex101.com/r/riJkf5/1
             Regex regex = new(@"\[(.+):([0-9]+)\]\(.+\) (used the command:|banned|kicked) `([^ ]+) *(.*)`");
@@ -95,7 +104,7 @@ namespace Whispbot.Commands.ERLCCommands.Commands
             string commandName = commandGroups[4].Value;
             string commandArgs = commandGroups[5].Value;
 
-            if (username == "Remote Server") return;
+            if (username == "Remote Server") return; // Ignore VSM (commands ran by the bot) to avoid infinite loops
 
             using var _ = Tracer.Start($"ERLCCommand: {(action == "used the command:" ? commandName : action)}");
 
@@ -121,14 +130,12 @@ namespace Whispbot.Commands.ERLCCommands.Commands
 
             if (ctx.UserConfig is null)
             {
-                if (commandName == ":log")
+                if (commandName == ":log") // All commands that use :log require being logged in to work
                 {
                     await ctx.Reply("{string.content.erlccommand.notloggedin}.");
                 }
                 return;
             }
-
-            if (ctx.GuildConfig?.version != Config.EnvId) return;
 
             if (action == "used the command:")
             {

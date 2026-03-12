@@ -107,16 +107,13 @@ namespace Whispbot.Commands
         public async Task HandleMessage(Client client, Message message)
         {
             if (ignoreGuilds.Contains(message.channel?.guild_id?.ToString() ?? "")) return;
+            if (message.webhook_id is not null) return; // Webhooks handled by ERLC command manager
+            if (message.author.bot ?? false) return; // Don't reply to bots
 
             using var messageTrace = Tracer.Start("Message");
-            if (message.webhook_id is not null)
-            {
-                Config.erlcCommands?.HandleMessage(client, message);
-                return;
-            }
 
             GuildConfig? guildConfig = null;
-            using (Tracer.Start("FetchGuildConfig"))
+            using (Tracer.Start("GetGuildConfig"))
                 guildConfig = message.channel?.guild_id is not null ? await WhispCache.GuildConfig.Get(message.channel.guild_id) : null;
 
             string prefix = guildConfig?.prefix ?? Config.prefix;
@@ -167,7 +164,9 @@ namespace Whispbot.Commands
                 }
                 catch (Exception ex)
                 {
+                    using var _ = Tracer.Start("LoggingError");
                     var id = SentrySdk.CaptureException(ex);
+                    using var __ = Tracer.Start($"SendingErrorMessage: {id}");
                     Log.Error($"An error occured while executing '{command.Name}'\nUser: @{ctx.User?.username} ({ctx.UserId})\nGuild: {ctx.Guild?.name} ({ctx.GuildId})\n\n", ex);
                     await SendErrorMessage(ctx, id);
                 }
