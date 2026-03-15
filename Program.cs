@@ -236,7 +236,7 @@ foreach (Shard shard in sharding.shards)
 
     shard.client.Debug += (client, message) =>
     {
-        Log.Verbose($"[{message.type}] {message.message}");
+        Log.Verbose($"[Shard {shard.id}] [{message.type}] {message.message}");
     };
 
     shard.client.Error += (client, error) =>
