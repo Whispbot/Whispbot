@@ -32,59 +32,67 @@ namespace Whispbot.Databases
 
             conn.Notification += async (o, e) =>
             {
-                if (e.Channel == "guild_update")
+                try
                 {
-                    var data = JsonConvert.DeserializeObject<GuildUpdatePayload>(e.Payload);
-
-                    if (data is null) return;
-
-                    if (data.table == "guild_config" || data.table.StartsWith("module_", StringComparison.InvariantCultureIgnoreCase))
+                    if (e.Channel == "guild_update")
                     {
-                        GuildConfig? newConfig = await WhispCache.GuildConfig.Fetch(data.id.ToString());
-                        if (newConfig is null)
+                        var data = JsonConvert.DeserializeObject<GuildUpdatePayload>(e.Payload);
+
+                        if (data is null) return;
+
+                        if (data.table == "guild_config" || data.table.StartsWith("module_", StringComparison.InvariantCultureIgnoreCase))
                         {
-                            WhispCache.GuildConfig.Remove(data.id.ToString());
+                            GuildConfig? newConfig = await WhispCache.GuildConfig.Fetch(data.id.ToString());
+                            if (newConfig is null)
+                            {
+                                WhispCache.GuildConfig.Remove(data.id.ToString());
+                            }
+                        }
+                        else if (data.table == "shift_types")
+                        {
+                            List<ShiftType>? newTypes = await ShiftTypes.Fetch(data.id.ToString());
+                        }
+                        else if (data.table == "roblox_moderation_types")
+                        {
+                            List<RobloxModerationType>? newTypes = await RobloxModerationTypes.Fetch(data.id.ToString());
+                        }
+                        else if (data.table == "erlc_servers")
+                        {
+                            List<ERLCServerConfig>? newServers = await ERLCServerConfigs.Fetch(data.id.ToString());
+                        }
+                        else if (data.table == "permission_roles")
+                        {
+                            List<PermissionRole>? newRoles = await WhispPermissions.permissionRoles.Fetch(data.id.ToString());
                         }
                     }
-                    else if (data.table == "shift_types")
+                    else if (e.Channel == "language_update")
                     {
-                        List<ShiftType>? newTypes = await ShiftTypes.Fetch(data.id.ToString());
-                    }
-                    else if (data.table == "roblox_moderation_types")
-                    {
-                        List<RobloxModerationType>? newTypes = await RobloxModerationTypes.Fetch(data.id.ToString());
-                    }
-                    else if (data.table == "erlc_servers")
-                    {
-                        List<ERLCServerConfig>? newServers = await ERLCServerConfigs.Fetch(data.id.ToString());
-                    }
-                    else if (data.table == "permission_roles")
-                    {
-                        List<PermissionRole>? newRoles = await WhispPermissions.permissionRoles.Fetch(data.id.ToString());
+                        var data = JsonConvert.DeserializeObject<LanguageUpdatePayload>(e.Payload);
+
+                        if (data is null) return;
+
+                        if (data.op == "DELETE")
+                        {
+                            if (!Strings.LanguageStrings.TryGetValue(data.data.language, out Dictionary<string, string>? value)) return;
+                            value.Remove(data.data.key);
+                        }
+                        else
+                        {
+                            if (!Strings.LanguageStrings.TryGetValue(data.data.language, out var lang))
+                            {
+                                Strings.LanguageStrings.Add(data.data.language, []);
+                                lang = Strings.LanguageStrings[data.data.language];
+                            }
+
+                            lang.Remove(data.data.key);
+                            lang.Add(data.data.key, data.data.content);
+                        }
                     }
                 }
-                else if (e.Channel == "language_update")
+                catch (Exception ex)
                 {
-                    var data = JsonConvert.DeserializeObject<LanguageUpdatePayload>(e.Payload);
-
-                    if (data is null) return;
-
-                    if (data.op == "DELETE")
-                    {
-                        if (!Strings.LanguageStrings.TryGetValue(data.data.language, out Dictionary<string, string>? value)) return;
-                        value.Remove(data.data.key);
-                    }
-                    else
-                    {
-                        if (!Strings.LanguageStrings.TryGetValue(data.data.language, out var lang))
-                        {
-                            Strings.LanguageStrings.Add(data.data.language, []);
-                            lang = Strings.LanguageStrings[data.data.language];
-                        }
-
-                        lang.Remove(data.data.key);
-                        lang.Add(data.data.key, data.data.content);
-                    }
+                    SentrySdk.CaptureException(ex);
+                    Log.Error(ex, $"An error occured while updating data. ID: {ex}");
                 }
             };
 

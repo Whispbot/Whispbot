@@ -1,11 +1,16 @@
-﻿using System;
+﻿using Amazon;
+using Amazon.S3;
+using Newtonsoft.Json;
+using Serilog;
+using Serilog.Core;
+using Serilog.Events;
+using Serilog.Sinks.SystemConsole.Themes;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Serilog;
-using Serilog.Core;
-using Serilog.Sinks.SystemConsole.Themes;
+using Whispbot.Commands.ERLCCommands.Commands.Debug;
 
 namespace Whispbot
 {
@@ -14,9 +19,14 @@ namespace Whispbot
         public static void Initialize()
         {
             Log.Logger = new LoggerConfiguration()
-                .MinimumLevel.Is(Config.IsDev ? Serilog.Events.LogEventLevel.Verbose : Serilog.Events.LogEventLevel.Information)
+                .MinimumLevel.Is(LogEventLevel.Verbose)
                 .Enrich.With(new LogEnricher())
-                .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss.fff}][{Level:u3}][Cluster {ClusterId}] {Message:lj}{NewLine}{Exception}", theme: SystemConsoleTheme.Colored)
+                .WriteTo.Console(
+                outputTemplate:
+                    Config.IsDev ?
+                    "[{Timestamp:HH:mm:ss.fff}][{Level:u4}][Cluster {ClusterId}] {Message:lj} {Data}{NewLine}{Exception}" :
+                    "{{\"message\": \"[Cluster {ClusterId}] {Message:lj}\", \"level\": \"{Level:u4}\", \"data\": {Data}, \"error\": \"{Exception}\"}}{NewLine}",
+                theme: SystemConsoleTheme.Colored)
                 .CreateLogger();
         }
 
@@ -24,13 +34,21 @@ namespace Whispbot
         {
             Log.CloseAndFlush();
         }
+
+        public static ILogger WithData(object data)
+        {
+            return Log.ForContext("Data", JsonConvert.SerializeObject(data));
+        }
     }
 
     public class LogEnricher: ILogEventEnricher
     {
-        public void Enrich(Serilog.Events.LogEvent logEvent, ILogEventPropertyFactory propertyFactory)
+        public void Enrich(LogEvent logEvent, ILogEventPropertyFactory propertyFactory)
         {
             logEvent.AddOrUpdateProperty(propertyFactory.CreateProperty("ClusterId", Config.cluster.ToString().PadLeft(Config.replicas.Count.ToString().Length)));
+
+            if (!logEvent.Properties.ContainsKey("Data"))
+                logEvent.AddPropertyIfAbsent(new LogEventProperty("Data", new ScalarValue(null)));
         }
     }
 }

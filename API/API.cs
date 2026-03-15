@@ -27,7 +27,8 @@ namespace Whispbot.API
 
             string port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
 
-            if (!Config.IsDev) builder.Logging.ClearProviders();
+            //if (!Config.IsDev)
+            builder.Logging.ClearProviders();
 
             builder.WebHost.ConfigureKestrel(serverOptions =>
             {
