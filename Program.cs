@@ -217,6 +217,7 @@ Config.erlcCommands = erlcCommands;
 erlcCommands.Attach(sharding);
 
 DiscordPublisher.Start(sharding);
+//DiscordModeration.RegisterClient(sharding);
 
 foreach (Shard shard in sharding.shards)
 {
@@ -233,13 +234,10 @@ foreach (Shard shard in sharding.shards)
         Log.Information($"Cluster {Config.cluster.ToString().PadLeft((Config.replicas.Count - 1).ToString().Length, '0')}, shard {shard.id.ToString().PadLeft((shardCount - 1).ToString().Length, '0')} online!");
     });
 
-    if (Config.IsDev)
+    shard.client.Debug += (client, message) =>
     {
-        shard.client.Debug += (client, message) =>
-        {
-            Log.Verbose($"[{message.type}] {message.message}");
-        };
-    }
+        Log.Verbose($"[{message.type}] {message.message}");
+    };
 
     shard.client.Error += (client, error) =>
     {
