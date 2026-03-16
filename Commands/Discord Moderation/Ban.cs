@@ -13,7 +13,7 @@ namespace Whispbot.Commands.Discord_Moderation
     {
         public override string Name => "Ban";
         public override string Description => "Remove a user from the server and prevent them from joining for a set amount of time";
-        public override Module Module => Module.General;
+        public override Module Module => Module.DiscordModeration;
         public override bool GuildOnly => false;
         public override List<RateLimit> Ratelimits => [];
         public override List<string> Aliases => ["ban"];

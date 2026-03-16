@@ -13,7 +13,7 @@ namespace Whispbot.Commands.Discord_Moderation
     {
         public override string Name => "Softban";
         public override string Description => "Ban and unban a user to essentially kick them while also deleting their recent messages";
-        public override Module Module => Module.General;
+        public override Module Module => Module.DiscordModeration;
         public override bool GuildOnly => false;
         public override List<RateLimit> Ratelimits => [];
         public override List<string> Aliases => ["softban", "sban", "sb"];

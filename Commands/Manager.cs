@@ -74,6 +74,8 @@ namespace Whispbot.Commands
             RegisterCommand(new Softban());
             RegisterCommand(new Ban());
             RegisterCommand(new Unban());
+            RegisterCommand(new Reason());
+            RegisterCommand(new VoidCase());
 
             RegisterStaffCommand(new Test());
             RegisterStaffCommand(new SQL());

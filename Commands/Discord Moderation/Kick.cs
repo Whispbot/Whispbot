@@ -13,7 +13,7 @@ namespace Whispbot.Commands.Discord_Moderation
     {
         public override string Name => "Kick";
         public override string Description => "Remove a user from the server";
-        public override Module Module => Module.General;
+        public override Module Module => Module.DiscordModeration;
         public override bool GuildOnly => false;
         public override List<RateLimit> Ratelimits => [];
         public override List<string> Aliases => ["kick"];

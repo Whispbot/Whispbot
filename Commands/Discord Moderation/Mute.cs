@@ -13,7 +13,7 @@ namespace Whispbot.Commands.Discord_Moderation
     {
         public override string Name => "Mute";
         public override string Description => "Give a timeout to a user";
-        public override Module Module => Module.General;
+        public override Module Module => Module.DiscordModeration;
         public override bool GuildOnly => false;
         public override List<RateLimit> Ratelimits => [];
         public override List<string> Aliases => ["mute", "to"];
