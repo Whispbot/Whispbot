@@ -84,7 +84,7 @@ namespace Whispbot.Commands.ERLCCommands.Commands
 
             Embed commandEmbed = message.embeds[0];
             string? description = commandEmbed.description;
-            string? footer = commandEmbed.footer?.text;#
+            string? footer = commandEmbed.footer?.text;
 
             if (description is null || footer is null || !footer.Contains("Private Server: ")) return; // Not valid command log
 
