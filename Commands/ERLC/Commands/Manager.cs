@@ -77,9 +77,6 @@ namespace Whispbot.Commands.ERLCCommands.Commands
             if (config is null) return;
             if (config.version != Config.EnvId) return; // Make sure commands are only responded to once
 
-            Log.Verbose($"~~~~~~~~~~~~~~");
-            Log.Verbose($"Message ID: {message.id}");
-
             // EMBED CONTENT
             // Title: Command Usage | Player Kicked | Player Banned
             // Description: [Username:UserID](ProfileUrl) [used the command | kicked | banned] `:command args`
@@ -87,9 +84,7 @@ namespace Whispbot.Commands.ERLCCommands.Commands
 
             Embed commandEmbed = message.embeds[0];
             string? description = commandEmbed.description;
-            string? footer = commandEmbed.footer?.text;
-
-            Log.Verbose($"Content: {description}");
+            string? footer = commandEmbed.footer?.text;#
 
             if (description is null || footer is null || !footer.Contains("Private Server: ")) return; // Not valid command log
 
