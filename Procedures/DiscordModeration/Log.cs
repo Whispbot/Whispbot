@@ -115,7 +115,17 @@ namespace Whispbot
 
             Channel channel = new(config.discord_moderation.log_channel_id.ToString()!);
 
-            return (await channel.Send(await GenerateLogMessage(log))).Item1;
+            var message = (await channel.Send(await GenerateLogMessage(log))).Item1;
+
+            if (message is not null)
+            {
+                Postgres.Execute(
+                    "UPDATE discord_moderations SET message_id = @1 WHERE case_id = @2;",
+                    [message.id, log.case_id]
+                );
+            }
+
+            return message;
         }
 
         /// <summary>
@@ -207,7 +217,17 @@ namespace Whispbot
             var channel = await user.GetDMChannel();
             if (channel is null) return null;
 
-            return (await channel.Send(await GenerateUserMessage(log))).Item1;
+            var message = (await channel.Send(await GenerateUserMessage(log))).Item1;
+
+            if (message is not null)
+            {
+                Postgres.Execute(
+                    "UPDATE discord_moderations SET dm_message_id = @1 WHERE case_id = @2;",
+                    [message.id, log.case_id]
+                );
+            }
+
+            return message;
         }
 
         /// <summary>

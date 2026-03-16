@@ -189,7 +189,6 @@ ShardingManager sharding = new(
     Intents.GuildMessages | 
     Intents.MessageContent | 
     Intents.Guilds | 
-    Intents.GuildMembers | 
     Intents.GuildModeration | 
     Intents.GuildIntegrations |
     Intents.AutoModerationExecution,
@@ -217,7 +216,7 @@ Config.erlcCommands = erlcCommands;
 erlcCommands.Attach(sharding);
 
 DiscordPublisher.Start(sharding);
-//DiscordModeration.RegisterClient(sharding);
+DiscordModeration.RegisterClient(sharding);
 
 foreach (Shard shard in sharding.shards)
 {

@@ -3,72 +3,95 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Commands;
 using YellowMacaroni.Discord.Cache;
+using YellowMacaroni.Discord.Core;
+using YellowMacaroni.Discord.Extentions;
+using YellowMacaroni.Discord.Sharding;
 using YellowMacaroni.Discord.Websocket.Events;
+using static Sentry.MeasurementUnit;
 
 namespace Whispbot
 {
     public static partial class DiscordModeration
     {
-        public static async Task<string?> FromContext(Context context)
+        private static readonly Dictionary<AuditActionType, DiscordModerationType> _moderationTypes = new()
         {
-            var guild = context.Guild;
-            var moderator = context.Moderator;
-            var target = context.TargetUser;
+            { AuditActionType.MemberBanAdd, DiscordModerationType.Ban },
+            { AuditActionType.MemberBanRemove, DiscordModerationType.Unban },
+            { AuditActionType.MemberKick, DiscordModerationType.Kick },
+            { AuditActionType.MemberUpdate, DiscordModerationType.Mute }
+        };
 
-            if (guild is null || moderator is null || target is null)
+        public static void RegisterClient(Client client)
+        {
+            client.GuildAuditLogEntryCreate += async (_, log) =>
             {
-                return "{string.errors.dm.invalid_ctx}";
-            }
+                Logger.WithData(log).Information("Recieved audit log:");
+                if (log.action_type is null) return;
+                if (!_moderationTypes.ContainsKey(log.action_type.Value)) return; // Not an audit log we care about
 
-            // Make sure user has correct permissions and the module is enabled
-            var permissionCheck = await HasPermission(context);
-            if (!permissionCheck.Item1)
-            {
-                return permissionCheck.Item2;
-            }
+                // Bot already logs its own actions so ignore from events to avoid duplicates
+                if (log.user_id == client.readyData?.user?.id) return;
 
-            var (newCase, transaction) = await CreateCase(context);
-
-            if (newCase is null)
-            {
-                transaction?.Rollback();
-                return "{string.errors.dm.failed_create_case}";
-            }
-
-            var typeData = TypeData[context.Type!.Value];
-            if (typeData.Item6 is not null)
-            {
-                try
+                var mType = _moderationTypes[(AuditActionType)log.action_type];
+                var duration = -1L;
+                if (mType == DiscordModerationType.Mute)
                 {
-                    var errorMessage = await typeData.Item6(context);
+                    var change = log.changes?.FirstOrDefault(c => c.key == "communication_disabled_until");
+                    if (change is null) return; // Only need to worry about changing mute duration
 
-                    if (errorMessage is not null)
+                    if (change.new_value is null)
                     {
-                        transaction?.Rollback();
-                        return errorMessage;
+                        mType = DiscordModerationType.Unmute;
+                    }
+                    else if (change.new_value is DateTime dt)
+                    {
+                        // Ceiling otherwise we end up with e.g. 59 minutes, 59 seconds instead of 1 hour
+                        duration = (long)Math.Ceiling((dt - DateTime.UtcNow).TotalSeconds);
                     }
                 }
-                catch
+
+                var guild = await DiscordCache.Guilds.Get(log.guild_id);
+                if (guild is null) return;
+
+                var moderator = await DiscordCache.Users.Get(log.user_id!);
+                if (moderator is null) return; // Couldnt find moderator user, cry about it
+
+                var target = await DiscordCache.Users.Get(log.target_id!);
+                if (target is null) return;
+
+                var context = new Context(
+                    target,
+                    log.reason ?? "*No reason provided.*",
+                    duration,
+                    guild,
+                    moderator,
+                    mType,
+                    null
+                );
+
+                var (mcase, transaction) = await CreateCase(context);
+                if (mcase is null)
                 {
                     transaction?.Rollback();
-                    return "{string.errors.dm.action_failed}";
+                    return;
                 }
-            }
+                else
+                {
+                    transaction?.Commit();
+                }
 
-            transaction?.Commit();
-
-            var userMessage = await SendUserMessage(newCase);
-            _ = Task.Run(() => Log(newCase));
-
-            return null;
+                await Log(mcase);
+            };
         }
 
-        //public static Task OnBanAdd(GuildBan ban)
-        //{
-        //    var guild = DiscordCache.Guilds.Get(ban.guild_id!);
-
-        //    Context context = new Context(ban.user, "", -1, DiscordCache.Guilds.Get(ban.guild_id!));
-        //}
+        public static void RegisterClient(ShardingManager manager)
+        {
+            foreach (var shard in manager.shards)
+            {
+                RegisterClient(shard.client);
+            }
+        }
     }
 }
