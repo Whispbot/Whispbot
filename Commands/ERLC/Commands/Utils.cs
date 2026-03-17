@@ -22,7 +22,9 @@ namespace Whispbot.Commands.ERLCCommands.Commands
                 List<ERLC.PRC_Player>? players = response.Data.Players;
                 if (players is null) return null;
 
-                ERLC.PRC_Player? matchedPlayer = players.FirstOrDefault(p => p.Player.Contains(partialName, StringComparison.OrdinalIgnoreCase));
+                ERLC.PRC_Player? matchedPlayer =
+                    players.FirstOrDefault(p => p.Player.Split(':')[0] == partialName) ??
+                    players.FirstOrDefault(p => p.Player.Contains(partialName, StringComparison.OrdinalIgnoreCase));
                 if (matchedPlayer is not null)
                 {
                     return matchedPlayer.Player;

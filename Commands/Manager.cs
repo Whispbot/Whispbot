@@ -57,6 +57,7 @@ namespace Whispbot.Commands
 
             RegisterCommand(new ERLC_ServerInfo());
             RegisterCommand(new ERLC_Players());
+            RegisterCommand(new ERLC_Player());
             RegisterCommand(new ERLC_Queue());
             RegisterCommand(new ERLC_Vehicles());
             RegisterCommand(new ERLC_JoinLogs());
