@@ -37,14 +37,22 @@ namespace Whispbot
         {
             var context = await GatherContextFromCommand(ctx, type);
 
-            var permissionCheck = await HasPermission(context);
+            // This section of code is super jank because it was designed to have the permission check after the error check
+            // But people were complaining about how the error check was before the permission check
+            // So I had to move stuff around and change up some code to avoid null reference errors
+            var permissionCheck = await HasPermission(
+                context.Guild!,
+                context.Moderator!,
+                context.TargetUser, 
+                (DiscordModerationType)context.Type!
+            );
             if (!permissionCheck.Item1)
             {
                 await ctx.Reply($"{{emoji.cross}} {permissionCheck.Item2}");
                 return;
             }
 
-            if (context.Error is not null) // Checks for errors after permissions because people complained about getting other errors before permissions
+            if (context.Error is not null)
             {
                 await ctx.Reply($"{{emoji.cross}} {{string.errors.dm.{context.Error}}}.");
                 return;
@@ -301,16 +309,16 @@ namespace Whispbot
         /// <returns>Moderation <see cref="Context"/> gathered from the <see cref="CommandContext"/>.</returns>
         public static async Task<Context> GatherContextFromCommand(CommandContext ctx, DiscordModerationType type)
         {
-            if (ctx.GuildId is null) return new Context(null, null, null, null, null, null, "not_in_guild");
+            if (ctx.GuildId is null) return new Context(null, null, null, ctx.Guild, ctx.User, type, "not_in_guild");
 
             var typeData = TypeData[type];
 
             var userString = ctx.args.FirstOrDefault();
-            if (userString is null) return new Context(null, null, null, null, null, null, "no_user");
+            if (userString is null) return new Context(null, null, null, ctx.Guild, ctx.User, type, "no_user");
             ctx.args.RemoveAt(0);
 
             var user = await Users.GetUserByString(userString, 4, ctx.GuildId); // 4 is the min length to match to prevent people just typing !ban a
-            if (user is null) return new Context(null, null, null, null, null, null, "invalid_user");
+            if (user is null) return new Context(user, null, null, ctx.Guild, ctx.User, type, "invalid_user");
 
             long? length = null;
             string reason = "";
@@ -328,7 +336,7 @@ namespace Whispbot
 
             if ((config?.discord_moderation?.require_duration ?? false) && length == 0)
             {
-                return new Context(null, null, null, null, null, null, "no_duration");
+                return new Context(user, reason, length, ctx.Guild, ctx.User, type, "no_duration");
             }
             else if (length is null)
             {
@@ -344,7 +352,7 @@ namespace Whispbot
 
             if ((config?.discord_moderation?.require_reason ?? false) && string.IsNullOrWhiteSpace(reason))
             {
-                return new Context(null, null, null, null, null, null, "no_reason");
+                return new Context(user, reason, length, ctx.Guild, ctx.User, type, "no_reason");
             }
             else if (string.IsNullOrWhiteSpace(reason))
             {
@@ -359,22 +367,23 @@ namespace Whispbot
         /// </summary>
         /// <param name="context">The generated <see cref="Context"/>.</param>
         /// <returns>A tuple (<seealso cref="bool"/>, <seealso cref="string"/>?) representing whether the moderator has permissions and an error message which is only <seealso cref="null"/> when item1 is <seealso cref="true"/>.</returns>
-        public static async Task<(bool, string?)> HasPermission(Context context)
+        public static async Task<(bool, string?)> HasPermission(Guild guild, User moderator, User? target, DiscordModerationType type)
         {
-            if (!(await WhispPermissions.CheckModule(context.Guild!.id, Module.DiscordModeration)).Item1) return (false, "{string.errors.dm.moduledisabled}.");
+            if (!(await WhispPermissions.CheckModule(guild.id, Module.DiscordModeration)).Item1) return (false, "{string.errors.dm.moduledisabled}.");
 
-            var typeData = TypeData[context.Type!.Value];
+            var typeData = TypeData[type];
 
-            var ownsServer = context.Guild.owner_id == context.Moderator!.id;
-            if (!ownsServer && !(await DiscordPermissions.HasPermissionOrAdmin(context.Guild, context.Moderator!.id, typeData.Item5))) return (false, "{string.errors.dm.nopermissions}.");
+            var ownsServer = guild.owner_id == moderator.id;
+            if (!ownsServer && !(await DiscordPermissions.HasPermissionOrAdmin(guild, moderator.id, typeData.Item5))) return (false, "{string.errors.dm.nopermissions}.");
 
-            var targetMember = await context.Guild.members.Get(context.TargetUser!.id);
-            if (targetMember?.user?.id == context.Guild.owner_id) return (false, "{string.errors.dm.ownercantdie}.");
+            if (target is null) return (false, "{string.errors.dm.no_user}");
+            var targetMember = await guild.members.Get(target.id);
+            if (targetMember?.user?.id == guild.owner_id) return (false, "{string.errors.dm.ownercantdie}.");
 
-            var moderatorMember = await context.Guild.members.Get(context.Moderator.id);
-            var moderatorRoles = context.Guild.Roles.FindMany((r, id) => moderatorMember?.roles?.Contains(r.id) ?? false);
+            var moderatorMember = await guild.members.Get(moderator.id);
+            var moderatorRoles = guild.Roles.FindMany((r, id) => moderatorMember?.roles?.Contains(r.id) ?? false);
             var moderatorHighestRole = moderatorRoles.OrderByDescending(r => r.position).FirstOrDefault();
-            if (context.Guild.Roles.FindMany((r, _) => targetMember?.roles?.Contains(r.id) ?? false).Find((r) => r.position > moderatorHighestRole?.position) is not null) return (false, "{string.errors.dm.targetbetter}.");
+            if (guild.Roles.FindMany((r, _) => targetMember?.roles?.Contains(r.id) ?? false).Find((r) => r.position > moderatorHighestRole?.position) is not null) return (false, "{string.errors.dm.targetbetter}.");
 
             return (true, null);
         }
