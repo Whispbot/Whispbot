@@ -23,7 +23,7 @@ namespace Whispbot
                 .Enrich.With(new LogEnricher())
                 .WriteTo.Console(
                 outputTemplate:
-                    Config.IsDev ?
+                    Config.isDev ?
                     "[{Timestamp:HH:mm:ss.fff}][{Level:u4}][Cluster {ClusterId}] {Message:lj} {Data}{NewLine}{Exception}" :
                     "{{\"message\": \"[Cluster {ClusterId}] {Message:lj}\", \"level\": \"{Level:u4}\", \"data\": {Data}, \"error\": \"{Exception}\"}}{NewLine}",
                 theme: SystemConsoleTheme.Colored)

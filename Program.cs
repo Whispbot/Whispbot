@@ -19,7 +19,7 @@ using Whispbot.Tools.Infra;
 
 Logger.Initialize();
 
-bool dev = Config.IsDev;
+bool dev = Config.isDev;
 
 Log.Information(@$"
  _    _ _     _           _           _   
@@ -52,7 +52,7 @@ Tracer.CreateListener();
 // Thread for API (communication between services / health check)
 Thread APIThread = new(new ThreadStart(() =>
 {
-    if (Config.IsDev)
+    if (Config.isDev)
     {
         while (Config.cluster == -1) Thread.Sleep(100);
         if (Config.cluster != 0)
@@ -97,7 +97,7 @@ while (pubSub is null && clusters > 1) // Redis pubsub vital for clustering; mus
 {
     pubSub = Redis.GetSubscriber();
     if (pubSub is null) {
-        if (Config.IsDev) Log.Debug("[Debug] Waiting for redis to connect...");
+        if (Config.isDev) Log.Debug("[Debug] Waiting for redis to connect...");
         Thread.Sleep(500);
     }
 }
@@ -181,7 +181,7 @@ else
     Log.Warning("Only 1 cluster, skipping cluster init");
 }
 
-string? shardsEnv = Config.IsDev ? null : Environment.GetEnvironmentVariable("SHARDS");
+string? shardsEnv = Config.isDev ? null : Environment.GetEnvironmentVariable("SHARDS");
 int? shards = shardsEnv is null ? null : int.Parse(shardsEnv);
 
 ShardingManager sharding = new(
@@ -314,7 +314,7 @@ _ = Task.Run(() => sharding.Start());
 
 await Sigterm.WaitForSigterm();
 
-bool newInstanceReady = Config.IsDev;
+bool newInstanceReady = Config.isDev;
 if (!newInstanceReady)
 {
     pubSub?.Subscribe($"up:{Config.serviceId}", (_, _) =>

@@ -31,11 +31,11 @@ namespace Whispbot
         public bool IsLeader => _isLeader;
 
         // CONFIG
-        public readonly int heartbeatInterval = Config.IsDev ? 1000 : 100;
-        public readonly int electionTimeout = Config.IsDev ? 5000 : 250;
-        public readonly int electionDuration = Config.IsDev ? 1000 : 200;
-        public readonly int timeoutMin = Config.IsDev ? 500 : 100;
-        public readonly int timeoutMax = Config.IsDev ? 2000 : 300;
+        public readonly int heartbeatInterval = Config.isDev ? 1000 : 100;
+        public readonly int electionTimeout = Config.isDev ? 5000 : 250;
+        public readonly int electionDuration = Config.isDev ? 1000 : 200;
+        public readonly int timeoutMin = Config.isDev ? 500 : 100;
+        public readonly int timeoutMax = Config.isDev ? 2000 : 300;
 
         public event EventHandler? OnElected;
         public event EventHandler? OnLostLeadership;

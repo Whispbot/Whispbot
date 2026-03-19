@@ -115,6 +115,7 @@ namespace Whispbot.Commands.ERLCCommands.Commands
                 serverMap[serverKey] = serverConfig;
             }
 
+            // Make sure that the config is for this server to avoid cross-server spoofing
             if (serverConfig is null || serverConfig.guild_id.ToString() != message.channel.guild_id) return;
 
             MatchCollection matches = Regex.Matches(commandArgs, @"--(\w+)");

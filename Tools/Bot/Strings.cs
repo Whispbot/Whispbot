@@ -125,7 +125,7 @@ namespace Whispbot.Tools
 
         public static async Task GetEmojis(Client client)
         {
-            string? token = Config.IsDev ? Environment.GetEnvironmentVariable("DEV_TOKEN") : Environment.GetEnvironmentVariable("CLIENT_TOKEN");
+            string? token = Config.isDev ? Environment.GetEnvironmentVariable("DEV_TOKEN") : Environment.GetEnvironmentVariable("CLIENT_TOKEN");
             if (token is null) return;
 
             string? clientId = client.readyData?.user.id;

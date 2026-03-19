@@ -104,7 +104,7 @@ namespace Whispbot.Databases
                 if (string.IsNullOrEmpty(redis_port)) missingVars.Add("REDIS_PORT");
                 if (string.IsNullOrEmpty(redis_password)) missingVars.Add("REDIS_PASSWORD");
 
-                if (Config.IsDev)
+                if (Config.isDev)
                 {
                     string? public_url = Environment.GetEnvironmentVariable("REDIS_PUBLIC_URL");
                     if (!string.IsNullOrEmpty(public_url) && public_url.Contains('@') && public_url.Contains(':'))

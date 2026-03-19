@@ -32,7 +32,7 @@ namespace Whispbot.Commands.General
                                 new SectionBuilder
                                 {
                                     components = [
-                                        new TextDisplayBuilder($"# About Whispbot{(Config.IsDev ? " [DEV MODE]" : "")}"),
+                                        new TextDisplayBuilder($"# About Whispbot{(Config.isDev ? " [DEV MODE]" : "")}"),
                                         new TextDisplayBuilder("Whispbot is a multipurpose Discord bot built to be a reliable solution for your perfect Discord server.")
                                     ],
                                     accessory = new ThumbnailBuilder($"https://cdn.discordapp.com/avatars/{ctx.client.readyData?.user.id}/{ctx.client.readyData?.user.avatar}.png")

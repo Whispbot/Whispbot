@@ -134,7 +134,7 @@ namespace Whispbot.Databases
                 if (string.IsNullOrEmpty(password)) missingVars.Add("DB_PASSWORD");
                 if (string.IsNullOrEmpty(database)) missingVars.Add("DB_DATABASE");
 
-                if (Config.IsDev)
+                if (Config.isDev)
                 {
                     string? public_url = Environment.GetEnvironmentVariable("DB_PUBLIC_URL");
                     if (!string.IsNullOrEmpty(public_url) && public_url.Contains('@') && public_url.Contains(':'))

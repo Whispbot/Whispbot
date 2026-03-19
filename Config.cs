@@ -16,7 +16,13 @@ namespace Whispbot
     {
         public static readonly Version? version = Assembly.GetEntryAssembly()?.GetName().Version;
         public static readonly string versionText = $"{version?.Major ?? 1}.{version?.Minor}.{version?.Build}";
-        public static bool IsDev => RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+
+#if DEBUG
+        public static readonly bool isDev = true;
+#else
+        public static readonly bool isDev = false;
+#endif
+
         public static Replica? replica = null;
         public static int cluster = -1;
         public static List<string> replicas = [];
@@ -24,7 +30,7 @@ namespace Whispbot
         public static readonly string deploymentId = Environment.GetEnvironmentVariable("RAILWAY_DEPLOYMENT_ID") ?? "dev";
         public static readonly string serviceId = Environment.GetEnvironmentVariable("RAILWAY_SERVICE_ID") ?? "dev";
         public static readonly string environmentId = Environment.GetEnvironmentVariable("RAILWAY_ENVIRONMENT_ID") ?? "dev";
-        public static readonly string staffPrefix = IsDev ? ">>>" : Environment.GetEnvironmentVariable("WHISP_STAFF_PREFIX") ?? ">>>";
+        public static readonly string staffPrefix = isDev ? ">>>" : Environment.GetEnvironmentVariable("WHISP_STAFF_PREFIX") ?? ">>>";
         public static readonly string mainGuild = "1096509172784300174";
 
         private static EnvironmentType? _envId = null;
@@ -34,7 +40,7 @@ namespace Whispbot
             {
                 if (_envId is not null) return _envId.Value;
 
-                if (IsDev) return EnvironmentType.Dev;
+                if (isDev) return EnvironmentType.Dev;
 
                 string? versionEnv = Environment.GetEnvironmentVariable("WHISP_ENV_ID");
 
@@ -51,7 +57,7 @@ namespace Whispbot
                 return envType;
             }
         }
-        public static readonly string websiteUrl = !IsDev ? Environment.GetEnvironmentVariable("WHISP_WEBSITE_URL") ?? "https://whisp.bot" : "http://localhost:3001";
+        public static readonly string websiteUrl = !isDev ? Environment.GetEnvironmentVariable("WHISP_WEBSITE_URL") ?? "https://whisp.bot" : "http://localhost:3001";
         public static readonly string prefix = Environment.GetEnvironmentVariable("WHISP_LEGACY_PREFIX") ?? "!";
 
         public static ShardingManager? shardingManager;
