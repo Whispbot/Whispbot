@@ -93,7 +93,8 @@ namespace Whispbot.Commands
                             {
                                 name = subCommand,
                                 description = cmd.Description,
-                                type = ApplicationCommandOptionType.SubCommand
+                                type = ApplicationCommandOptionType.SubCommand,
+                                options = options
                             });
                         }
 
