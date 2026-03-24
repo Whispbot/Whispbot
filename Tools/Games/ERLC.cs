@@ -92,7 +92,7 @@ namespace Whispbot.Tools
             using var _ = Tracer.Start("ERLC.SendCommand");
             if (!_initialized) Init();
 
-            HttpRequestMessage request = new(HttpMethod.Post, "/v1/server/command")
+            HttpRequestMessage request = new(HttpMethod.Post, "/v2/server/command")
             {
                 Content = new StringContent(JsonConvert.SerializeObject(new { command }), Encoding.UTF8, "application/json")
             };
