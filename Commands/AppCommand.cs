@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 using OpenAI.Realtime;
 using Serilog;
 using System;
@@ -67,7 +67,6 @@ namespace Whispbot.Commands
                             );
                         }
                     }
-                    
 
                     ApplicationCommand command = commands.Find(x => x.name == name) ?? new ApplicationCommand
                     {

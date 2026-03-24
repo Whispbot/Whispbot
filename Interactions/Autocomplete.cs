@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
+using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
 using OpenAI.Realtime;
 using Serilog;
 using System;
@@ -18,7 +18,6 @@ namespace Whispbot.Interactions
 {
     public static class Autocomplete
     {
-
         public static ApplicationCommandInteractionDataOption? GetOption(List<ApplicationCommandInteractionDataOption> options, List<string> names, out List<string> outNames)
         {
             outNames = names;
