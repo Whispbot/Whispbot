@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.DataProtection.KeyManagement;
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Newtonsoft.Json;
 using Serilog;
 using System;
@@ -22,6 +22,11 @@ namespace Whispbot.Commands.ERLCCommands
         public override Module Module => Module.ERLC;
         public override bool GuildOnly => true;
         public override List<RateLimit> Ratelimits => [];
+        public override List<string>? SlashCommand => ["erlc", "server"];
+        public override List<SlashCommandArg>? Arguments => [
+            new ("server", "The ERLC server to get info on. If not provided, the default will be used.", SlashCommandArgType.ERLCServer, optional: true)
+        ];
+        public override List<string> Schema => ["<server:erlcserver?>"];
         public override List<string> Aliases => ["erlcserver", "erlcinfo", "eserver", "eserverinfo", "erlc server"];
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
@@ -90,3 +95,4 @@ namespace Whispbot.Commands.ERLCCommands
         }
     }
 }
+

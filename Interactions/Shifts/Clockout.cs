@@ -12,7 +12,7 @@ using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Interactions.Shifts
 {
-    public class Clockout : InteractionData
+    public class Clockout : InteractionCommandData
     {
         public override string CustomId => "clockout";
         public override InteractionType Type => InteractionType.MessageComponent;

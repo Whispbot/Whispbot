@@ -138,8 +138,14 @@ namespace Whispbot.Tools
             return data?.data;
         }
 
-        public static async Task<RobloxUser?> GetUserByUsername(string username)
+        public static async Task<RobloxUser?> GetUserByUsername(string username, bool cache = true)
         {
+            if (cache)
+            {
+                var cachedUser = Users.Find((u, _) => u.name.Equals(username, StringComparison.OrdinalIgnoreCase));
+                if (cachedUser is not null) return cachedUser;
+            }
+
             return (await GetUserByUsername([username]))?.FirstOrDefault();
         }
 
@@ -157,7 +163,17 @@ namespace Whispbot.Tools
             if (!result.IsSuccessStatusCode) return null;
 
             var data = JsonConvert.DeserializeObject<FromUsername>(await result.Content.ReadAsStringAsync());
-            return data?.data;
+            var users = data?.data;
+
+            if (users is not null)
+            {
+                foreach (var user in users)
+                {
+                    Users.Insert(user.id, user);
+                }
+            }
+
+            return users;
         }
 
         public static async Task<string?> GetUserAvatar(string id, int size = 250)

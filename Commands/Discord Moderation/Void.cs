@@ -16,6 +16,11 @@ namespace Whispbot.Commands.Discord_Moderation
         public override Module Module => Module.DiscordModeration;
         public override bool GuildOnly => false;
         public override List<RateLimit> Ratelimits => [];
+        public override List<string>? SlashCommand => ["void"];
+        public override List<SlashCommandArg>? Arguments => [
+            new ("case", "The case ID to void.", SlashCommandArgType.Case)
+        ];
+        public override List<string> Schema => ["<case:case>"];
         public override List<string> Aliases => ["void"];
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)

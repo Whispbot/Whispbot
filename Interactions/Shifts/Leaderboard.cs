@@ -12,7 +12,7 @@ using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Interactions.Shifts
 {
-    public class ShiftLeaderboard : InteractionData
+    public class ShiftLeaderboard : InteractionCommandData
     {
         public override string CustomId => "shift_leaderboard";
         public override InteractionType Type => InteractionType.MessageComponent;

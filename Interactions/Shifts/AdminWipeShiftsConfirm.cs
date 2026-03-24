@@ -13,7 +13,7 @@ using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Interactions.Shifts
 {
-    public class AdminWipeShiftsConfirm : InteractionData
+    public class AdminWipeShiftsConfirm : InteractionCommandData
     {
         public override string CustomId => "sa_wipeconfirm";
         public override InteractionType Type => InteractionType.MessageComponent;

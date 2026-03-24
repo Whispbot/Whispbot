@@ -13,7 +13,7 @@ using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Interactions.Shifts
 {
-    public class AdminSetTimeModal : InteractionData
+    public class AdminSetTimeModal : InteractionCommandData
     {
         public override string CustomId => "sa_settime";
         public override InteractionType Type => InteractionType.ModalSubmit;

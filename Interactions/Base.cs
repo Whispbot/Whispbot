@@ -13,7 +13,7 @@ using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Interactions
 {
-    public abstract class InteractionData
+    public abstract class InteractionCommandData
     {
         public abstract string CustomId { get; }
         public abstract InteractionType Type { get; }

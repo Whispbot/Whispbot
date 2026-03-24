@@ -12,7 +12,7 @@ using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Interactions.Shifts
 {
-    public class AdminModify : InteractionData
+    public class AdminModify : InteractionCommandData
     {
         public override string CustomId => "sa_modify";
         public override InteractionType Type => InteractionType.MessageComponent;

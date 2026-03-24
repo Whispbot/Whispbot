@@ -19,6 +19,12 @@ namespace Whispbot.Commands.Roblox_Moderation
         public override Module Module => Module.RobloxModeration;
         public override bool GuildOnly => true;
         public override List<RateLimit> Ratelimits => [];
+        public override List<string>? SlashCommand => ["roblox", "case", "reason"];
+        public override List<SlashCommandArg>? Arguments => [
+            new ("case", "The Roblox moderation case to edit.", SlashCommandArgType.RobloxCase),
+            new ("reason", "The new reason for the moderation.", SlashCommandArgType.String)
+        ];
+        public override List<string> Schema => ["<case:rcase>", "<reason:string>"];
         public override List<string> Aliases => ["rcase reason", "rreason", "rmcase reason", "rmoderation reason"];
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
@@ -81,3 +87,4 @@ namespace Whispbot.Commands.Roblox_Moderation
         }
     }
 }
+

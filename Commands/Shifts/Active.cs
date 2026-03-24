@@ -18,6 +18,9 @@ namespace Whispbot.Commands.Shifts
         public override Module Module => Module.Shifts;
         public override bool GuildOnly => true;
         public override List<RateLimit> Ratelimits => [];
+        public override List<string>? SlashCommand => ["shift", "active"];
+        public override List<SlashCommandArg>? Arguments => null;
+        public override List<string> Schema => [];
         public override List<string> Aliases => ["shift active", "onduty", "od", "shift onduty", "shift od"];
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
@@ -82,3 +85,4 @@ namespace Whispbot.Commands.Shifts
         }
     }
 }
+

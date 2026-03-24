@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -16,6 +16,11 @@ namespace Whispbot.Commands.Shifts
         public override Module Module => Module.Shifts;
         public override bool GuildOnly => true;
         public override List<RateLimit> Ratelimits => [];
+        public override List<string>? SlashCommand => ["shift", "end"];
+        public override List<SlashCommandArg>? Arguments => [
+            new ("type", "The shift type to clock out from. If not provided, the default will be used.", SlashCommandArgType.ShiftType, optional: true)
+        ];
+        public override List<string> Schema => ["<type:stype?>"];
         public override List<string> Aliases => ["shift end", "clockout"];
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
@@ -70,3 +75,4 @@ namespace Whispbot.Commands.Shifts
         }
     }
 }
+

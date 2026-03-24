@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -15,6 +15,9 @@ namespace Whispbot.Commands.Staff
         public override Module Module => Module.Staff;
         public override bool GuildOnly => false;
         public override List<RateLimit> Ratelimits => [];
+        public override List<string>? SlashCommand => null;
+        public override List<SlashCommandArg>? Arguments => null;
+        public override List<string> Schema => [];
         public override List<string> Aliases => ["updatelang", "updatelanguages", "langupdate", "lu", "ul"];
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
@@ -26,3 +29,4 @@ namespace Whispbot.Commands.Staff
         }
     }
 }
+

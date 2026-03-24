@@ -1,4 +1,4 @@
-﻿using Serilog;
+using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,6 +19,12 @@ namespace Whispbot.Commands.Shifts
         public override Module Module => Module.Shifts;
         public override bool GuildOnly => true;
         public override List<RateLimit> Ratelimits => [];
+        public override List<string>? SlashCommand => ["shift", "admin"];
+        public override List<SlashCommandArg>? Arguments => [
+            new ("user", "The user to manage shifts for. If not provided, your own shifts will be shown.", SlashCommandArgType.User, optional: true),
+            new ("type", "The shift type to filter by. If not provided, all types will be shown.", SlashCommandArgType.ShiftType, optional: true)
+        ];
+        public override List<string> Schema => ["<user:user?>", "<type:stype?>"];
         public override List<string> Aliases => ["shift admin"];
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
@@ -347,3 +353,4 @@ namespace Whispbot.Commands.Shifts
         }
     }
 }
+

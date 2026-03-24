@@ -16,6 +16,12 @@ namespace Whispbot.Commands.Discord_Moderation
         public override Module Module => Module.DiscordModeration;
         public override bool GuildOnly => false;
         public override List<RateLimit> Ratelimits => [];
+        public override List<string>? SlashCommand => ["softban"];
+        public override List<SlashCommandArg>? Arguments => [
+            new ("user", "The user to softban.", SlashCommandArgType.User),
+            new ("reason", "The reason for the softban.", SlashCommandArgType.String, optional: true)
+        ];
+        public override List<string> Schema => ["<user:user>", "<reason:string?>"];
         public override List<string> Aliases => ["softban", "sban", "sb"];
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)

@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Databases;
-using Whispbot.Interactions.Roblox;
+using Whispbot.Interactions.Roblox_Connection;
 using Whispbot.Interactions.Roblox_Moderations;
 using Whispbot.Interactions.Shifts;
 using YellowMacaroni.Discord.Core;
@@ -17,11 +17,11 @@ namespace Whispbot.Interactions
 {
     public class InteractionManager
     {
-        private List<InteractionData> _interactions = [];
+        private List<InteractionCommandData> _interactions = [];
 
         public InteractionManager()
         {
-            RegisterInteraction(new RobloxConnect());
+            RegisterInteraction(new RobloxDisconnect());
             RegisterInteraction(new RobloxDisconnect());
 
             // Shifts
@@ -66,15 +66,16 @@ namespace Whispbot.Interactions
             Log.Debug($"[Debug] Loaded {_interactions.Count} interactions");
         }
 
-        public void RegisterInteraction(InteractionData interaction)
+        public void RegisterInteraction(InteractionCommandData interaction)
         {
             if (_interactions.Any(i => i.CustomId == interaction.CustomId && i.Type == interaction.Type)) return;
             _interactions.Add(interaction);
         }
 
-        public void HandleInteraction(Client client, Interaction interaction)
+        public async Task HandleInteraction(Client client, Interaction interaction)
         {
             if (interaction.type == InteractionType.ApplicationCommand || interaction.type == InteractionType.Ping) return; // Handled by command manager
+            if (interaction.type == InteractionType.ApplicationCommandAutocomplete) await Autocomplete.Handle(interaction);
 
             if (interaction.data?.custom_id is null) return;
 
@@ -83,7 +84,7 @@ namespace Whispbot.Interactions
             string command = args[0];
             args.RemoveAt(0);
 
-            InteractionData? data = _interactions.FirstOrDefault(i => i.CustomId == command && i.Type == interaction.type);
+            InteractionCommandData? data = _interactions.FirstOrDefault(i => i.CustomId == command && i.Type == interaction.type);
 
             if (data is null) return;
 
@@ -94,18 +95,18 @@ namespace Whispbot.Interactions
             if (ctx.UserConfig is not null && (ctx.UserConfig?.language ?? ctx.GuildConfig?.default_language) != language)
             {
                 ctx.UserConfig!.language = language;
-                Task.Run(() => Postgres.Execute("UPDATE user_config SET language = @1 WHERE id = @2;", [language, long.Parse(ctx.UserId!)]));
+                _ = Task.Run(() => Postgres.Execute("UPDATE user_config SET language = @1 WHERE id = @2;", [language, long.Parse(ctx.UserId!)]));
             }
 
-            data.ExecuteAsync(ctx);
+            await data.ExecuteAsync(ctx);
         }
 
         public void Attach(Client client)
         {
-            client.InteractionCreate += (c, interaction) =>
+            client.InteractionCreate += async (c, interaction) =>
             {
                 if (c is not Client client) return;
-                HandleInteraction(client, interaction);
+                await HandleInteraction(client, interaction);
             };
         }
 

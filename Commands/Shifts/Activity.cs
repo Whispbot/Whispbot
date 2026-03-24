@@ -18,6 +18,13 @@ namespace Whispbot.Commands.Shifts
         public override Module Module => Module.Shifts;
         public override bool GuildOnly => true;
         public override List<RateLimit> Ratelimits => [];
+        public override List<string>? SlashCommand => ["shift", "activity"];
+        public override List<SlashCommandArg>? Arguments => [
+            new ("duration", "The time period to check activity for.", SlashCommandArgType.Duration),
+            new ("requirement", "The minimum activity required.", SlashCommandArgType.Duration),
+            new ("type", "The shift type to filter by. If not provided, all types will be checked.", SlashCommandArgType.ShiftType, optional: true)
+        ];
+        public override List<string> Schema => ["<duration:duration>", "<requirement:duration>", "<type:stype?>"];
         public override List<string> Aliases => ["shift activity"];
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
@@ -223,3 +230,4 @@ namespace Whispbot.Commands.Shifts
         public int shifts;
     }
 }
+

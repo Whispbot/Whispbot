@@ -220,11 +220,16 @@ DiscordModeration.RegisterClient(sharding);
 
 foreach (Shard shard in sharding.shards)
 {
-    shard.client.On("READY", (client, obj) =>
+    shard.client.On("READY", async (client, obj) =>
     {
         if (shard.id == clusterStart)
         {
             _ = Task.Run(async () => await Strings.GetEmojis(client));
+        }
+
+        if (shard.id == 0)
+        {
+            _ = Task.Run(async () => await AppCommand.SyncCommands(commands, client));
         }
 
         pubSub?.Publish($"ignore_guilds:{Config.serviceId}", shard.client.readyData?.guilds.Select(g => g.id).Join(","));

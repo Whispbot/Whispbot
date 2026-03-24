@@ -23,5 +23,10 @@ namespace Whispbot.Extensions
             value = Strings.Process(value, language, arguments, hasUserInput);
             return JsonConvert.DeserializeObject<MessageBuilder>(value) ?? new MessageBuilder { content = "Failed to parse language data :(" };
         }
+
+        public static long ToLong(this string str)
+        {
+            return long.Parse(str);
+        }
     }
 }

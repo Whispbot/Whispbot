@@ -13,7 +13,7 @@ using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Interactions.Roblox_Moderations
 {
-    public class DeleteConfirm : InteractionData
+    public class DeleteConfirm : InteractionCommandData
     {
         public override string CustomId => "rm_log_delete_confirm";
         public override InteractionType Type => InteractionType.MessageComponent;

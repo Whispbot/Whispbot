@@ -8,9 +8,9 @@ using Whispbot.Databases;
 using YellowMacaroni.Discord.Core;
 using YellowMacaroni.Discord.Extentions;
 
-namespace Whispbot.Interactions.Roblox
+namespace Whispbot.Interactions.Roblox_Connection
 {
-    public class RobloxDisconnect: InteractionData
+    public class RobloxDisconnect: InteractionCommandData
     {
         public override string CustomId => "disconnect_roblox";
         public override InteractionType Type => InteractionType.MessageComponent;

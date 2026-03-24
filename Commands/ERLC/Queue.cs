@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.DataProtection.KeyManagement;
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Newtonsoft.Json;
 using Serilog;
 using System;
@@ -27,6 +27,11 @@ namespace Whispbot.Commands.ERLCCommands
                 type = RateLimitType.User
             }
         ];
+        public override List<string>? SlashCommand => ["erlc", "queue"];
+        public override List<SlashCommandArg>? Arguments => [
+            new ("server", "The ERLC server to check. If not provided, the default will be used.", SlashCommandArgType.ERLCServer, optional: true)
+        ];
+        public override List<string> Schema => ["<server:erlcserver?>"];
         public override List<string> Aliases => ["queue", "erlc queue"];
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
@@ -111,3 +116,4 @@ namespace Whispbot.Commands.ERLCCommands
         }
     }
 }
+

@@ -9,6 +9,7 @@
     <DockerfileContext>.</DockerfileContext>
     <ApplicationIcon>Whispbot.ico</ApplicationIcon>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <UserSecretsId>b32b7385-406b-4fa3-91f6-1baf7cc1a06d</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
@@ -17,7 +18,7 @@
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" Version="2.2.8" />
-    <PackageReference Include="AWSSDK.S3" Version="4.0.19" />
+    <PackageReference Include="AWSSDK.S3" Version="4.0.19.1" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.5" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.5" />
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.23.0" />
@@ -26,8 +27,8 @@
     <PackageReference Include="Sentry" Version="6.2.0" />
     <PackageReference Include="Serilog" Version="4.3.1" />
     <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
-    <PackageReference Include="StackExchange.Redis" Version="2.12.1" />
-    <PackageReference Include="YellowMacaroni.Discord" Version="1.1.0-dev202603141223" />
+    <PackageReference Include="StackExchange.Redis" Version="2.12.4" />
+    <PackageReference Include="YellowMacaroni.Discord" Version="1.1.0-dev202603241350" />
   </ItemGroup>
 
 </Project>

@@ -13,7 +13,7 @@ using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Interactions.Roblox_Moderations
 {
-    public class EditTypeModal : InteractionData
+    public class EditTypeModal : InteractionCommandData
     {
         public override string CustomId => "rm_modal_edittype";
         public override InteractionType Type => InteractionType.ModalSubmit;

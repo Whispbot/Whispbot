@@ -17,6 +17,9 @@ namespace Whispbot.Commands.Staff
         public override Module Module => Module.Staff;
         public override bool GuildOnly => false;
         public override List<RateLimit> Ratelimits => [];
+        public override List<string>? SlashCommand => null;
+        public override List<SlashCommandArg>? Arguments => null;
+        public override List<string> Schema => ["<query:string>"];
         public override List<string> Aliases => ["sql"];
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)

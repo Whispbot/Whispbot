@@ -13,7 +13,7 @@ using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Interactions.Roblox_Moderations
 {
-    public class BanRequestApprove : InteractionData
+    public class BanRequestApprove : InteractionCommandData
     {
         public override string CustomId => "rm_br_confirm";
         public override InteractionType Type => InteractionType.MessageComponent;

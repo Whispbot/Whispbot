@@ -8,9 +8,9 @@ using Whispbot.Databases;
 using YellowMacaroni.Discord.Core;
 using YellowMacaroni.Discord.Extentions;
 
-namespace Whispbot.Interactions.Roblox
+namespace Whispbot.Interactions.Errors
 {
-    public class ErrorFeedback : InteractionData
+    public class ErrorFeedback : InteractionCommandData
     {
         public override string CustomId => "error_feedback";
         public override InteractionType Type => InteractionType.MessageComponent;

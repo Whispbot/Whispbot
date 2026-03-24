@@ -13,7 +13,7 @@ using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Interactions.Roblox_Moderations
 {
-    public class DeleteButton : InteractionData
+    public class DeleteButton : InteractionCommandData
     {
         public override string CustomId => "rm_log_delete";
         public override InteractionType Type => InteractionType.MessageComponent;

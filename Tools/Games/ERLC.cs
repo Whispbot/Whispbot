@@ -64,7 +64,7 @@ namespace Whispbot.Tools
             using var _ = Tracer.Start($"ERLC.FetchDataV2");
             if (!_initialized) Init();
 
-            HttpRequestMessage request = new(HttpMethod.Get, "/v2/server?Players=true&Staff=true&JoinLogs=true&Queue=true&KillLogs=true&CommandLogs=true&ModCalls=true&Vehicles=true");
+            HttpRequestMessage request = new(HttpMethod.Get, "/v2/server?Players=true&Staff=true&JoinLogs=true&Queue=true&KillLogs=true&CommandLogs=true&ModCalls=true&Vehicles=true&EmergencyCalls=true");
 
             request.Headers.Add("Server-Key", apiKey);
 

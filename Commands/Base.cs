@@ -18,12 +18,44 @@ namespace Whispbot.Commands
     {
         public abstract string Name { get; }
         public abstract string Description { get; }
+        public abstract List<string>? SlashCommand { get; }
+        public abstract List<SlashCommandArg>? Arguments { get; }
+        public abstract List<string> Schema { get; }
         public abstract List<string> Aliases { get; }
         public abstract Module Module { get; }
         public abstract bool GuildOnly { get; }
         public abstract List<RateLimit> Ratelimits { get; }
         public abstract List<string> Usage { get; }
         public abstract Task ExecuteAsync(CommandContext ctx);
+    }
+
+    public class SlashCommandArg(string name, string description, SlashCommandArgType type, bool optional = false)
+    {
+        public string name = name;
+        public string description = description;
+        public bool optional = optional;
+        public SlashCommandArgType type = type;
+        public int? min_length = null;
+        public int? max_length = null;
+        public int? min_values = null;
+        public int? max_values = null;
+    }
+
+    public enum SlashCommandArgType
+    {
+        String = 0,
+        User = 1,
+        Channel = 2,
+        Role = 3,
+        Duration = 4,
+        Mentionable = 5,
+        ShiftType = 6,
+        RobloxType = 7,
+        Case = 8,
+        RobloxUser = 9,
+        ERLCServer = 10,
+        RobloxCase = 11,
+        ERLCCommand = 12
     }
 
     public class RateLimit
@@ -105,3 +137,4 @@ namespace Whispbot.Commands
         }
     }
 }
+

@@ -1,4 +1,4 @@
-﻿using Serilog;
+using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -18,6 +18,12 @@ namespace Whispbot.Commands.Roblox_Moderation
         public override Module Module => Module.RobloxModeration;
         public override bool GuildOnly => true;
         public override List<RateLimit> Ratelimits => [];
+        public override List<string>? SlashCommand => ["roblox", "ban-request"];
+        public override List<SlashCommandArg>? Arguments => [
+            new ("user", "The Roblox user to create a ban request for.", SlashCommandArgType.RobloxUser),
+            new ("reason", "The reason for the ban request.", SlashCommandArgType.String, optional: true)
+        ];
+        public override List<string> Schema => ["<user:ruser>", "<reason:string?>"];
         public override List<string> Aliases => ["br", "banrequest", "bolo"];
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
@@ -119,3 +125,4 @@ namespace Whispbot.Commands.Roblox_Moderation
         }
     }
 }
+

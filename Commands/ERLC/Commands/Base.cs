@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -77,3 +77,4 @@ namespace Whispbot.Commands.ERLCCommands.Commands
         }
     }
 }
+

@@ -1,4 +1,4 @@
-﻿using Serilog;
+using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,6 +19,12 @@ namespace Whispbot.Commands.Roblox_Moderation
         public override Module Module => Module.RobloxModeration;
         public override bool GuildOnly => true;
         public override List<RateLimit> Ratelimits => [];
+        public override List<string>? SlashCommand => ["roblox", "case", "type"];
+        public override List<SlashCommandArg>? Arguments => [
+            new ("case", "The Roblox moderation case to edit.", SlashCommandArgType.RobloxCase),
+            new ("type", "The new moderation type.", SlashCommandArgType.RobloxType)
+        ];
+        public override List<string> Schema => ["<case:rcase>", "<type:rtype>"];
         public override List<string> Aliases => ["rcase type", "rtype", "rmcase type", "rmoderation type"];
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
@@ -101,3 +107,4 @@ namespace Whispbot.Commands.Roblox_Moderation
         }
     }
 }
+

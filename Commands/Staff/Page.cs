@@ -1,4 +1,4 @@
-﻿using Serilog;
+using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,6 +19,9 @@ namespace Whispbot.Commands.Staff
         public override Module Module => Module.Staff;
         public override bool GuildOnly => false;
         public override List<RateLimit> Ratelimits => [];
+        public override List<string>? SlashCommand => null;
+        public override List<SlashCommandArg>? Arguments => null;
+        public override List<string> Schema => ["<content:string>"];
         public override List<string> Aliases => ["page"];
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)

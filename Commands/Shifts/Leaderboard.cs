@@ -18,6 +18,11 @@ namespace Whispbot.Commands.Shifts
         public override Module Module => Module.Shifts;
         public override bool GuildOnly => true;
         public override List<RateLimit> Ratelimits => [];
+        public override List<string>? SlashCommand => ["shift", "leaderboard"];
+        public override List<SlashCommandArg>? Arguments => [
+            new ("type", "The shift type to view on the leaderboard. If not provided, all types will be shown.", SlashCommandArgType.ShiftType, optional: true)
+        ];
+        public override List<string> Schema => ["<type:stype?>"];
         public override List<string> Aliases => ["shift leaderboard"];
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
@@ -62,3 +67,4 @@ namespace Whispbot.Commands.Shifts
         }
     }
 }
+
