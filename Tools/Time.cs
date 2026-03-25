@@ -76,6 +76,10 @@ namespace Whispbot.Tools
                         Length += (TimeValue?.Key ?? 0) * double.Parse(amount);
                     }
                 }
+                else if (double.Parse(amount) > 0)
+                {
+                    Length += double.Parse(amount);
+                }
             }
 
             return Length;
