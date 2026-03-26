@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -80,7 +80,7 @@ namespace Whispbot.Interactions
         public static List<ApplicationCommandInteractionDataOption>? GetOptions(Interaction interaction, out List<string> names)
         {
             var firstOption = interaction.data?.options?.FirstOrDefault();
-            if (firstOption is null) { names = [interaction.data?.name!]; return []; };
+            if (firstOption is null) { names = [interaction.data?.name!]; return []; }
 
             if (firstOption.type == ApplicationCommandOptionType.SubCommandGroup || firstOption.type == ApplicationCommandOptionType.SubCommand)
             {
