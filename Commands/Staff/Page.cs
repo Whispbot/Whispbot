@@ -26,14 +26,14 @@ namespace Whispbot.Commands.Staff
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
         {
-            string title = ctx.args.Join(" ").Split("::")[0]; // >page title::description
+            string? title = ctx.args.Get("content")?.GetString()?.Split("::")?[0]; // >page title::description
             if (string.IsNullOrEmpty(title))
             {
                 await ctx.Reply("{emoji.cross} Please provide a reason.");
                 return;
             }
 
-            string? description = ctx.args.Join(" ").Split("::").Skip(1).Join(" ");
+            string? description = ctx.args.Get("content")!.GetString()!.Split("::").Skip(1).Join(" ");
             description += $"\n\nSent by @{ctx.User?.username} ({ctx.UserId})"; // Sign page to avoid annoying fucks abusing
 
             var (message, _) = await ctx.Reply("{emoji.loading} Sending page...");

@@ -24,7 +24,7 @@ namespace Whispbot.Commands.ERLCCommands
         public override List<RateLimit> Ratelimits => [];
         public override List<string>? SlashCommand => ["erlc", "join-logs"];
         public override List<SlashCommandArg>? Arguments => [
-            new ("server", "The ERLC server to check. If not provided, the default will be used.", SlashCommandArgType.ERLCServer, optional: true)
+            new ("server", "The ERLC server to check. If not provided, the default will be used.", CommandArgType.ERLCServer, optional: true)
         ];
         public override List<string> Schema => ["<server:erlcserver?>"];
         public override List<string> Aliases => ["joinlogs", "erlc joinlogs", "erlc joins", "erlc joinlog"];

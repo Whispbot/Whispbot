@@ -13,12 +13,12 @@ namespace Whispbot.Commands
 {
     public static partial class AppCommand
     {
-        public static readonly Dictionary<SlashCommandArgType, (ApplicationCommandOptionType, bool)> inputTypes = new()
+        public static readonly Dictionary<CommandArgType, (ApplicationCommandOptionType, bool)> inputTypes = new()
         {
-            { SlashCommandArgType.User, (ApplicationCommandOptionType.User, true) },
-            { SlashCommandArgType.Role, (ApplicationCommandOptionType.Role, true) },
-            { SlashCommandArgType.Channel, (ApplicationCommandOptionType.Channel, true) },
-            { SlashCommandArgType.Mentionable, (ApplicationCommandOptionType.Mentionable, true) }
+            { CommandArgType.User, (ApplicationCommandOptionType.User, true) },
+            { CommandArgType.Role, (ApplicationCommandOptionType.Role, true) },
+            { CommandArgType.Channel, (ApplicationCommandOptionType.Channel, true) },
+            { CommandArgType.Mentionable, (ApplicationCommandOptionType.Mentionable, true) }
         };
 
         public static List<ApplicationCommand> GenerateCommands (CommandManager manager)

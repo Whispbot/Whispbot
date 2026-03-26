@@ -20,8 +20,8 @@ namespace Whispbot.Commands.Roblox_Moderation
         public override List<RateLimit> Ratelimits => [];
         public override List<string>? SlashCommand => ["roblox", "ban-request"];
         public override List<SlashCommandArg>? Arguments => [
-            new ("user", "The Roblox user to create a ban request for.", SlashCommandArgType.RobloxUser),
-            new ("reason", "The reason for the ban request.", SlashCommandArgType.String, optional: true)
+            new ("user", "The Roblox user to create a ban request for.", CommandArgType.RobloxUser),
+            new ("reason", "The reason for the ban request.", CommandArgType.String, optional: true)
         ];
         public override List<string> Schema => ["<user:ruser>", "<reason:string?>"];
         public override List<string> Aliases => ["br", "banrequest", "bolo"];
@@ -61,7 +61,7 @@ namespace Whispbot.Commands.Roblox_Moderation
                 return;
             }
 
-            string reason = string.Join(' ', ctx.args.Skip(1));
+            string? reason = ctx.args.Get("reason")?.GetString();
 
             if (ctx.GuildConfig?.roblox_moderation?.require_reason == true && string.IsNullOrWhiteSpace(reason))
             {
@@ -69,7 +69,7 @@ namespace Whispbot.Commands.Roblox_Moderation
                 return;
             }
 
-            Roblox.RobloxUser? user = await Roblox.GetUser(ctx.args[0]);
+            Roblox.RobloxUser? user = ctx.args.Get("user")?.GetRobloxUser();
 
             if (user is null)
             {
@@ -81,7 +81,7 @@ namespace Whispbot.Commands.Roblox_Moderation
                 ctx.GuildId,
                 ctx.UserId,
                 user.id,
-                reason
+                reason ?? "*No reason provided.*"
             );
 
             if (log is not null)

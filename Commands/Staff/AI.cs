@@ -24,7 +24,7 @@ namespace Whispbot.Commands.Staff
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
         {
-            string message = ctx.args.Join(" ");
+            string? message = ctx.args.Get("content")?.GetString();
             if (string.IsNullOrWhiteSpace(message))
             {
                 await ctx.Reply("Please provide a message to send to the AI.");
@@ -59,7 +59,7 @@ namespace Whispbot.Commands.Staff
                 string? response = AIModel.SendMessage(message, $"staff-{ctx.User?.id}",
                     $"""
                     You are talking to: @{ctx.User?.username} ({ctx.User?.id})
-                    In the channel: {ctx.message.channel?.name ?? "err"} ({ctx.message.channel?.id})
+                    In the channel: {ctx.message?.channel?.name ?? "err"} ({ctx.message?.channel?.id})
                     In the server: {ctx.Guild?.name ?? "err"} ({ctx.GuildId})
                     As the bot: {ctx.client.readyData?.user?.username ?? "err"} ({ctx.client.readyData?.user?.id})
                     """,

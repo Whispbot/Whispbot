@@ -22,7 +22,7 @@ using YellowMacaroni.Discord.Sharding;
 
 namespace Whispbot.Commands
 {
-    public class CommandManager
+    public partial class CommandManager
     {
         public readonly List<Command> commands = [];
         public readonly List<Command> staffCommands = [];
@@ -136,13 +136,16 @@ namespace Whispbot.Commands
 
                 if (command is null) return;
 
+                var (arguments, error) = await ArgParser.GetArguments(message, command, args);
+                if (error is not null)
+                {
+                    await ArgParser.SendArgError(message, error);
+                    return;
+                }
+
                 using var commandTrace = Tracer.Start($"Command: {command.Name}");
 
-                MatchCollection matches = Regex.Matches(args.Join(" "), @"--(\w+)");
-                List<string> flags = [.. matches.Select(m => m.Groups[1].Value)];
-                args = [.. args.Where(a => !flags.Contains(a))];
-
-                var ctx = new CommandContext(client, message, args, flags);
+                var ctx = new CommandContext(client, message, arguments!);
 
                 if (ctx.GuildConfig is null)
                 {
@@ -187,11 +190,16 @@ namespace Whispbot.Commands
                 Command? command = GetCommandByName(content, staffCommands, out int length);
                 args.RemoveRange(0, length);
 
-                MatchCollection matches = Regex.Matches(args.Join(" "), @"--(\w+)");
-                List<string> flags = [.. matches.Select(m => m.Groups[1].Value)];
-                args = [.. args.Where(a => !flags.Contains(a))];
+                if (command is null) return;
 
-                command?.ExecuteAsync(new CommandContext(client, message, args, flags));
+                var (arguments, error) = await ArgParser.GetArguments(message, command, args);
+                if (error is not null)
+                {
+                    await ArgParser.SendArgError(message, error);
+                    return;
+                }
+
+                command?.ExecuteAsync(new CommandContext(client, message, arguments!));
             }
         }
 
@@ -236,17 +244,20 @@ namespace Whispbot.Commands
         {
             if (command.Ratelimits.Count > 0) return false;
 
-            Message message = ctx.message;
+            Message? message = ctx.message;
+            Interaction? interaction = ctx.interaction;
 
             foreach (var rl in command!.Ratelimits)
             {
-                string rlk = rl.type switch
+                string? rlk = rl.type switch
                 {
                     RateLimitType.Global => "global",
-                    RateLimitType.Guild => message.channel?.guild_id ?? "global",
-                    RateLimitType.User => message.author.id,
+                    RateLimitType.Guild => message?.channel?.guild_id ?? interaction?.guild_id ?? "global",
+                    RateLimitType.User => message?.author.id ?? interaction?.member?.user?.id,
                     _ => "global"
                 };
+
+                if (rlk is null) return true;
 
                 string key = $"{command.Name}:{rlk}";
 

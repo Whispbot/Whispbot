@@ -74,8 +74,9 @@ namespace Whispbot.Interactions
 
         public async Task HandleInteraction(Client client, Interaction interaction)
         {
-            if (interaction.type == InteractionType.ApplicationCommand || interaction.type == InteractionType.Ping) return; // Handled by command manager
-            if (interaction.type == InteractionType.ApplicationCommandAutocomplete) await Autocomplete.Handle(interaction);
+            if (interaction.type == InteractionType.Ping) return;
+            else if (interaction.type == InteractionType.ApplicationCommandAutocomplete) await Autocomplete.Handle(interaction);
+            else if (interaction.type == InteractionType.ApplicationCommand) await Commands.Handle(client, interaction);
 
             if (interaction.data?.custom_id is null) return;
 

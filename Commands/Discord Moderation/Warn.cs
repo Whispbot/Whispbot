@@ -18,8 +18,8 @@ namespace Whispbot.Commands.Discord_Moderation
         public override List<RateLimit> Ratelimits => [];
         public override List<string>? SlashCommand => ["warn"];
         public override List<SlashCommandArg>? Arguments => [
-            new ("user", "The user to warn.", SlashCommandArgType.User),
-            new ("reason", "The reason for the warning.", SlashCommandArgType.String)
+            new ("user", "The user to warn.", CommandArgType.User),
+            new ("reason", "The reason for the warning.", CommandArgType.String)
         ];
         public override List<string> Schema => ["<user:user>", "<reason:string>"];
         public override List<string> Aliases => ["warn"];

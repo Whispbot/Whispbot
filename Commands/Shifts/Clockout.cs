@@ -18,7 +18,7 @@ namespace Whispbot.Commands.Shifts
         public override List<RateLimit> Ratelimits => [];
         public override List<string>? SlashCommand => ["shift", "end"];
         public override List<SlashCommandArg>? Arguments => [
-            new ("type", "The shift type to clock out from. If not provided, the default will be used.", SlashCommandArgType.ShiftType, optional: true)
+            new ("type", "The shift type to clock out from. If not provided, the default will be used.", CommandArgType.ShiftType, optional: true)
         ];
         public override List<string> Schema => ["<type:stype?>"];
         public override List<string> Aliases => ["shift end", "clockout"];
@@ -49,7 +49,8 @@ namespace Whispbot.Commands.Shifts
                 await ctx.Reply("{emoji.cross} {string.errors.clockout.notalready}.");
             }
 
-            ShiftType? type = ctx.args.Count > 0 ? types.Find(t => t.triggers.Contains(ctx.args[0])) : types.Find(t => t.is_default); // Find type based on arg or default if no args
+            string? typeArg = ctx.args.Get("type")?.GetString();
+            ShiftType? type = typeArg is not null ? types.Find(t => t.triggers.Contains(typeArg) || t.id.ToString() == typeArg) : types.Find(t => t.is_default); // Find type based on arg or default if no args
 
             if (type is null)
             {

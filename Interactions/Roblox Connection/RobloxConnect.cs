@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Whispbot.Databases;
 using YellowMacaroni.Discord.Core;
 using YellowMacaroni.Discord.Extentions;
+using static Whispbot.Commands.General.Connections;
 
 namespace Whispbot.Interactions.Roblox_Connection
 {
@@ -20,20 +21,20 @@ namespace Whispbot.Interactions.Roblox_Connection
             if (await ctx.CheckAllowed()) return;
 
             await ctx.DeferUpdate();
-            Task _ = ctx.EditMessage(Commands.General.Connections.GetConnectionsMessage(true, ctx.UserId, null));
+            Task _ = ctx.EditMessage(GetConnectionsMessage(true, ctx.UserId, null));
 
             var bloxlinkUser = await Tools.Bloxlink.RobloxFromDiscord(ctx.UserId);
 
             if (bloxlinkUser is null)
             {
                 Task __ = ctx.Respond("{emoji.cross} {string.errors.connections.nobloxlink} https://blox.link.");
-                Task ___ = ctx.EditMessage(Commands.General.Connections.GetConnectionsMessage(false, ctx.UserId, null));
+                Task ___ = ctx.EditMessage(GetConnectionsMessage(false, ctx.UserId, null));
                 return;
             }
             else
             {
                 var robloxUser = await Tools.Roblox.GetUserById(bloxlinkUser.RobloxID);
-                if (ctx.interaction.message is not null) { Task __ = ctx.EditMessage(Commands.General.Connections.GetConnectionsMessage(false, ctx.UserId, robloxUser)); }
+                if (ctx.interaction.message is not null) { Task __ = ctx.EditMessage(GetConnectionsMessage(false, ctx.UserId, robloxUser)); }
 
                 UserConfig? updatedConfig = Postgres.SelectFirst<UserConfig>(
                     @"INSERT INTO user_config(id, roblox_id) VALUES (@1, @2) ON CONFLICT (id) DO UPDATE SET roblox_id = @2;",

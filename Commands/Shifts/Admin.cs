@@ -21,8 +21,8 @@ namespace Whispbot.Commands.Shifts
         public override List<RateLimit> Ratelimits => [];
         public override List<string>? SlashCommand => ["shift", "admin"];
         public override List<SlashCommandArg>? Arguments => [
-            new ("user", "The user to manage shifts for. If not provided, your own shifts will be shown.", SlashCommandArgType.User, optional: true),
-            new ("type", "The shift type to filter by. If not provided, all types will be shown.", SlashCommandArgType.ShiftType, optional: true)
+            new ("user", "The user to manage shifts for. If not provided, your own shifts will be shown.", CommandArgType.User, optional: true),
+            new ("type", "The shift type to filter by. If not provided, all types will be shown.", CommandArgType.ShiftType, optional: true)
         ];
         public override List<string> Schema => ["<user:user?>", "<type:stype?>"];
         public override List<string> Aliases => ["shift admin"];
@@ -40,7 +40,8 @@ namespace Whispbot.Commands.Shifts
             if (!await WhispPermissions.CheckModuleMessage(ctx, Module.Shifts)) return;
             if (!await WhispPermissions.CheckPermissionsMessage(ctx, BotPermissions.ManageShifts)) return;
 
-            User? user = ctx.args.Count > 0 ? await Users.GetUserByString(ctx.args[0], 0, ctx.GuildId) : ctx.User;
+            User? userArg = ctx.args.Get("user")?.GetUser();
+            User? user = userArg is not null ? userArg : ctx.User;
             if (user is null)
             {
                 await ctx.Reply("{emoji.cross} {string.errors.general.invaliduser}");
@@ -54,7 +55,8 @@ namespace Whispbot.Commands.Shifts
                 return;
             }
 
-            ShiftType? type = ctx.args.Count > 1 ? shiftTypes.Find(t => t.triggers.Contains(ctx.args[1])) : null;
+            string? typeArg = ctx.args.Get("type")?.GetString();
+            ShiftType? type = typeArg is not null ? shiftTypes.Find(t => t.triggers.Contains(typeArg) || t.id.ToString() == typeArg) : null;
 
             MessageBuilder message = await ShiftAdminMessages.GetMainMessage(ctx.GuildId, user.id, ctx.UserId, type);
             await ctx.Reply(message);

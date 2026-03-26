@@ -20,11 +20,11 @@ namespace Whispbot.Commands.Roblox_Moderation
         public override List<RateLimit> Ratelimits => [];
         public override List<string>? SlashCommand => ["roblox", "log"];
         public override List<SlashCommandArg>? Arguments => [
-            new ("user", "The Roblox user to moderate.", SlashCommandArgType.RobloxUser),
-            new ("type", "The type of moderation to use.", SlashCommandArgType.RobloxType),
-            new ("reason", "The reason for the moderation.", SlashCommandArgType.String, optional: true)
+            new ("user", "The Roblox user to moderate.", CommandArgType.RobloxUser),
+            new ("type", "The type of moderation to use.", CommandArgType.RobloxType),
+            new ("reason", "The reason for the moderation.", CommandArgType.String, optional: true)
         ];
-        public override List<string> Schema => ["<user|type:ruser|rtype>", "<reason:string?>"];
+        public override List<string> Schema => ["<type:rtype>", "<user:ruser>", "<reason:string?>"];
         public override List<string> Aliases => ["log", "moderate", "rlog"];
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
@@ -54,48 +54,43 @@ namespace Whispbot.Commands.Roblox_Moderation
                 return;
             }
 
-            bool typearg = false;
+            string? type = ctx.args.Get("type")?.GetString();
 
-            string arg1 = ctx.args[0].ToLowerInvariant();
-            string arg2 = ctx.args[1].ToLowerInvariant();
-
-            RobloxModerationType? type = types.Find(t => t.triggers.Contains(arg1));
-            if (type is null)
+            if (String.IsNullOrWhiteSpace(type))
             {
-                type = types.Find(t => t.triggers.Contains(arg2));
-                if (type is null)
-                {
-                    await ctx.Reply("{emoji.cross} {string.errors.rmlog.invalidtype}.");
-                    return;
-                }
-                else
-                {
-                    typearg = true;
-                }
-            }
-            
-            string reason = string.Join(' ', ctx.args.Skip(2));
-
-            if (ctx.GuildConfig?.roblox_moderation?.require_reason == true && string.IsNullOrWhiteSpace(reason))
-            {
-                await ctx.Reply("{emoji.cross} {string.errors.rmlog.reasonrequired}");
+                await ctx.Reply("{emoji.cross} {string.errors.rmlog.invalidtype}.");
                 return;
             }
 
-            Roblox.RobloxUser? user = await Roblox.GetUser(typearg ? ctx.args[0] : ctx.args[1]);
+            RobloxModerationType? modType = types.Find(t => t.triggers.Contains(type) || t.id.ToString() == type);
+            if (modType is null)
+            {
+                await ctx.Reply("{emoji.cross} {string.errors.rmlog.invalidtype}.");
+                return;
+            }
+
+            Roblox.RobloxUser? user = ctx.args.Get("user")?.GetRobloxUser();
 
             if (user is null)
             {
                 await ctx.Reply("{emoji.cross} {string.errors.rmlog.invaliduser}.");
                 return;
-            }            
+            }    
+
+            string? reason = ctx.args.Get("reason")?.GetString();
+
+            if (ctx.GuildConfig?.roblox_moderation?.require_reason == true && string.IsNullOrWhiteSpace(reason))
+            {
+                await ctx.Reply("{emoji.cross} {string.errors.rmlog.reasonrequired}");
+                return;
+            }        
 
             var (log, errormessage) = await Procedures.CreateModeration(
                 ctx.GuildId,
                 ctx.UserId,
                 user.id,
-                type,
-                reason
+                modType,
+                reason ?? "*No reason provided.*"
             );
 
             if (log is not null)
@@ -126,7 +121,7 @@ namespace Whispbot.Commands.Roblox_Moderation
                                 new EmbedField
                                 {
                                     name = "{string.title.rmlog.type}",
-                                    value = $"{{emoji.folder}} {type.name}",
+                                    value = $"{{emoji.folder}} {modType.name}",
                                     inline = true
                                 },
                                 new EmbedField

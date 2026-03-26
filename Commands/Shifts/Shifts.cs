@@ -20,7 +20,7 @@ namespace Whispbot.Commands.Shifts
         public override List<RateLimit> Ratelimits => [];
         public override List<string>? SlashCommand => ["shift", "manage"];
         public override List<SlashCommandArg>? Arguments => [
-            new ("type", "The shift type to view. If not provided, all types will be shown.", SlashCommandArgType.ShiftType, optional: true)
+            new ("type", "The shift type to view. If not provided, all types will be shown.", CommandArgType.ShiftType, optional: true)
         ];
         public override List<string> Schema => ["<type:stype?>"];
         public override List<string> Aliases => ["shifts", "shift", "shift manage"];
@@ -46,7 +46,8 @@ namespace Whispbot.Commands.Shifts
                 return;
             }
 
-            ShiftType? type = ctx.args.Count > 0 ? types.Find(t => t.triggers.Contains(ctx.args[0])) : null;
+            string? typeArg = ctx.args.Get("type")?.GetString();
+            ShiftType? type = typeArg is not null ? types.Find(t => t.triggers.Contains(typeArg) || t.id.ToString() == typeArg) : null;
 
             if (ctx.args.Count > 0 && type is null)
             {

@@ -22,12 +22,14 @@ namespace Whispbot.Commands.Staff
         public override List<RateLimit> Ratelimits => [];
         public override List<string>? SlashCommand => null;
         public override List<SlashCommandArg>? Arguments => null;
-        public override List<string> Schema => ["<content:string>"];
+        public override List<string> Schema => ["<guild:string?>", "<flag:string?>"];
         public override List<string> Aliases => ["gff", "guildfeatureflags", "guildff"];
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
         {
-            if (ctx.args.Count == 0)
+            string? guildId = ctx.args.Get("guild")?.GetString();
+            string? flagName = ctx.args.Get("flag")?.GetString();
+            if (guildId is null && flagName is null)
             {
                 List<FeatureFlag>? flags = Postgres.Select<FeatureFlag>(@"SELECT * FROM feature_flags WHERE affects = TRUE AND type = TRUE");
                 if (flags is null || flags.Count == 0)
@@ -46,10 +48,9 @@ namespace Whispbot.Commands.Staff
                 await ctx.Reply(sb.ToString());
                 return;
             }
-            else if (ctx.args.Count == 1)
+            else if (flagName is null)
             {
-                string guildId = ctx.args[0];
-                List<FeatureFlag>? flags = Postgres.Select<FeatureFlag>(@"SELECT * FROM feature_flags ff LEFT JOIN guild_feature_flags gff ON gff.feature_flag_id = ff.id WHERE gff.guild_id = @1", [long.Parse(guildId)]);
+                List<FeatureFlag>? flags = Postgres.Select<FeatureFlag>(@"SELECT * FROM feature_flags ff LEFT JOIN guild_feature_flags gff ON gff.feature_flag_id = ff.id WHERE gff.guild_id = @1", [long.Parse(guildId!)]);
                 if (flags is null || flags.Count == 0)
                 {
                     await ctx.Reply("No guild feature flags found for this server.");
@@ -66,11 +67,9 @@ namespace Whispbot.Commands.Staff
                 await ctx.Reply(sb.ToString());
                 return;
             }
-            else if (ctx.args.Count == 2)
+            else
             {
-                string guildId = ctx.args[0];
-                string flagName = ctx.args[1];
-                FeatureFlagUpdate? flag = Postgres.SelectFirst<FeatureFlagUpdate>("SELECT toggle_guild_feature_flag(@1, (SELECT id FROM feature_flags WHERE name = @2 AND affects = TRUE and type = TRUE)) as status;", [long.Parse(guildId), flagName]);
+                FeatureFlagUpdate? flag = Postgres.SelectFirst<FeatureFlagUpdate>("SELECT toggle_guild_feature_flag(@1, (SELECT id FROM feature_flags WHERE name = @2 AND affects = TRUE and type = TRUE)) as status;", [long.Parse(guildId!), flagName]);
 
                 if (flag is null)
                 {
@@ -78,7 +77,7 @@ namespace Whispbot.Commands.Staff
                     return;
                 }
 
-                Guild? guild = await DiscordCache.Guilds.Get(guildId);
+                Guild? guild = await DiscordCache.Guilds.Get(guildId!);
 
                 await ctx.Reply($"Feature flag `{flagName}` {(flag.status == 1 ? "enabled" : "disabled")} for `{guild?.name ?? "unknown guild"}`.");
             }

@@ -48,13 +48,13 @@ namespace Whispbot
             );
             if (!permissionCheck.Item1)
             {
-                await ctx.Reply($"{{emoji.cross}} {permissionCheck.Item2}");
+                await ctx.Reply($"{{emoji.cross}} {permissionCheck.Item2}", true);
                 return;
             }
 
             if (context.Error is not null)
             {
-                await ctx.Reply($"{{emoji.cross}} {{string.errors.dm.{context.Error}}}.");
+                await ctx.Reply($"{{emoji.cross}} {{string.errors.dm.{context.Error}}}.", true);
                 return;
             }
 
@@ -64,7 +64,7 @@ namespace Whispbot
 
             if (guild is null || moderator is null || target is null)
             {
-                await ctx.Reply($"{{emoji.cross}} {{string.errors.dm.invalid_ctx}}.");
+                await ctx.Reply($"{{emoji.cross}} {{string.errors.dm.invalid_ctx}}.", true);
                 return;
             }
 
@@ -73,7 +73,7 @@ namespace Whispbot
             if (newCase is null)
             {
                 transaction?.Rollback();
-                await ctx.Reply($"{{emoji.cross}} {{string.errors.dm.failed_create_case}}.");
+                await ctx.Reply($"{{emoji.cross}} {{string.errors.dm.failed_create_case}}.", true);
                 return;
             }
 
@@ -87,14 +87,14 @@ namespace Whispbot
                     if (errorMessage is not null)
                     {
                         transaction?.Rollback();
-                        await ctx.Reply($"{{emoji.cross}} {errorMessage}");
+                        await ctx.Reply($"{{emoji.cross}} {errorMessage}", true);
                         return;
                     }
                 }
                 catch
                 {
                     transaction?.Rollback();
-                    await ctx.Reply($"{{emoji.cross}} {{string.errors.dm.action_failed}}.");
+                    await ctx.Reply($"{{emoji.cross}} {{string.errors.dm.action_failed}}.", true);
                     return;
                 }
             }
@@ -104,10 +104,17 @@ namespace Whispbot
             var userMessage = await SendUserMessage(newCase);
             _ = Task.Run(() => Log(newCase));
 
-            await ctx.Reply(await GenerateConfirmationMessage(newCase, userMessage is not null));
-
             var config = await WhispCache.GuildConfig.Get(guild.id);
-            if (config?.discord_moderation?.delete_trigger_message ?? true) await ctx.message.Delete();
+
+            await ctx.Reply(await GenerateConfirmationMessage(newCase, userMessage is not null), config?.discord_moderation?.delete_trigger_message ?? true);
+
+            if (config?.discord_moderation?.delete_trigger_message ?? true)
+            {
+                if (ctx.type == CommandType.Legacy && ctx.message is not null)
+                {
+                    await ctx.message.Delete();
+                }
+            }
         }
 
         /// <summary>
@@ -313,23 +320,21 @@ namespace Whispbot
 
             var typeData = TypeData[type];
 
-            var userString = ctx.args.FirstOrDefault();
-            if (userString is null) return new Context(null, null, null, ctx.Guild, ctx.User, type, "no_user");
-            ctx.args.RemoveAt(0);
-
-            var user = await Users.GetUserByString(userString, 4, ctx.GuildId); // 4 is the min length to match to prevent people just typing !ban a
+            var user = ctx.args.Get("user")?.GetUser();
             if (user is null) return new Context(user, null, null, ctx.Guild, ctx.User, type, "invalid_user");
 
             long? length = null;
-            string reason = "";
+            string? reason;
             if (typeData.Item4) // The type has a duration
             {
-                length = (long)Time.ConvertMessageToMilliseconds(ctx.args.Join(" "), out reason) / 1000;
+                var arg = ctx.args.Get("duration");
+                length = (long)(arg?.GetDuration()?.TotalMilliseconds ?? 0);
+                reason = arg?.GetString();
                 if (length == 0) length = null;
             }
             else
             {
-                reason = ctx.args.Join(" ");
+                reason = ctx.args.Get("reason")?.GetString();
             }
 
             var config = ctx.GuildConfig;
@@ -356,7 +361,7 @@ namespace Whispbot
             }
             else if (string.IsNullOrWhiteSpace(reason))
             {
-                reason = "No reason provided";
+                reason = "*No reason provided.*";
             }
 
             return new Context(user, reason, length, ctx.Guild, ctx.User, type, null);

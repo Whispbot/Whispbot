@@ -18,8 +18,8 @@ namespace Whispbot.Commands.Discord_Moderation
         public override List<RateLimit> Ratelimits => [];
         public override List<string>? SlashCommand => ["unban"];
         public override List<SlashCommandArg>? Arguments => [
-            new ("user", "The user to unban.", SlashCommandArgType.User),
-            new ("reason", "The reason for unbanning.", SlashCommandArgType.String, optional: true)
+            new ("user", "The user to unban.", CommandArgType.User),
+            new ("reason", "The reason for unbanning.", CommandArgType.String, optional: true)
         ];
         public override List<string> Schema => ["<user:user>", "<reason:string?>"];
         public override List<string> Aliases => ["unban"];

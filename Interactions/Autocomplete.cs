@@ -49,7 +49,7 @@ namespace Whispbot.Interactions
                 && cmd.SlashCommand.SequenceEqual(names, StringComparer.OrdinalIgnoreCase));
 
         public static SlashCommandArg? GetArg(Command command, string name) => command.Arguments?.Find(arg => arg.name == name);
-        public static SlashCommandArgType? GetArgType(Command command, string name) => GetArg(command, name)?.type;
+        public static CommandArgType? GetArgType(Command command, string name) => GetArg(command, name)?.type;
 
         public static async Task Handle(Interaction interaction)
         {
@@ -72,7 +72,7 @@ namespace Whispbot.Interactions
 
             var config = await WhispCache.GuildConfig.Get(interaction.guild_id);
 
-            if (Functions.TryGetValue(type.Value, out var func))
+            if (functions.TryGetValue(type.Value, out var func))
             {
                 List<AutocompleteChoices> choices = await func(interaction, value);
                 await interaction.AutocompleteResult(
@@ -87,14 +87,15 @@ namespace Whispbot.Interactions
             }
         }
 
-        public static Dictionary<SlashCommandArgType, Func<Interaction, dynamic, Task<List<AutocompleteChoices>>>> Functions = new()
+        public static readonly Dictionary<CommandArgType, Func<Interaction, dynamic, Task<List<AutocompleteChoices>>>> functions = new()
         {
-            { SlashCommandArgType.ShiftType,    ShiftType               },
-            { SlashCommandArgType.RobloxType,   RobloxModerationType    },
-            { SlashCommandArgType.ERLCServer,   ERLCServer              },
-            { SlashCommandArgType.Case,         DiscordCase             },
-            { SlashCommandArgType.RobloxUser,   RobloxUser              },
-            { SlashCommandArgType.Duration,     Duration                },
+            { CommandArgType.ShiftType,    ShiftType               },
+            { CommandArgType.RobloxType,   RobloxModerationType    },
+            { CommandArgType.ERLCServer,   ERLCServer              },
+            { CommandArgType.Case,         DiscordCase             },
+            { CommandArgType.RobloxCase,   RobloxCase              },
+            { CommandArgType.RobloxUser,   RobloxUser              },
+            { CommandArgType.Duration,     Duration                },
         };
 
         public static async Task<List<AutocompleteChoices>> ShiftType(Interaction interaction, dynamic value)
@@ -219,6 +220,81 @@ namespace Whispbot.Interactions
             }
         }
 
+        public static async Task<List<AutocompleteChoices>> RobloxCase(Interaction interaction, dynamic value)
+        {
+            if (value is not string text) return [];
+
+            if (text.Equals("last", StringComparison.OrdinalIgnoreCase) && interaction.member?.user?.id is not null)
+            {
+                var lastCase = Postgres.SelectFirst<RobloxModeration>(
+                    "SELECT * FROM roblox_moderations WHERE guild_id = @1 AND moderator_id = @2 AND is_deleted = FALSE ORDER BY created_at DESC LIMIT 1",
+                    [interaction.guild_id!.ToLong(), interaction.member.user.id.ToLong()]
+                );
+
+                if (lastCase is not null)
+                {
+                    return [new AutocompleteChoices { name = $"Case #{lastCase.@case} - '{lastCase.reason?[..Math.Min(30, lastCase.reason.Length)]}{(lastCase.reason?.Length > 30 ? "..." : "")}'", value = lastCase.@case.ToString() }];
+                }
+                else return [];
+            }
+            else if (text.Equals("slast", StringComparison.OrdinalIgnoreCase) && interaction.member?.user?.id is not null)
+            {
+                var lastCase = Postgres.SelectFirst<RobloxModeration>(
+                    "SELECT * FROM roblox_moderations WHERE guild_id = @1 AND is_deleted = FALSE ORDER BY created_at DESC LIMIT 1",
+                    [interaction.guild_id!.ToLong()]
+                );
+
+                if (lastCase is not null)
+                {
+                    return [new AutocompleteChoices { name = $"Case #{lastCase.@case} - '{lastCase.reason?[..Math.Min(30, lastCase.reason.Length)]}{(lastCase.reason?.Length > 30 ? "..." : "")}'", value = lastCase.@case.ToString() }];
+                }
+                else return [];
+            }
+            else if (long.TryParse(text, out var possibleId))
+            {
+                var cases = Postgres.Select<RobloxModeration>(
+                    "SELECT * FROM roblox_moderations WHERE guild_id = @1 AND (moderator_id = @2 OR target_id = @2) AND is_deleted = FALSE  ORDER BY created_at DESC LIMIT 25",
+                    [interaction.guild_id!.ToLong(), possibleId]
+                );
+
+                if (cases is not null)
+                {
+                    return [..cases.Select(
+                        c => new AutocompleteChoices
+                        {
+                            name = $"Case #{c.@case} - '{c.reason?[..Math.Min(30, c.reason.Length)]}{(c.reason?.Length > 30 ? "..." : "")}'",
+                            value = c.@case.ToString()
+                        }
+                    )];
+                }
+                else return [];
+            }
+            else
+            {
+                var cases = Postgres.Select<RobloxModeration>(
+                    "SELECT * FROM roblox_moderations WHERE guild_id = @1 AND is_deleted = FALSE  AND reason ILIKE @2 ORDER BY created_at DESC LIMIT 25",
+                    [interaction.guild_id!.ToLong(), $"%{text}%"]
+                );
+
+                var lastCases = String.IsNullOrWhiteSpace(text) ? new List<AutocompleteChoices>() {
+                    new() { name = "My Last Case", value = "last" },
+                    new() { name = "Server's Last Case", value = "slast" }
+                } : [];
+
+                if (cases is not null)
+                {
+                    return [..lastCases, ..cases.Select(
+                        c => new AutocompleteChoices
+                        {
+                            name = $"Case #{c.@case} - '{c.reason?[..Math.Min(30, c.reason.Length)]}{(c.reason?.Length > 30 ? "..." : "")}'",
+                            value = c.@case.ToString()
+                        }
+                    )];
+                }
+                else return [.. lastCases];
+            }
+        }
+
         public static async Task<List<AutocompleteChoices>> RobloxUser(Interaction interaction, dynamic value)
         {
             if (value is not string text) return [];
@@ -269,7 +345,7 @@ namespace Whispbot.Interactions
             {
                 duration -= extra;
 
-                var highestUnit = Time.TimeValues.Keys.LastOrDefault(v => duration / v >= 1);
+                var highestUnit = Time.timeValues.Keys.LastOrDefault(v => duration / v >= 1);
 
                 List<AutocompleteChoices> choices = [];
 
@@ -292,7 +368,7 @@ namespace Whispbot.Interactions
                 else
                 {
                     choices.AddRange(
-                        Time.TimeValues.Keys.Where(v => v < highestUnit && v != 1).Reverse().Select(v =>
+                        Time.timeValues.Keys.Where(v => v < highestUnit && v != 1).Reverse().Select(v =>
                         {
                             var value = duration + (extra * v);
 

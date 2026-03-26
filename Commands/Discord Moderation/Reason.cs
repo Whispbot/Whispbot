@@ -18,8 +18,8 @@ namespace Whispbot.Commands.Discord_Moderation
         public override List<RateLimit> Ratelimits => [];
         public override List<string>? SlashCommand => ["reason"];
         public override List<SlashCommandArg>? Arguments => [
-            new ("case", "The case ID to modify.", SlashCommandArgType.Case),
-            new ("reason", "The new reason for the moderation.", SlashCommandArgType.String)
+            new ("case", "The case ID to modify.", CommandArgType.Case),
+            new ("reason", "The new reason for the moderation.", CommandArgType.String)
         ];
         public override List<string> Schema => ["<case:case>", "<reason:string>"];
         public override List<string> Aliases => ["reason"];
@@ -41,20 +41,19 @@ namespace Whispbot.Commands.Discord_Moderation
                 return;
             }
 
-            string? caseIdArg = ctx.args.FirstOrDefault();
+            string? caseIdArg = ctx.args.Get("case")?.GetString();
             if (caseIdArg is null) 
             {
                 await ctx.Reply("{emoji.cross} {string.errors.dm.no_case_provided}.");
                 return;
             }
 
-            ctx.args.RemoveAt(0);
-            if (ctx.args.Count == 0)
+            string? newReason = ctx.args.Get("reason")?.GetString();
+            if (String.IsNullOrWhiteSpace(newReason))
             {
                 await ctx.Reply("{emoji.cross} {string.errors.dm.no_reason_provided}.");
                 return;
             }
-            string newReason = ctx.args.Join(" ");
 
             int caseId = 0;
             if (int.TryParse(caseIdArg, out int parsedArg))

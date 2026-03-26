@@ -9,16 +9,16 @@ namespace Whispbot.Tools
 {
     public static partial class Time
     {
-        public static Dictionary<double, List<string>> TimeValues = new()
+        public static readonly Dictionary<double, List<string>> timeValues = new()
         {
-            { 1,                ["{string.duration.short.millisecond}",     "{string.duration.long.millisecond}",   "{string.duration.long.milliseconds}",  "ms",   "millisecond",  "milliseconds", "milli", "millisec", "millisecs", "mili", "milisecs", "milisec", "miliseconds"] },
-            { 1000,             ["{string.duration.short.second}",          "{string.duration.long.second}",        "{string.duration.long.seconds}",       "s",    "second",       "seconds",      "sec", "secs", "secodns"] },
-            { 60_000,           ["{string.duration.short.minute}",          "{string.duration.long.minute}",        "{string.duration.long.minutes}",       "m",    "minute",       "minutes",      "mins", "min"] },
-            { 3_600_000,        ["{string.duration.short.hour}",            "{string.duration.long.hour}",          "{string.duration.long.hours}",         "h",    "hour",         "hours"         ] },
-            { 86_400_000,       ["{string.duration.short.day}",             "{string.duration.long.day}",           "{string.duration.long.days}",          "d",    "day",          "days"          ] },
-            { 604_800_000,      ["{string.duration.short.week}",            "{string.duration.long.week}",          "{string.duration.long.weeks}",         "w",    "week",         "weeks",        "wk", "wks"] },
-            { 2_592_000_000,    ["{string.duration.short.month}",           "{string.duration.long.month}",         "{string.duration.long.months}",        "mo",   "month",        "months",       "mos"] },
-            { 31_471_200_000,   ["{string.duration.short.year}",            "{string.duration.long.year}",          "{string.duration.long.years}", "yr",   "year",         "years",        "y", "yrs"] }
+            { 1,                ["{string.duration.short.millisecond}",     "{string.duration.long.millisecond}",   "{string.duration.long.milliseconds}",  "ms",   "millisecond",  "milliseconds", "milli",    "millisec", "millisecs", "mili", "milisecs", "milisec", "miliseconds"   ] },
+            { 1000,             ["{string.duration.short.second}",          "{string.duration.long.second}",        "{string.duration.long.seconds}",       "s",    "second",       "seconds",      "sec",      "secs",     "secodns"                                                   ] },
+            { 60_000,           ["{string.duration.short.minute}",          "{string.duration.long.minute}",        "{string.duration.long.minutes}",       "m",    "minute",       "minutes",      "mins",     "min"                                                                   ] },
+            { 3_600_000,        ["{string.duration.short.hour}",            "{string.duration.long.hour}",          "{string.duration.long.hours}",         "h",    "hour",         "hours",        "hr",       "hrs"                                                                   ] },
+            { 86_400_000,       ["{string.duration.short.day}",             "{string.duration.long.day}",           "{string.duration.long.days}",          "d",    "day",          "days"                                                                                              ] },
+            { 604_800_000,      ["{string.duration.short.week}",            "{string.duration.long.week}",          "{string.duration.long.weeks}",         "w",    "week",         "weeks",        "wk",       "wks"                                                                   ] },
+            { 2_592_000_000,    ["{string.duration.short.month}",           "{string.duration.long.month}",         "{string.duration.long.months}",        "mo",   "month",        "months",       "mos"                                                                               ] },
+            { 31_471_200_000,   ["{string.duration.short.year}",            "{string.duration.long.year}",          "{string.duration.long.years}",         "yr",   "year",         "years",        "y",        "yrs"                                                                   ] }
         };
 
         /// <summary>
@@ -70,7 +70,7 @@ namespace Whispbot.Tools
 
                 if (suffix != "")
                 {
-                    KeyValuePair<double, List<string>>? TimeValue = TimeValues.Where(kvp => kvp.Value.Contains(suffix.ToLower())).FirstOrDefault();
+                    KeyValuePair<double, List<string>>? TimeValue = timeValues.Where(kvp => kvp.Value.Contains(suffix.ToLower())).FirstOrDefault();
                     if (TimeValue is not null)
                     {
                         Length += (TimeValue?.Key ?? 0) * double.Parse(amount);
@@ -114,7 +114,7 @@ namespace Whispbot.Tools
                     i++;
                     continue;
                 }
-                if (int.TryParse($"{st[0]}", out int _) || TimeValues.Any(t => t.Value.Contains(st.ToLower())))
+                if (int.TryParse($"{st[0]}", out int _) || timeValues.Any(t => t.Value.Contains(st.ToLower())))
                 {
                     toUse += " " + st;
                 }
@@ -161,7 +161,7 @@ namespace Whispbot.Tools
             while (Length > 0)
             {
                 KeyValuePair<double, List<string>>? Biggest = null;
-                foreach (KeyValuePair<double, List<string>> kvp in TimeValues)
+                foreach (KeyValuePair<double, List<string>> kvp in timeValues)
                 {
                     if (Biggest is null)
                     {

@@ -20,9 +20,9 @@ namespace Whispbot.Commands.Shifts
         public override List<RateLimit> Ratelimits => [];
         public override List<string>? SlashCommand => ["shift", "activity"];
         public override List<SlashCommandArg>? Arguments => [
-            new ("duration", "The time period to check activity for.", SlashCommandArgType.Duration),
-            new ("requirement", "The minimum activity required.", SlashCommandArgType.Duration),
-            new ("type", "The shift type to filter by. If not provided, all types will be checked.", SlashCommandArgType.ShiftType, optional: true)
+            new ("duration", "The time period to check activity for.", CommandArgType.Duration, optional: true),
+            new ("requirement", "The minimum activity required.", CommandArgType.Duration, optional: true),
+            new ("type", "The shift type to filter by. If not provided, all types will be checked.", CommandArgType.ShiftType, optional: true)
         ];
         public override List<string> Schema => ["<duration:duration>", "<requirement:duration>", "<type:stype?>"];
         public override List<string> Aliases => ["shift activity"];
@@ -50,21 +50,11 @@ namespace Whispbot.Commands.Shifts
                 return;
             }
 
-            if (ctx.args.Count < 1)
-            {
-                await ctx.Reply("{emoji.warning} {string.errors.shiftactivity.noduration}");
-                return;
-            }
-            if (ctx.args.Count < 2)
-            {
-                await ctx.Reply("{emoji.warning} {string.errors.shiftactivity.norequirement}");
-                return;
-            }
+            TimeSpan duration = ctx.args.Get("duration")?.GetDuration() ?? TimeSpan.FromDays(7);
+            TimeSpan requirement = ctx.args.Get("requirement")?.GetDuration() ?? TimeSpan.Zero;
 
-            double duration = Time.ConvertStringToMilliseconds(ctx.args[0]);
-            double requirement = Time.ConvertStringToMilliseconds(ctx.args[1]);
-
-            ShiftType? type = ctx.args.Count > 2 ? types.Find(t => t.triggers.Contains(ctx.args[2])) : null;
+            string? typeName = ctx.args.Get("type")?.GetString();
+            ShiftType? type = typeName is not null ? types.Find(t => t.triggers.Contains(typeName) || t.id.ToString() == typeName) : null;
 
             if (ctx.args.Count > 2 && type is null)
             {
@@ -101,7 +91,7 @@ namespace Whispbot.Commands.Shifts
                 ",
                 [
                     long.Parse(ctx.GuildId),
-                    duration,
+                    duration.TotalMilliseconds,
                     .. (type is not null ? new List<long> { type.id } : [])
                 ]
             );
@@ -162,7 +152,7 @@ namespace Whispbot.Commands.Shifts
                     }",
                     footer = new EmbedFooter
                     {
-                        text = $"{{string.title.shiftactivity.duration}}: {Time.ConvertMillisecondsToString(duration, ", ", true)} | {{string.title.shiftactivity.requirement}}: {Time.ConvertMillisecondsToString(requirement, ", ", true)} | {{string.title.shiftactivity.type}}: {type?.name ?? "all"}"
+                        text = $"{{string.title.shiftactivity.duration}}: {Time.ConvertMillisecondsToString(duration.TotalMilliseconds, ", ", true)} | {{string.title.shiftactivity.requirement}}: {Time.ConvertMillisecondsToString(requirement.TotalMilliseconds, ", ", true)} | {{string.title.shiftactivity.type}}: {type?.name ?? "all"}"
                     }
                 }
             ];
@@ -175,7 +165,7 @@ namespace Whispbot.Commands.Shifts
             {
                 string line = $"<@{activity.moderator_id}> - {Time.ConvertMillisecondsToString(activity.duration, ", ", true, 60000)}";
 
-                if (activity.duration >= requirement)
+                if (activity.duration >= requirement.TotalMilliseconds)
                 {
                     metRequirementLength += line.Length + 1;
 

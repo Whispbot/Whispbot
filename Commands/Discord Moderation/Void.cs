@@ -18,7 +18,7 @@ namespace Whispbot.Commands.Discord_Moderation
         public override List<RateLimit> Ratelimits => [];
         public override List<string>? SlashCommand => ["void"];
         public override List<SlashCommandArg>? Arguments => [
-            new ("case", "The case ID to void.", SlashCommandArgType.Case)
+            new ("case", "The case ID to void.", CommandArgType.Case)
         ];
         public override List<string> Schema => ["<case:case>"];
         public override List<string> Aliases => ["void"];
@@ -40,7 +40,7 @@ namespace Whispbot.Commands.Discord_Moderation
                 return;
             }
 
-            string? caseIdArg = ctx.args.FirstOrDefault();
+            string? caseIdArg = ctx.args.Get("case")?.GetString();
             if (caseIdArg is null)
             {
                 await ctx.Reply("{emoji.cross} {string.errors.dm.no_case_provided}.");

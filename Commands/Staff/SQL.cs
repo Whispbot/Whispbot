@@ -24,9 +24,16 @@ namespace Whispbot.Commands.Staff
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
         {
-            if (ctx.message.author.id != "531414889923608595")
+            if (ctx.message?.author.id != "531414889923608595")
             {
                 await ctx.Reply("How about... no?");
+                return;
+            }
+
+            string? query = ctx.args.Get("query")?.GetString();
+            if (String.IsNullOrWhiteSpace(query))
+            {
+                await ctx.Reply("You forgot the query idiot");
                 return;
             }
 
@@ -35,7 +42,7 @@ namespace Whispbot.Commands.Staff
             double duration = 0;
             try
             {
-                results = Postgres.Select(ctx.args.Join(" "));
+                results = Postgres.Select(query);
             }
             catch (Exception ex)
             {

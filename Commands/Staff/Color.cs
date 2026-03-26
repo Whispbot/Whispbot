@@ -23,7 +23,7 @@ namespace Whispbot.Commands.Staff
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
         {
-            string? arg = ctx.args.FirstOrDefault();
+            string? arg = ctx.args.Get("color")?.GetString();
             if (arg is null)
             {
                 await ctx.Reply("No color provided.");

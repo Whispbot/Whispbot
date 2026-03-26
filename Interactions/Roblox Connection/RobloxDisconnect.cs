@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Whispbot.Databases;
 using YellowMacaroni.Discord.Core;
 using YellowMacaroni.Discord.Extentions;
+using static Whispbot.Commands.General.Connections;
 
 namespace Whispbot.Interactions.Roblox_Connection
 {
@@ -32,7 +33,7 @@ namespace Whispbot.Interactions.Roblox_Connection
             }
             else
             {
-                await ctx.EditMessage(Commands.General.Connections.GetConnectionsMessage(false, ctx.UserId, null));
+                await ctx.EditMessage(GetConnectionsMessage(false, ctx.UserId, null));
             }
         }
     }

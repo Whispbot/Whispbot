@@ -30,9 +30,9 @@ namespace Whispbot.Commands.Staff
                 return;
             }
 
-            string errorId = ctx.args[0];
+            string? errorId = ctx.args.Get("error")?.GetString();
 
-            if (errorId.Length != 32)
+            if (String.IsNullOrWhiteSpace(errorId) || errorId.Length != 32)
             {
                 await ctx.Reply("{emoji.cross} The provided error ID is not valid. Please provide a valid error ID.");
                 return;

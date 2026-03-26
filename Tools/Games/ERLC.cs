@@ -221,10 +221,17 @@ namespace Whispbot.Tools
 
         public static ERLCServerConfig? GetServerFromString(IEnumerable<ERLCServerConfig> servers, string str)
         {
-            var server = servers.FirstOrDefault(s => s.name?.Contains(str, StringComparison.CurrentCultureIgnoreCase) ?? false);
-            server ??= servers.FirstOrDefault(s => s.code?.Contains(str, StringComparison.CurrentCultureIgnoreCase) ?? false);
+            if (String.IsNullOrWhiteSpace(str))
+            {
+                return servers.FirstOrDefault(s => s.is_default);
+            }
+            else
+            {
+                var server = servers.FirstOrDefault(s => s.name?.Contains(str, StringComparison.CurrentCultureIgnoreCase) ?? false);
+                server ??= servers.FirstOrDefault(s => s.code?.Contains(str, StringComparison.CurrentCultureIgnoreCase) ?? false);
 
-            return server;
+                return server;
+            }
         }
 
         public static async Task<ERLCServerConfig?> TryGetServer(CommandContext ctx)
@@ -239,7 +246,7 @@ namespace Whispbot.Tools
                 return null;
             }
 
-            string searchString = ctx.args.Count > 0 ? ctx.args.Join(" ") : "";
+            string searchString = ctx.args.Get("server")?.GetString() ?? "";
 
             if (String.IsNullOrWhiteSpace(searchString))
             {

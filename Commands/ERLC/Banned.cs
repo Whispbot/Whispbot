@@ -24,8 +24,8 @@ namespace Whispbot.Commands.ERLCCommands
         public override List<RateLimit> Ratelimits => [];
         public override List<string>? SlashCommand => ["erlc", "banned"];
         public override List<SlashCommandArg>? Arguments => [
-            new ("user", "The Roblox user to check.", SlashCommandArgType.RobloxUser),
-            new ("server", "The ERLC server to check on. If not provided, the default will be used.", SlashCommandArgType.ERLCServer, optional: true)
+            new ("user", "The Roblox user to check.", CommandArgType.RobloxUser),
+            new ("server", "The ERLC server to check on. If not provided, the default will be used.", CommandArgType.ERLCServer, optional: true)
         ];
         public override List<string> Schema => ["<user:ruser>", "<server:erlcserver?>"];
         public override List<string> Aliases => ["banned", "erlc banned"];

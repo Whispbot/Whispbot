@@ -21,8 +21,8 @@ namespace Whispbot.Commands.Roblox_Moderation
         public override List<RateLimit> Ratelimits => [];
         public override List<string>? SlashCommand => ["roblox", "case", "type"];
         public override List<SlashCommandArg>? Arguments => [
-            new ("case", "The Roblox moderation case to edit.", SlashCommandArgType.RobloxCase),
-            new ("type", "The new moderation type.", SlashCommandArgType.RobloxType)
+            new ("case", "The Roblox moderation case to edit.", CommandArgType.RobloxCase),
+            new ("type", "The new moderation type.", CommandArgType.RobloxType)
         ];
         public override List<string> Schema => ["<case:rcase>", "<type:rtype>"];
         public override List<string> Aliases => ["rcase type", "rtype", "rmcase type", "rmoderation type"];
@@ -40,33 +40,28 @@ namespace Whispbot.Commands.Roblox_Moderation
             if (!await WhispPermissions.CheckModuleMessage(ctx, Module.RobloxModeration)) return;
             if (!await WhispPermissions.CheckPermissionsMessage(ctx, BotPermissions.UseRobloxModerations)) return;
 
-            if (ctx.args.Count < 1)
+            string? caseId = ctx.args.Get("case")?.GetString();
+
+            if (String.IsNullOrWhiteSpace(caseId))
             {
                 await ctx.Reply("{emoji.cross} {string.errors.rmcase.missingargs}.");
                 return;
             }
 
-            int caseId = 0;
-            if (ctx.args[0].Equals("last", StringComparison.InvariantCultureIgnoreCase))
+            int intCaseId = 0;
+            if (caseId.Equals("last", StringComparison.InvariantCultureIgnoreCase))
             {
-                caseId = -1;
+                intCaseId = -1;
             }
-            else if (new List<string>() { "slast", "server-last", "serverlast" }.Contains(ctx.args[0].ToLower()))
+            else if (new List<string>() { "slast", "server-last", "serverlast" }.Contains(caseId.ToLower()))
             {
-                ctx.args.RemoveAt(0);
-                caseId = -2;
+                intCaseId = -2;
             }
             else
             {
-                bool isNum = int.TryParse(ctx.args[0], out caseId);
+                bool isNum = int.TryParse(caseId, out intCaseId);
 
-                if (!isNum)
-                {
-                    await ctx.Reply("{emoji.cross} {string.errors.rmcase.invalidid}");
-                    return;
-                }
-
-                if (caseId <= 0 || caseId >= 100_000)
+                if (!isNum || intCaseId <= 0 || intCaseId >= 100_000)
                 {
                     await ctx.Reply("{emoji.cross} {string.errors.rmcase.invalidid}");
                     return;
@@ -87,7 +82,7 @@ namespace Whispbot.Commands.Roblox_Moderation
                         new ActionRowBuilder
                         {
                             components = [
-                                new StringSelectBuilder($"rm_edittype {ctx.UserId} {caseId}")
+                                new StringSelectBuilder($"rm_edittype {ctx.UserId} {intCaseId}")
                                 {
                                     placeholder = "Select new type",
                                     options = [..types.Select(t => 

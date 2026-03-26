@@ -29,19 +29,19 @@ namespace Whispbot.Commands
         public abstract Task ExecuteAsync(CommandContext ctx);
     }
 
-    public class SlashCommandArg(string name, string description, SlashCommandArgType type, bool optional = false)
+    public class SlashCommandArg(string name, string description, CommandArgType type, bool optional = false)
     {
         public string name = name;
         public string description = description;
         public bool optional = optional;
-        public SlashCommandArgType type = type;
+        public CommandArgType type = type;
         public int? min_length = null;
         public int? max_length = null;
         public int? min_values = null;
         public int? max_values = null;
     }
 
-    public enum SlashCommandArgType
+    public enum CommandArgType
     {
         String = 0,
         User = 1,
@@ -55,7 +55,8 @@ namespace Whispbot.Commands
         RobloxUser = 9,
         ERLCServer = 10,
         RobloxCase = 11,
-        ERLCCommand = 12
+        ERLCCommand = 12,
+        DurationString = 13
     }
 
     public class RateLimit
@@ -84,16 +85,41 @@ namespace Whispbot.Commands
         Tickets = 1 << 4,
     }
 
-    public class CommandContext (Client client, Message message, List<string> args, List<string> flags)
+    public enum CommandType
     {
-        public Client client = client;
-        public Message message = message;
-        public List<string> args = args;
-        public List<string> flags = flags;
+        Legacy = 0,
+        Slash = 1
+    }
 
-        public string? GuildId => message.channel?.guild_id;
-        public Guild? Guild => GuildId is not null ? DiscordCache.Guilds.Get(GuildId).WaitFor() : null;
-        public User? User => message.author;
+    public class CommandContext
+    {
+        public CommandContext(Client client, Message message, CommandArguments args)
+        {
+            this.client = client;
+            this.message = message;
+            this.args = args;
+            this.type = CommandType.Legacy;
+        }
+
+        public CommandContext(Client client, Interaction interaction, CommandArguments args)
+        {
+            this.client = client;
+            this.interaction = interaction;
+            this.args = args;
+            this.type = CommandType.Slash;
+        }
+
+        public Client client;
+        public CommandType type;
+        public Message? message;
+        public Interaction? interaction;
+        public CommandArguments args;
+
+        public string? GuildId => 
+            type == CommandType.Legacy ? message?.channel?.guild_id : interaction?.guild_id;
+        public Guild? Guild => GuildId is not null ? DiscordCache.Guilds.Get(GuildId).GetAwaiter().GetResult() : null;
+        public User? User => 
+            type == CommandType.Legacy ? message?.author : interaction?.member?.user;
         public string? UserId => User?.id;
 
         public Message? repliedMessage = null;
@@ -103,32 +129,62 @@ namespace Whispbot.Commands
 
         public Tools.Strings.Language Language => (Tools.Strings.Language)(UserConfig?.language ?? GuildConfig?.default_language ?? 0);
 
-        public async Task<(Message?, DiscordError?)> Reply(MessageBuilder content)
+        private MessageBuilder Process(MessageBuilder message)
         {
-            if (message.channel is null) return (null, new(new()));
-
-            using var _ = Tracer.Start("Reply");
-            (Message? sentMessage, DiscordError? error) = await message.channel.Send(JsonConvert.DeserializeObject(JsonConvert.SerializeObject(content).Process(Language)) ?? new MessageBuilder() { content = "Something went wrong..." });
-
-            if (sentMessage is not null) repliedMessage = sentMessage;
-
-            return (sentMessage, error);
+            return JsonConvert.DeserializeObject<MessageBuilder>(JsonConvert.SerializeObject(message).Process(Language)) ?? new MessageBuilder() { content = "Something went wrong..." };
         }
 
-        public async Task<(Message?, DiscordError?)> Reply(string content)
+        public async Task<(Message?, DiscordError?)> Reply(MessageBuilder content, bool ephemeral = false)
         {
-            return await Reply(new MessageBuilder { content = content });
+            using var _ = Tracer.Start("Reply");
+
+            if (type == CommandType.Legacy)
+            {
+                if (message?.channel is null) return (null, new(new()));
+
+                (Message? sentMessage, DiscordError? error) = await message.channel.Send(Process(content));
+
+                if (sentMessage is not null) repliedMessage = sentMessage;
+
+                return (sentMessage, error);
+            }
+            else
+            {
+                if (interaction is null) return (null, new(new()));
+
+                if (ephemeral) content.flags |= MessageFlags.Ephemeral;
+
+                await interaction.Respond(Process(content));
+
+                return (null, null);
+            }
+        }
+
+        public async Task<(Message?, DiscordError?)> Reply(string content, bool ephemeral = false)
+        {
+            return await Reply(new MessageBuilder { content = content }, ephemeral);
         }
 
         public async Task<(Message?, DiscordError?)> EditResponse(MessageBuilder content)
         {
             using var _ = Tracer.Start($"EditReply");
 
-            if (repliedMessage is not null)
+            if (type == CommandType.Legacy)
             {
-                return await repliedMessage.Edit(JsonConvert.DeserializeObject(JsonConvert.SerializeObject(content).Process(Language)) ?? new MessageBuilder() { content = "Something went wrong..." });
+                if (repliedMessage is not null)
+                {
+                    return await repliedMessage.Edit(Process(content));
+                }
+                else return await Reply(content);
             }
-            else return await Reply(content);
+            else
+            {
+                if (interaction is null) return (null, new(new()));
+
+                await interaction.EditResponse(Process(content));
+
+                return (null, null);
+            }
         }
 
         public async Task<(Message?, DiscordError?)> EditResponse(string content)

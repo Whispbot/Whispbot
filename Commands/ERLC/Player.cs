@@ -25,10 +25,10 @@ namespace Whispbot.Commands.ERLCCommands
         public override List<RateLimit> Ratelimits => [];
         public override List<string>? SlashCommand => ["erlc", "player"];
         public override List<SlashCommandArg>? Arguments => [
-            new ("user", "The Roblox user to look up.", SlashCommandArgType.RobloxUser),
-            new ("server", "The ERLC server to check. If not provided, the default will be used.", SlashCommandArgType.ERLCServer, optional: true)
+            new ("user", "The Roblox user to look up.", CommandArgType.RobloxUser),
+            new ("server", "The ERLC server to check. If not provided, the default will be used.", CommandArgType.ERLCServer, optional: true)
         ];
-        public override List<string> Schema => ["<user:ruser>"];
+        public override List<string> Schema => ["<user:ruser>", "<server:erlcserver?>"];
         public override List<string> Aliases => ["player", "erlc player"];
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
@@ -58,7 +58,7 @@ namespace Whispbot.Commands.ERLCCommands
                 return;
             }
 
-            ERLCServerConfig? server = Tools.ERLC.GetServerFromString(servers, ctx.args.Skip(1).Join(" "));
+            ERLCServerConfig? server = Tools.ERLC.GetServerFromString(servers, ctx.args.Get("server")?.GetString() ?? "");
 
             if (server is null)
             {
@@ -66,7 +66,7 @@ namespace Whispbot.Commands.ERLCCommands
                 return;
             }
 
-            string? playerData = await Commands.ERLCCommandUtils.GetUserFromPartialName(ctx.args[0], server);
+            string? playerData = await Commands.ERLCCommandUtils.GetUserFromPartialName(ctx.args.Get("ruser")?.GetString() ?? "", server);
 
             if (playerData is null)
             {

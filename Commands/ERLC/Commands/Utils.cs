@@ -13,6 +13,7 @@ namespace Whispbot.Commands.ERLCCommands.Commands
         public static async Task<string?> GetUserFromPartialName(string partialName, ERLCServerConfig serverConfig)
         {
             if (serverConfig.api_key is null || serverConfig.DecryptedApiKey == "") return null;
+            if (String.IsNullOrWhiteSpace(partialName)) return null;
 
             ERLC.PRC_APIResponse? response = ERLC.CheckCache(serverConfig.DecryptedApiKey) ?? await ERLC.GetServerV2(serverConfig.DecryptedApiKey);
 

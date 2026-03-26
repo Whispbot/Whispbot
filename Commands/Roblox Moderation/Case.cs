@@ -21,7 +21,7 @@ namespace Whispbot.Commands.Roblox_Moderation
         public override List<RateLimit> Ratelimits => [];
         public override List<string>? SlashCommand => ["roblox", "case", "view"];
         public override List<SlashCommandArg>? Arguments => [
-            new ("case", "The Roblox moderation case ID to view.", SlashCommandArgType.RobloxCase)
+            new ("case", "The Roblox moderation case ID to view.", CommandArgType.RobloxCase)
         ];
         public override List<string> Schema => ["<case:rcase>"];
         public override List<string> Aliases => ["rcase", "rmoderation case", "rmcase"];
@@ -39,7 +39,9 @@ namespace Whispbot.Commands.Roblox_Moderation
             if (!await WhispPermissions.CheckModuleMessage(ctx, Module.RobloxModeration)) return;
             if (!await WhispPermissions.CheckPermissionsMessage(ctx, BotPermissions.UseRobloxModerations)) return;
 
-            if (ctx.args.Count < 1)
+            string? caseId = ctx.args.Get("case")?.GetString();
+
+            if (String.IsNullOrWhiteSpace(caseId))
             {
                 await ctx.Reply("{emoji.cross} {string.errors.rmcase.missingargs}.");
                 return;
@@ -47,14 +49,14 @@ namespace Whispbot.Commands.Roblox_Moderation
 
             RobloxModeration? moderation = null;
 
-            if (ctx.args[0].Equals("last", StringComparison.InvariantCultureIgnoreCase))
+            if (caseId.Equals("last", StringComparison.InvariantCultureIgnoreCase))
             {
                 moderation = Postgres.SelectFirst<RobloxModeration>(
                     "SELECT * FROM roblox_moderations WHERE guild_id = @1 AND moderator_id = @2 ORDER BY \"case\" DESC LIMIT 1",
                     [long.Parse(ctx.GuildId), long.Parse(ctx.UserId)]
                 );
             }
-            else if (new List<string>() { "slast", "server-last", "serverlast" }.Contains(ctx.args[0].ToLower()))
+            else if (new List<string>() { "slast", "server-last", "serverlast" }.Contains(caseId.ToLower()))
             {
                 moderation = Postgres.SelectFirst<RobloxModeration>(
                     "SELECT * FROM roblox_moderations WHERE guild_id = @1 ORDER BY \"case\" DESC LIMIT 1",
@@ -63,15 +65,9 @@ namespace Whispbot.Commands.Roblox_Moderation
             }
             else
             {
-                bool isNum = int.TryParse(ctx.args[0], out int caseId);
+                bool isNum = int.TryParse(caseId, out int intCaseId);
 
-                if (!isNum)
-                {
-                    await ctx.Reply("{emoji.cross} {string.errors.rmcase.invalidid}");
-                    return;
-                }
-
-                if (caseId <= 0 || caseId >= 100_000)
+                if (!isNum || intCaseId <= 0 || intCaseId >= 100_000)
                 {
                     await ctx.Reply("{emoji.cross} {string.errors.rmcase.invalidid}");
                     return;
@@ -79,7 +75,7 @@ namespace Whispbot.Commands.Roblox_Moderation
 
                 moderation = Postgres.SelectFirst<RobloxModeration>(
                     "SELECT * FROM roblox_moderations WHERE guild_id = @1 AND \"case\" = @2",
-                    [long.Parse(ctx.GuildId), caseId]
+                    [long.Parse(ctx.GuildId), intCaseId]
                 );
             }
 

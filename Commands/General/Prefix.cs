@@ -19,9 +19,9 @@ namespace Whispbot.Commands.General
         public override List<RateLimit> Ratelimits => [];
         public override List<string>? SlashCommand => ["prefix"];
         public override List<SlashCommandArg>? Arguments => [
-            new("prefix", "The new prefix for the server.", SlashCommandArgType.String, optional: true)
+            new("prefix", "The new prefix for the server.", CommandArgType.String, optional: true) { min_length = 1, max_length = 10 }
         ];
-        public override List<string> Schema => [];
+        public override List<string> Schema => ["<prefix:string?>"];
         public override List<string> Aliases => ["prefix", "pre", "p"];
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
@@ -34,7 +34,7 @@ namespace Whispbot.Commands.General
             }
             else
             {
-                string newPrefix = ctx.args[0];
+                string newPrefix = ctx.args.Get("prefix")?.GetString() ?? "!";
 
                 if (newPrefix.Length > 10)
                 {

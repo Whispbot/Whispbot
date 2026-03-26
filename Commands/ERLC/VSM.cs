@@ -25,10 +25,10 @@ namespace Whispbot.Commands.ERLCCommands
         public override List<RateLimit> Ratelimits => [];
         public override List<string>? SlashCommand => ["erlc", "command"];
         public override List<SlashCommandArg>? Arguments => [
-            new ("command", "The command to run on the server.", SlashCommandArgType.ERLCCommand),
-            new ("server", "The ERLC server to run the command on. If not provided, the default will be used.", SlashCommandArgType.ERLCServer, optional: true)
+            new ("command", "The command to run on the server.", CommandArgType.ERLCCommand),
+            new ("server", "The ERLC server to run the command on. If not provided, the default will be used.", CommandArgType.ERLCServer, optional: true)
         ];
-        public override List<string> Schema => ["<command:string>", "<server:erlcserver?>"];
+        public override List<string> Schema => ["<command:erlccommand>"];
         public override List<string> Aliases => ["vsm", "erlc vsm", "erlc command", ":"];
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
@@ -66,9 +66,11 @@ namespace Whispbot.Commands.ERLCCommands
             }
             else
             {
-                string commandName = ctx.args[0];
+                string command = ctx.args.Get("command")?.GetString()!;
+                List<string> args = [..command.Split(' ')];
+                string commandName = args[0];
                 if (commandName.StartsWith(':')) commandName = commandName[1..];
-                ctx.args.RemoveAt(0);
+                args.RemoveAt(0);
 
                 async Task OnMissingArgs(int requiredNum, string format)
                 {
@@ -117,13 +119,15 @@ namespace Whispbot.Commands.ERLCCommands
                     return;
                 }
 
-                string? serverName = ctx.args.IndexOf("in") != -1 ? ctx.args.Join(" ").Split(" in ")[^1] : null;
+                string? serverName = ctx.type == CommandType.Legacy 
+                    ? args.IndexOf("in") != -1 ? args.Join(" ").Split(" in ")[^1] : null
+                    : ctx.args.Get("server")?.GetString();
 
                 ERLCServerConfig? server = Tools.ERLC.GetServerFromString(servers, serverName ?? "thisservernameshouldntbepossibletomatch");
 
                 if (server is not null)
                 {
-                    ctx.args.RemoveRange(ctx.args.LastIndexOf("in"), ctx.args.Count - ctx.args.LastIndexOf("in"));
+                    args.RemoveRange(args.LastIndexOf("in"), args.Count - args.LastIndexOf("in"));
                 }
                 else
                 {
@@ -144,7 +148,7 @@ namespace Whispbot.Commands.ERLCCommands
 
                 await ctx.Reply("{emoji.loading} {string.content.erlcvsm.sending}...");
 
-                var response = await ERLC.SendCommand(server, $":{commandName} {ctx.args.Join(" ")}");
+                var response = await ERLC.SendCommand(server, $":{commandName} {args.Join(" ")}");
 
                 if (response is null)
                 {
