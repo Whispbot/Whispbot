@@ -136,7 +136,7 @@ namespace Whispbot
             {
                 Postgres.Execute(
                     "UPDATE discord_moderations SET message_id = @1 WHERE case_id = @2;",
-                    [message.id, log.case_id]
+                    [message.id.ToLong(), log.case_id]
                 );
             }
 
@@ -238,7 +238,7 @@ namespace Whispbot
             {
                 Postgres.Execute(
                     "UPDATE discord_moderations SET dm_message_id = @1 WHERE case_id = @2;",
-                    [message.id, log.case_id]
+                    [message.id.ToLong(), log.case_id]
                 );
             }
 
