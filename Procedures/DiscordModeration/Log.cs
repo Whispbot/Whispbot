@@ -329,7 +329,7 @@ namespace Whispbot
             {
                 var arg = ctx.args.Get("duration");
                 length = (long)(arg?.GetDuration()?.TotalMilliseconds ?? 0);
-                reason = arg?.GetString();
+                reason = arg?.GetString() ?? ctx.args.Get("reason")?.GetString();
                 if (length == 0) length = null;
             }
             else

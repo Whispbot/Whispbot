@@ -22,7 +22,7 @@ namespace Whispbot.Commands.Discord_Moderation
             new ("reason", "The reason for unmute.", CommandArgType.String, optional: true)
         ];
         public override List<string> Schema => ["<user:user>", "<reason:string?>"];
-        public override List<string> Aliases => ["unmute", "rto"];
+        public override List<string> Aliases => ["unmute", "untimeout", "removetimeout", "rto"];
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
         {
