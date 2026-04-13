@@ -15,10 +15,7 @@ namespace Whispbot
             Member? member = await context.Guild!.members.Get(context.TargetUser!.id);
             if (member is null) return "{string.errors.dm.nomember}";
 
-            var config = await WhispCache.GuildConfig.Get(context.Guild.id);
-            var deleteMessages = config?.discord_moderation?.delete_messages_duration_s;
-
-            var error = await member.Ban(deleteMessages ?? 0, context.Reason);
+            var error = await member.Ban(604800, context.Reason);
 
             if (error is not null)
             {
