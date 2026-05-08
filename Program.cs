@@ -16,6 +16,7 @@ using Whispbot.Interactions;
 using Whispbot.Tools;
 using Whispbot.Commands.ERLCCommands.Commands;
 using Whispbot.Tools.Infra;
+using Whispbot.Tools.Logger;
 
 Logger.Initialize();
 
@@ -202,6 +203,8 @@ int clusterStart = (int)(Config.cluster * ((float)shardCount/(float)clusters));
 int clusterEnd = (int)((Config.cluster + 1) * ((float)shardCount/(float)clusters));
 
 sharding.shards = [..sharding.shards.Skip(clusterStart).Take(clusterEnd - clusterStart)];
+
+ShardLogger.Init(sharding);
 
 CommandManager commands = new();
 Config.commands = commands;
