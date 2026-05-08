@@ -36,12 +36,13 @@ namespace Whispbot.Tools.Logger
 
         public static void LogShardInfo(Shard shard, Status status)
         {
-            if (Config.EnvId != EnvironmentType.Prod) return;
+            // If in dev env or there are ignored guilds (another instance is starting) ignore
+            if (Config.EnvId != EnvironmentType.Prod || Config.commands?.ignoreGuilds.Count > 0) return;
 
             int clusterId = Config.cluster;
             int shardId = shard.id;
             double ping = shard.client.ping;
-            int guilds = shard.client.readyData?.guilds.Count ?? 0;
+            int guilds = DiscordCache.Guilds.Count;
             int users = DiscordCache.Users.Count;
             int memUsageMb = (int)(Process.GetCurrentProcess().WorkingSet64 / (1024 * 1024));
             int cpuUsageP = 0;
@@ -59,7 +60,8 @@ namespace Whispbot.Tools.Logger
 
         public static void InitDB(int clusterId, int startShard, int endShard)
         {
-            if (Config.EnvId != EnvironmentType.Prod) return;
+            // If in dev env or there are ignored guilds (another instance is starting) ignore
+            if (Config.EnvId != EnvironmentType.Prod || Config.commands?.ignoreGuilds.Count > 0) return;
 
             int i = 2;
             Postgres.Execute($@"
