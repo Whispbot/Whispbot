@@ -348,6 +348,8 @@ namespace Whispbot.Tools
             };
             public static readonly Dictionary<string, (int, string)> adminCommands = new() {
                 { "weather",         new (1, "[weather]") },
+                { "helper",          new (1, "[user/id]") },
+                { "unhelper",        new (1, "[user/id]") }, 
                 { "mod",             new (1, "[user/id]") },
                 { "unmod",           new (1, "[user/id]") },
                 { "ban",             new (1, "[user/id]") },
