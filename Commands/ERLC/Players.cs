@@ -10,6 +10,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Databases;
 using Whispbot.Tools;
+using Whispbot.Tools.Games.ERLC;
 using YellowMacaroni.Discord.Core;
 using YellowMacaroni.Discord.Extentions;
 
@@ -46,12 +47,12 @@ namespace Whispbot.Commands.ERLCCommands
 
             if (!await WhispPermissions.CheckModuleMessage(ctx, Module.ERLC)) return;
 
-            ERLCServerConfig? server = await ERLC.TryGetServer(ctx);
+            ERLCServerConfig? server = await ERLCDatabase.TryGetServer(ctx);
             if (server is null) return;
 
-            var response = await ERLC.GetServerDataV2(ctx, server);
+            var response = await ERLC.GetERLCServer(ctx, server);
             if (response is null) return;
-            var players = response?.Data?.Players;
+            var players = response?.Server?.Players;
 
             if (players is not null)
             {
@@ -146,7 +147,7 @@ namespace Whispbot.Commands.ERLCCommands
                                 title = $"{{string.title.erlcserver.players}} [{players.Count}]",
                                 description = teams.Count == 0 ? "{string.errors.erlcserver.empty}" : null,
                                 fields = [.. teams.ForAll((kvp) => new EmbedField() { name = $"{kvp.Key} [{players.Sum(p=> p.Team == kvp.Key ? 1 : 0 )}]", value = kvp.Value.ToString(), inline = false })],
-                                footer = new EmbedFooter { text = ERLC.GenerateFooter(response!) }
+                                footer = new EmbedFooter { text = Cache.GenerateFooter(response!) }
                             }
                         ]
                     }
@@ -154,7 +155,7 @@ namespace Whispbot.Commands.ERLCCommands
             }
             else
             {
-                await ctx.EditResponse($"{{emoji.cross}} [{response?.Code}] {response?.Message ?? "An unknown error occured"}.");
+                await ctx.EditResponse($"{{emoji.cross}} [{response?.error}] {response?.error_message ?? "An unknown error occured"}.");
             }
         }
     }

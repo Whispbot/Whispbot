@@ -11,6 +11,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Databases;
 using Whispbot.Tools;
+using Whispbot.Tools.Games.ERLC;
 using YellowMacaroni.Discord.Core;
 using YellowMacaroni.Discord.Extentions;
 
@@ -54,9 +55,9 @@ namespace Whispbot.Commands.ERLCCommands
                             {
                                 components = [
                                     new TextDisplayBuilder("## {string.title.vsm.commands}"),
-                                    new TextDisplayBuilder($"**{{string.title.vsm.mod}}**\n> {Tools.ERLC.ERLC_Commands.modCommands.Keys.Join(", ")}"),
-                                    new TextDisplayBuilder($"**{{string.title.vsm.admin}}**\n> {Tools.ERLC.ERLC_Commands.adminCommands.Keys.Join(", ")}"),
-                                    new TextDisplayBuilder($"**{{string.title.vsm.owner}}**\n> {Tools.ERLC.ERLC_Commands.ownerCommands.Keys.Join(", ")}")
+                                    new TextDisplayBuilder($"**{{string.title.vsm.mod}}**\n> {Tools.Games.ERLC.ERLCCommands.modCommands.Keys.Join(", ")}"),
+                                    new TextDisplayBuilder($"**{{string.title.vsm.admin}}**\n> {Tools.Games.ERLC.ERLCCommands.adminCommands.Keys.Join(", ")}"),
+                                    new TextDisplayBuilder($"**{{string.title.vsm.owner}}**\n> {Tools.Games.ERLC.ERLCCommands.ownerCommands.Keys.Join(", ")}")
                                 ]
                             }
                         ],
@@ -77,17 +78,17 @@ namespace Whispbot.Commands.ERLCCommands
                     await ctx.Reply($"Missing arguments for command, requires {requiredNum} arguments in the format `:{commandName} {format}`,");
                 }
                 
-                if (Tools.ERLC.ERLC_Commands.modCommands.TryGetValue(commandName, out (int, string) v))
+                if (Tools.Games.ERLC.ERLCCommands.modCommands.TryGetValue(commandName, out (int, string) v))
                 {
-                    if (ctx.args.Count < v.Item1)
+                    if (args.Count < v.Item1)
                     {
                         await OnMissingArgs(v.Item1, v.Item2);
                         return;
                     }
                 }
-                else if (Tools.ERLC.ERLC_Commands.adminCommands.TryGetValue(commandName, out (int, string) a))
+                else if (Tools.Games.ERLC.ERLCCommands.adminCommands.TryGetValue(commandName, out (int, string) a))
                 {
-                    if (ctx.args.Count < v.Item1)
+                    if (args.Count < a.Item1)
                     {
                         await OnMissingArgs(a.Item1, a.Item2);
                         return;
@@ -95,9 +96,9 @@ namespace Whispbot.Commands.ERLCCommands
 
                     if (!await WhispPermissions.CheckPermissionsMessage(ctx, BotPermissions.ERLCAdmin | BotPermissions.ERLCOWner)) return;
                 }
-                else if (Tools.ERLC.ERLC_Commands.ownerCommands.TryGetValue(commandName, out (int, string) o))
+                else if (Tools.Games.ERLC.ERLCCommands.ownerCommands.TryGetValue(commandName, out (int, string) o))
                 {
-                    if (ctx.args.Count < v.Item1)
+                    if (args.Count < o.Item1)
                     {
                         await OnMissingArgs(o.Item1, o.Item2);
                         return;
@@ -123,7 +124,7 @@ namespace Whispbot.Commands.ERLCCommands
                     ? args.IndexOf("in") != -1 ? args.Join(" ").Split(" in ")[^1] : null
                     : ctx.args.Get("server")?.GetString();
 
-                ERLCServerConfig? server = Tools.ERLC.GetServerFromString(servers, serverName ?? "thisservernameshouldntbepossibletomatch");
+                ERLCServerConfig? server = ERLCDatabase.GetServerFromString(servers, serverName ?? "thisservernameshouldntbepossibletomatch");
 
                 if (server is not null)
                 {
@@ -156,7 +157,7 @@ namespace Whispbot.Commands.ERLCCommands
                     return;
                 }
 
-                if (ERLC.ResponseHasError(response, out var errorMessage))
+                if (Errors.ResponseHasError(response, out var errorMessage))
                 {
                     await ctx.EditResponse(errorMessage!);
                     return;

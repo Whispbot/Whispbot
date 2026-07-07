@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Databases;
 using Whispbot.Tools;
+using Whispbot.Tools.Games.ERLC;
 using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Commands.ERLCCommands.Commands.Debug
@@ -87,7 +88,7 @@ namespace Whispbot.Commands.ERLCCommands.Commands.Debug
                 await ctx.Reply("{string.errors.erlccommand.pm.nousers}");
             }
 
-            await Tools.ERLC.SendCommand(ctx.server, $":pm {pmUsers.Join(",")} {ctx.robloxUsername} to {reciever}: {ctx.args.Join(" ")}");
+            await ERLC.SendCommand(ctx.server, $":pm {pmUsers.Join(",")} {ctx.robloxUsername} to {reciever}: {ctx.args.Join(" ")}");
         }
     }
 }

@@ -10,6 +10,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Databases;
 using Whispbot.Tools;
+using Whispbot.Tools.Games.ERLC;
 using YellowMacaroni.Discord.Cache;
 using YellowMacaroni.Discord.Core;
 using YellowMacaroni.Discord.Extentions;
@@ -58,7 +59,7 @@ namespace Whispbot.Commands.ERLCCommands
                 return;
             }
 
-            ERLCServerConfig? server = Tools.ERLC.GetServerFromString(servers, ctx.args.Get("server")?.GetString() ?? "");
+            ERLCServerConfig? server = ERLCDatabase.GetServerFromString(servers, ctx.args.Get("server")?.GetString() ?? "");
 
             if (server is null)
             {
@@ -74,10 +75,10 @@ namespace Whispbot.Commands.ERLCCommands
                 return;
             }
 
-            var data = await ERLC.GetServerDataV2(ctx, server);
+            var data = await ERLC.GetERLCServer(ctx, server);
             if (data is null) return;
 
-            var player = data.Data?.Players?.Find(p => p.Player == playerData);
+            var player = data.Server?.Players?.Find(p => p.Player == playerData);
             // We can just return because GetUserFromPartialName does the same search
             // this is just a precaution to prevent null reference exceptions etc
             if (player is null) return;
@@ -85,7 +86,7 @@ namespace Whispbot.Commands.ERLCCommands
             string username = playerData.Split(':')[0];
             string userId = playerData.Split(':')[1];
 
-            var vehicle = data.Data?.Vehicles?.Find(v => v.Owner == username);
+            var vehicle = data.Server?.Vehicles?.Find(v => v.Owner == username);
 
             UserConfig? cachedUserConfig = WhispCache.UserConfig.Find((uc, _) => uc.roblox_id.ToString() == userId);
             UserConfig? userConfig =
@@ -164,7 +165,7 @@ namespace Whispbot.Commands.ERLCCommands
                         ],
                         footer = new EmbedFooter
                         {
-                            text = ERLC.GenerateFooter(data)
+                            text = Cache.GenerateFooter(data)
                         }
                     }
                 ]

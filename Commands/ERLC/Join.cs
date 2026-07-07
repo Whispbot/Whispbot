@@ -10,6 +10,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Databases;
 using Whispbot.Tools;
+using Whispbot.Tools.Games.ERLC;
 using YellowMacaroni.Discord.Core;
 using YellowMacaroni.Discord.Extentions;
 
@@ -42,7 +43,7 @@ namespace Whispbot.Commands.ERLCCommands
             if (!await WhispPermissions.CheckModuleMessage(ctx, Module.ERLC)) return;
             if (!await WhispPermissions.CheckPermissionsMessage(ctx, BotPermissions.UseERLC)) return;
 
-            ERLCServerConfig? server = await ERLC.TryGetServer(ctx);
+            ERLCServerConfig? server = await ERLCDatabase.TryGetServer(ctx);
             if (server is null) return;
 
             string url = $"https://beta.whisp.bot/join/erlc/{server.id}";

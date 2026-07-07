@@ -93,7 +93,7 @@ namespace Whispbot.Commands.ERLCCommands
             //}
             //else
             //{
-            //    await ctx.EditResponse($"{{emoji.cross}} [{response?.code}] {response?.message ?? "An unknown error occured"}.");
+            //    await ctx.EditResponse($"{{emoji.cross}} [{response?.error}] {response?.error_message ?? "An unknown error occured"}.");
             //}
         }
     }

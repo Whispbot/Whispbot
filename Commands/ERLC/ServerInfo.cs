@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using Whispbot.Databases;
 using Whispbot.Extensions;
 using Whispbot.Tools;
+using Whispbot.Tools.Games.ERLC;
 using YellowMacaroni.Discord.Core;
 using YellowMacaroni.Discord.Extentions;
 
@@ -42,12 +43,12 @@ namespace Whispbot.Commands.ERLCCommands
             if (!await WhispPermissions.CheckModuleMessage(ctx, Module.ERLC)) return;
             if (!await WhispPermissions.CheckPermissionsMessage(ctx, BotPermissions.UseERLC)) return;
 
-            ERLCServerConfig? server = await ERLC.TryGetServer(ctx);
+            ERLCServerConfig? server = await ERLCDatabase.TryGetServer(ctx);
             if (server is null) return;
 
-            var response = await ERLC.GetServerDataV2(ctx, server);
+            var response = await ERLC.GetERLCServer(ctx, server);
             if (response is null) return;
-            var serverInfo = response?.Data;
+            var serverInfo = response?.Server;
 
             if (serverInfo is not null)
             {
@@ -90,7 +91,7 @@ namespace Whispbot.Commands.ERLCCommands
             }
             else
             {
-                await ctx.EditResponse($"{{emoji.cross}} [{response?.Code} ]  {response?.Message ?? "An unknown error occured"}.");
+                await ctx.EditResponse($"{{emoji.cross}} [{response?.error}] {response?.error_message ?? "An unknown error occured"}.");
             }
         }
     }

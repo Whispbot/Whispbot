@@ -10,6 +10,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Databases;
 using Whispbot.Tools;
+using Whispbot.Tools.Games.ERLC;
 using YellowMacaroni.Discord.Core;
 using YellowMacaroni.Discord.Extentions;
 
@@ -42,18 +43,18 @@ namespace Whispbot.Commands.ERLCCommands
             if (!await WhispPermissions.CheckModuleMessage(ctx, Module.ERLC)) return;
             if (!await WhispPermissions.CheckPermissionsMessage(ctx, BotPermissions.UseERLC)) return;
 
-            ERLCServerConfig? server = await ERLC.TryGetServer(ctx);
+            ERLCServerConfig? server = await ERLCDatabase.TryGetServer(ctx);
             if (server is null) return;
 
-            var response = await ERLC.GetServerDataV2(ctx, server);
+            var response = await ERLC.GetERLCServer(ctx, server);
             if (response is null) return;
-            var joinlogs = response?.Data?.JoinLogs;
+            var joinlogs = response?.Server?.JoinLogs;
 
             if (joinlogs is not null)
             {
                 if (joinlogs.Count == 0)
                 {
-                    await ctx.EditResponse($"{{emoji.cross}} {{string.errors.erlcjoinlogs.nojoins}}\n-# {{string.content.erlcserver.updated}}: {(response!.CachedAt is not null ? $"{Math.Round((decimal)(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - response.CachedAt) / 1000)}s ago" : "{string.content.erlcserver.justnow}")}");
+                    await ctx.EditResponse($"{{emoji.cross}} {{string.errors.erlcjoinlogs.nojoins}}\n-# {{string.content.erlcserver.updated}}: {(response!.CachedAt is not null ? $"{Math.Round((decimal)(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - response.cachedAtMs) / 1000)}s ago" : "{string.content.erlcserver.justnow}")}");
                     return;
                 }
 
@@ -90,7 +91,7 @@ namespace Whispbot.Commands.ERLCCommands
                             {
                                 title = $"{{string.title.joinlogs}}",
                                 description = strings.ToString(),
-                                footer = new EmbedFooter { text = ERLC.GenerateFooter(response!) }
+                                footer = new EmbedFooter { text = Cache.GenerateFooter(response!) }
                             }
                         ]
                     }
@@ -98,7 +99,7 @@ namespace Whispbot.Commands.ERLCCommands
             }
             else
             {
-                await ctx.EditResponse($"{{emoji.cross}} [{response?.Code}] {response?.Message ?? "An unknown error occured"}.");
+                await ctx.EditResponse($"{{emoji.cross}} [{response?.error}] {response?.error_message ?? "An unknown error occured"}.");
             }
         }
     }

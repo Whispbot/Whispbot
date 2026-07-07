@@ -25,6 +25,9 @@ namespace Whispbot.Commands.General
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
         {
+            await ctx.Reply(new MessageBuilder() { content = "This is currently broken, use <https://beta.whisp.bot/user/@me> instead." });
+            return;
+
             if (ctx.User is null) return;
 
             UserConfig? userConfig = await WhispCache.UserConfig.Get(ctx.User.id);

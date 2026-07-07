@@ -9,6 +9,8 @@ using System.Threading.Tasks;
 using Whispbot.Databases;
 using Whispbot.Extensions;
 using Whispbot.Tools;
+using Whispbot.Tools.Games.ERLC;
+using Whispbot.Tools.Games.ERLC.Classes;
 using YellowMacaroni.Discord.Cache;
 using YellowMacaroni.Discord.Core;
 using YellowMacaroni.Discord.Extentions;
@@ -70,7 +72,7 @@ namespace Whispbot.Commands.ERLCCommands.Commands
 
         public Strings.Language Language => (Strings.Language)(UserConfig?.language ?? GuildConfig?.default_language ?? 0);
 
-        public async Task<ERLC.PRC_APIResponse?> Reply(string content)
+        public async Task<PRCResponse?> Reply(string content)
         {
             using var _ = Tracer.Start($"Reply");
             return await ERLC.SendCommand(server, $":pm {robloxUsername} {content.Process(Language)}");

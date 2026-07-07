@@ -9,6 +9,7 @@ using Whispbot.Commands.Shifts;
 using Whispbot.Databases;
 using Whispbot.Extensions;
 using Whispbot.Tools;
+using Whispbot.Tools.Games.ERLC;
 using YellowMacaroni.Discord.Cache;
 using YellowMacaroni.Discord.Core;
 using YellowMacaroni.Discord.Extentions;
@@ -97,7 +98,7 @@ namespace Whispbot
 
             var result = await ERLC.SendCommand(erlcServer, $":ban {banRequest.target_id}");
 
-            if (result?.Code == ERLC.ErrorCode.Success)
+            if (result?.error == ErrorCode.Unknown)
             {
                 await initialMessageUpdate;
                 await MarkAsBanned(banRequest.id, banRequest.guild_id, banRequest.moderator_id);
@@ -110,7 +111,7 @@ namespace Whispbot
                     SET status = FALSE, status_message = @1
                     WHERE id = @2
                     RETURNING *",
-                    [result?.Message ?? "{string.errors.rmbr.unknownerror}", banRequest.id]
+                    [result?.error_message ?? "{string.errors.rmbr.unknownerror}", banRequest.id]
                 );
                 await initialMessageUpdate;
 
