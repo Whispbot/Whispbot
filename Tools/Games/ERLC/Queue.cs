@@ -26,7 +26,7 @@ namespace Whispbot.Tools.Games.ERLC
         {
             get
             {
-                _queue ??= new(Client, "prc_api", new QueueOptions
+                _queue ??= new(Client, $"prc_api{(Config.isDev ? "_dev" : "")}", new QueueOptions
                 {
                     GroupName = "bot",
                     MachineId = $"bot-{Environment.GetEnvironmentVariable("RAILWAY_REPLICA_ID") ?? "dev"}"

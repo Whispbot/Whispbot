@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using Whispbot.PRC.PRC.Classes;
 
 namespace Whispbot.Tools.Games.ERLC.Classes
 {
@@ -21,6 +22,7 @@ namespace Whispbot.Tools.Games.ERLC.Classes
         public List<ERLCKillLog>? KillLogs { get; init; }
         public List<ERLCCommandLog>? CommandLogs { get; init; }
         public List<ERLCCallLog>? ModCalls { get; init; }
+        public List<ERLCEmergencyCall>? EmergencyCalls { get; init; }
         public List<ERLCVehicle>? Vehicles { get; init; }
     }
 }
