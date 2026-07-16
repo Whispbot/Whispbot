@@ -1,11 +1,10 @@
-﻿using System;
+﻿using Discord;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Whispbot.Tools.Discord;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
+using Whispbot.Tools.Disc;
 
 namespace Whispbot.Commands.Discord_Moderation
 {
@@ -25,15 +24,15 @@ namespace Whispbot.Commands.Discord_Moderation
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
         {
-            if (ctx.Guild is null || ctx.UserId is null) return;
+            if (ctx.Guild is null) return;
 
             if (!await DiscordPermissions.HasPermissionOrAdmin(
                 ctx.Guild,
                 ctx.UserId,
-                Permissions.ManageGuild |
-                Permissions.BanMembers |
-                Permissions.KickMembers |
-                Permissions.ModerateMembers
+                 GuildPermission.ManageGuild |
+                 GuildPermission.BanMembers |
+                 GuildPermission.KickMembers |
+                 GuildPermission.ModerateMembers
             ))
             {
                 await ctx.Reply("{emoji.cross} {string.errors.dm.no_permission}.");

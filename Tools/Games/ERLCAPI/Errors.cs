@@ -1,16 +1,16 @@
-﻿using System;
+﻿using Discord;
+using System;
 using System.Collections.Generic;
 using System.Text;
-using Whispbot.Tools.Games.ERLC.Classes;
-using YellowMacaroni.Discord.Core;
+using Whispbot.Tools.Games.ERLCAPI.Classes;
 
-namespace Whispbot.Tools.Games.ERLC
+namespace Whispbot.Tools.Games.ERLCAPI
 {
     public static class Errors
     {
         private static string? _appId = Environment.GetEnvironmentVariable("PRC_CLIENT_ID");
 
-        public static bool ResponseHasError(PRCResponse response, out MessageBuilder? errorMessage)
+        public static bool ResponseHasError(PRCResponse response, out MessageComponent? errorMessage)
         {
             if (response.success)
             {
@@ -19,32 +19,25 @@ namespace Whispbot.Tools.Games.ERLC
             }
             else
             {
-                errorMessage = new MessageBuilder
+                var builder = new ComponentBuilderV2()
+                    .WithContainer(
+                        new ContainerBuilder()
+                            .WithTextDisplay($"## {{string.title.erlcapierror}}\n> {{string.errors.erlcapi.{response.error.ToString()?.ToLower() ?? "generic"}}}.")
+                            .WithSeparator()
+                            .WithTextDisplay($"{{string.content.erlcapierror}}.\n```\n[{(int)response.error}] {response.Error?.message ?? response.error_message}{(response.Error?.docs is not null ? $"\n\n{response.Error.docs}" : "")}\n```")
+                            .WithAccentColor(new Color(150, 0, 0))
+                    );
+
+                if (response.error == ErrorCode.NotAuthorized && response.serverId is not null && _appId is not null)
                 {
-                    components = [
-                        new ContainerBuilder
-                        {
-                            components = [
-                                new TextDisplayBuilder($"## {{string.title.erlcapierror}}\n> {{string.errors.erlcapi.{response.error.ToString()?.ToLower() ?? "generic"}}}."),
-                                new SeperatorBuilder(),
-                                new TextDisplayBuilder($"{{string.content.erlcapierror}}.\n```\n[{(int)response.error}] {response.Error?.message ?? response.error_message}{(response.Error?.docs is not null ? $"\n\n{response.Error.docs}" : "")}\n```")
-                            ],
-                            accent = new Color(150, 0, 0)
-                        },
-                        ..(response.error == ErrorCode.NotAuthorized && response.serverId is not null && _appId is not null ? new List<Component> { new ActionRowBuilder
-                        {
-                            components = [
-                                new ButtonBuilder()
-                                {
-                                    style = ButtonStyle.Link,
-                                    label = "Authorize Whisp",
-                                    url = $"https://api.erlc.gg/server-owners/server/{response.serverId}/authorize/{_appId}"
-                                }
-                            ]
-                        } } : [])
-                    ],
-                    flags = MessageFlags.IsComponentsV2
-                };
+                    builder.WithActionRow(
+                        new ActionRowBuilder()
+                            .WithButton("Authorize Whisp", style: ButtonStyle.Link, url: $"https://api.erlc.gg/server-owners/server/{response.serverId}/authorize/{_appId}")
+                    );
+                }
+
+                errorMessage = builder.Build();
+                
                 return true;
             }
         }

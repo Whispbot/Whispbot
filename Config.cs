@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Discord.WebSocket;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -6,9 +7,8 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Commands;
-using Whispbot.Commands.ERLCCommands.Commands;
+using Whispbot.Commands.ERLC.Commands;
 using Whispbot.Interactions;
-using YellowMacaroni.Discord.Sharding;
 
 namespace Whispbot
 {
@@ -60,11 +60,7 @@ namespace Whispbot
         public static readonly string websiteUrl = !isDev ? Environment.GetEnvironmentVariable("WHISP_WEBSITE_URL") ?? "https://whisp.bot" : "http://localhost:3001";
         public static readonly string prefix = Environment.GetEnvironmentVariable("WHISP_LEGACY_PREFIX") ?? "!";
 
-        public static ShardingManager? shardingManager;
-
-        public static CommandManager? commands;
-        public static InteractionManager? interactions;
-        public static ERLCCommandManager? erlcCommands;
+        public static DiscordShardedClient? client;
     }
 
     public class Auth

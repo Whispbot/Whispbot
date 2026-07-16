@@ -1,3 +1,4 @@
+using Discord;
 using Microsoft.AspNetCore.DataProtection.XmlEncryption;
 using Serilog;
 using System;
@@ -5,10 +6,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Commands.Shifts;
 using Whispbot.Databases;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Interactions.Shifts
 {
@@ -18,10 +18,10 @@ namespace Whispbot.Interactions.Shifts
         public override InteractionType Type => InteractionType.MessageComponent;
         public override async Task ExecuteAsync(InteractionContext ctx)
         {
-            if (ctx.UserId is null || ctx.GuildId is null || ctx.args.Count <= 1) return;
+            if (ctx.GuildId is null || ctx.args.Count <= 1) return;
             if (await ctx.CheckAllowed()) return;
 
-            List<ShiftType>? types = await WhispCache.ShiftTypes.Get(ctx.GuildId);
+            List<ShiftType>? types = await WhispCache.ShiftTypes.Get(ctx.GuildId.Value);
             if (types is null)
             {
                 await ctx.Respond("{emoji.cross} {string.errors.clockin.dbfailed}");
@@ -51,11 +51,11 @@ namespace Whispbot.Interactions.Shifts
                 return;
             }
 
-            await ctx.DeferUpdate();
+            await ctx.DeferResponse();
 
             Shift? shift = Postgres.SelectFirst<Shift>(
                 @"SELECT * FROM shifts WHERE id = @1 AND guild_id = @2 AND moderator_id = @3;",
-                [long.Parse(shift_id), long.Parse(ctx.GuildId), long.Parse(userId)]
+                [long.Parse(shift_id), ctx.GuildId.Value, long.Parse(userId)]
             );
 
             if (shift is null)
@@ -64,7 +64,7 @@ namespace Whispbot.Interactions.Shifts
                 return;
             }
 
-            await ctx.EditMessage(await ShiftAdminMessages.GetModifyMessage(shift, ctx.args[0]));
+            await ctx.EditMessage(async m => m.Components = await ShiftAdminMessages.GetModifyMessage(shift, ctx.args[0]));
         }
     }
 }

@@ -1,3 +1,4 @@
+using Discord;
 using Microsoft.AspNetCore.DataProtection.XmlEncryption;
 using Serilog;
 using System;
@@ -8,8 +9,6 @@ using System.Threading.Tasks;
 using Whispbot.Commands.Shifts;
 using Whispbot.Databases;
 using Whispbot.Tools;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Interactions.Shifts
 {
@@ -19,13 +18,13 @@ namespace Whispbot.Interactions.Shifts
         public override InteractionType Type => InteractionType.ModalSubmit;
         public override async Task ExecuteAsync(InteractionContext ctx)
         {
-            if (ctx.UserId is null || ctx.GuildId is null || ctx.args.Count < 2) return;
+            if (ctx.GuildId is null || ctx.args.Count < 2 || ctx.interaction.Data is not IModalInteractionData data) return;
             if (await ctx.CheckAllowed()) return;
 
             if (!await WhispPermissions.CheckPermissionsInteraction(ctx, BotPermissions.ManageShifts)) return;
 
             string? shift_id = ctx.args[1];
-            string? new_type_id = ctx.interaction.GetStringSelectField("new_type")?.FirstOrDefault();
+            string? new_type_id = data.Components.FirstOrDefault(c => c.CustomId == "new_type")?.Value;
 
             if (shift_id is null || new_type_id is null)
             {
@@ -39,11 +38,11 @@ namespace Whispbot.Interactions.Shifts
                 return;
             }
 
-            await ctx.DeferUpdate();
+            await ctx.DeferResponse();
 
             Shift? shift = Postgres.SelectFirst<Shift>(
                 @"UPDATE shifts SET type = @1 WHERE id = @2 AND guild_id = @3 RETURNING *;",
-                [long.Parse(new_type_id), long.Parse(shift_id), long.Parse(ctx.GuildId)]
+                [ulong.Parse(new_type_id), ulong.Parse(shift_id), ctx.GuildId]
             );
 
             if (shift is null)
@@ -52,7 +51,7 @@ namespace Whispbot.Interactions.Shifts
                 return;
             }
 
-            await ctx.EditMessage(await ShiftAdminMessages.GetModifyMessage(shift, ctx.args[0]));
+            await ctx.EditMessage(async m => m.Components = await ShiftAdminMessages.GetModifyMessage(shift, ctx.args[0]));
         }
     }
 }

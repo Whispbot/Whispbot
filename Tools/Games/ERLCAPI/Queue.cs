@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using YellowMacaroni.Redis.Queue;
 
-namespace Whispbot.Tools.Games.ERLC
+namespace Whispbot.Tools.Games.ERLCAPI
 {
     public static class ERLCQueue
     {

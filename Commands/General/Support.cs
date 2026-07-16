@@ -1,9 +1,9 @@
+using Discord;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using YellowMacaroni.Discord.Core;
 
 namespace Whispbot.Commands.General
 {
@@ -22,29 +22,16 @@ namespace Whispbot.Commands.General
         public override async Task ExecuteAsync(CommandContext ctx)
         {
             await ctx.Reply(
-                new MessageBuilder
-                {
-                    components = [
-                        new ContainerBuilder
-                        {
-                            components = [
-                                new TextDisplayBuilder("Need help with whispbot? The following solutions may help you out:"),
-                                new SeperatorBuilder(true, SeperatorSpacing.Large),
-                                new SectionBuilder
-                                {
-                                    components = [ new TextDisplayBuilder("Check out our documentation.") ],
-                                    accessory = new ButtonBuilder { label = "Documentation", url = "https://docs.whisp.bot" }
-                                },
-                                new SectionBuilder
-                                {
-                                    components = [ new TextDisplayBuilder("Join our support server.") ],
-                                    accessory = new ButtonBuilder { label = "Support Server", url = "https://whisp.bot/support" }
-                                }
-                            ]
-                        }
-                    ],
-                    flags = MessageFlags.IsComponentsV2
-                }
+                components: new ComponentBuilderV2()
+                    .WithContainer(
+                        new ContainerBuilder()
+                            .WithTextDisplay("Need help with whispbot? The following solutions may help you out:")
+                            .WithSeparator(SeparatorSpacingSize.Large, true)
+                            .WithSection([new TextDisplayBuilder("Check out our documentation.")], new ButtonBuilder(label: "Documentation", style: ButtonStyle.Link, url: "https://docs.whisp.bot"))
+                            .WithSection([new TextDisplayBuilder("Join our support server.")], new ButtonBuilder(label: "Support Server", style: ButtonStyle.Link, url: "https://whisp.bot/support"))
+                    )
+                    .Build(),
+                flags: MessageFlags.ComponentsV2
             );
         }
     }

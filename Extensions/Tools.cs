@@ -5,7 +5,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Tools;
-using YellowMacaroni.Discord.Core;
 using static Whispbot.Tools.Strings;
 
 namespace Whispbot.Extensions
@@ -17,11 +16,10 @@ namespace Whispbot.Extensions
             return Strings.Process(content, language, arguments, hasUserInput);
         }
 
-        public static MessageBuilder Process(this MessageBuilder message, Language language = 0, Dictionary<string, string>? arguments = null, bool hasUserInput = false)
+        public static T? ProcessObj<T>(this T? obj, Language language = 0) where T : class
         {
-            string value = JsonConvert.SerializeObject(message);
-            value = Strings.Process(value, language, arguments, hasUserInput);
-            return JsonConvert.DeserializeObject<MessageBuilder>(value) ?? new MessageBuilder { content = "Failed to parse language data :(" };
+            if (obj is null) return null;
+            return JsonConvert.DeserializeObject<T>(JsonConvert.SerializeObject(obj).Process(language)!);
         }
 
         public static long ToLong(this string str)

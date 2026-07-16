@@ -10,12 +10,11 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Logging;
 using static System.Net.Http.HttpMethod;
 using System.Diagnostics.CodeAnalysis;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Cache;
 using Newtonsoft.Json;
 using Serilog;
 using System.ComponentModel.Design.Serialization;
 using System.Net;
+using Whispbot.Commands;
 
 namespace Whispbot.API
 {
@@ -65,17 +64,17 @@ namespace Whispbot.API
         public static Dictionary<string, Dictionary<HttpMethod, RequestDelegate>> routes = new() {
             { "/health", new() {
                 { Get, async context => {
-                    if (Config.shardingManager?.shards.All(s => s.client.ready) ?? false)
+                    if (Config.client?.Shards.All(s => s.ConnectionState == Discord.ConnectionState.Connected) ?? false)
                     {
                         await context.Response.WriteAsJsonAsync(new {
                             status = "ready", 
-                            shards = Config.shardingManager.shards.Select(s => new
+                            shards = Config.client.Shards.Select(s => new
                             {
-                                s.id,
-                                s.totalShards,
-                                s.client.ready,
-                                s.client.ping,
-                                guilds = s.client.readyData?.guilds.Count ?? 0
+                                id = s.ShardId,
+                                totalShards = Config.client.Shards.Count,
+                                ready = s.ConnectionState == Discord.ConnectionState.Connected,
+                                ping = s.Latency,
+                                guilds = s.Guilds.Count
                             })
                         });
                     }
@@ -90,7 +89,7 @@ namespace Whispbot.API
             { "/commands", new()
             {
                 { Get, async context => {
-                    await context.Response.WriteAsJsonAsync(Config.commands?.commands ?? []);
+                    await context.Response.WriteAsJsonAsync(CommandManager.commands ?? []);
                 } }
             } }
         };

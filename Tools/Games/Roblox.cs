@@ -6,8 +6,7 @@ using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
-using YellowMacaroni.Discord.Cache;
-using YellowMacaroni.Discord.Core;
+using Whispbot.Cache;
 using static Microsoft.Extensions.Logging.EventSource.LoggingEventSource;
 
 namespace Whispbot.Tools
@@ -17,7 +16,7 @@ namespace Whispbot.Tools
         private static readonly HttpClient _client = new();
         private static bool _initialized = false;
 
-        public static readonly Collection<RobloxUser> Users = new(async (key, args) =>
+        public static readonly Collection<string, RobloxUser> Users = new(async (key) =>
         {
             return await GetUserById(key);
         });

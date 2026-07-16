@@ -1,15 +1,15 @@
-﻿using Microsoft.AspNetCore.DataProtection.XmlEncryption;
+﻿using Discord;
+using Microsoft.AspNetCore.DataProtection.XmlEncryption;
 using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Commands.Shifts;
 using Whispbot.Databases;
 using Whispbot.Tools;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Interactions.Shifts
 {
@@ -19,16 +19,16 @@ namespace Whispbot.Interactions.Shifts
         public override InteractionType Type => InteractionType.MessageComponent;
         public override async Task ExecuteAsync(InteractionContext ctx)
         {
-            if (ctx.UserId is null || ctx.GuildId is null || ctx.args.Count <= 1) return;
+            if (ctx.GuildId is null || ctx.args.Count <= 1) return;
             if (await ctx.CheckAllowed()) return;
 
             if (!await WhispPermissions.CheckPermissionsInteraction(ctx, BotPermissions.ManageShifts)) return;
 
-            string adminId = ctx.args[0];
-            string userId = ctx.args[1];
+            ulong adminId = ulong.Parse(ctx.args[0]);
+            ulong userId = ulong.Parse(ctx.args[1]);
             string? typeId = ctx.args.Count >= 3 ? ctx.args[2] : null;
 
-            List<ShiftType>? types = await WhispCache.ShiftTypes.Get(ctx.GuildId);
+            List<ShiftType>? types = await WhispCache.ShiftTypes.Get(ctx.GuildId.Value);
             if (types is null)
             {
                 await ctx.Respond("{emoji.cross} {string.errors.clockin.dbfailed}");
@@ -44,12 +44,12 @@ namespace Whispbot.Interactions.Shifts
 
             await ctx.DeferResponse(true);
 
-            var (shift, errormessage) = await Procedures.Clockin(long.Parse(ctx.GuildId), long.Parse(userId), type, long.Parse(adminId));
+            var (shift, errormessage) = await Procedures.Clockin(ctx.GuildId.Value, userId, type, adminId);
 
             if (errormessage is null)
             {
                 _ = ctx.DeleteResponse();
-                await ctx.EditMessage(await ShiftAdminMessages.GetMainMessage(ctx.GuildId, userId, adminId, ctx.args.Count > 2 ? type : null));
+                await ctx.EditMessage(async m => m.Components = await ShiftAdminMessages.GetMainMessage(ctx.GuildId.Value, userId, adminId, ctx.args.Count > 2 ? type : null));
             }
             else
             {

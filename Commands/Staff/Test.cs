@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Commands.Staff
 {
@@ -22,7 +21,7 @@ namespace Whispbot.Commands.Staff
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
         {
-            ctx.client.Disconnect();
+           
         }
     }
 }

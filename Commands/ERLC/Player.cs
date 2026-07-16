@@ -1,3 +1,4 @@
+using Discord;
 using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Newtonsoft.Json;
 using Serilog;
@@ -8,14 +9,12 @@ using System.Resources;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Databases;
 using Whispbot.Tools;
-using Whispbot.Tools.Games.ERLC;
-using YellowMacaroni.Discord.Cache;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
+using Whispbot.Tools.Games.ERLCAPI;
 
-namespace Whispbot.Commands.ERLCCommands
+namespace Whispbot.Commands.ERLC
 {
     public class ERLC_Player : Command
     {
@@ -34,14 +33,6 @@ namespace Whispbot.Commands.ERLCCommands
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
         {
-            if (ctx.User?.id is null) return;
-
-            if (ctx.GuildId is null) // Make sure ran in server
-            {
-                await ctx.Reply("{emoji.cross} {string.errors.general.guildonly}.");
-                return;
-            }
-
             if (ctx.args.Count < 1)
             {
                 await ctx.Reply("{emoji.cross} {string.errors.erlcplayer.nouser}");
@@ -75,7 +66,7 @@ namespace Whispbot.Commands.ERLCCommands
                 return;
             }
 
-            var data = await ERLC.GetERLCServer(ctx, server);
+            var data = await ERLCAPI.GetERLCServer(ctx, server);
             if (data is null) return;
 
             var player = data.Server?.Players?.Find(p => p.Player == playerData);
@@ -95,11 +86,10 @@ namespace Whispbot.Commands.ERLCCommands
 
             if (userConfig is not null && cachedUserConfig is null)
             {
-                WhispCache.UserConfig.Insert(userConfig.id.ToString(), userConfig);
+                WhispCache.UserConfig.Insert(userConfig.id, userConfig);
             }
 
-            Member? discordMember = userConfig is not null && ctx.Guild is not null ? 
-                await ctx.Guild.members.Get(userConfig.id.ToString()) : null;
+            IGuildUser? discordMember = userConfig is not null && ctx.Guild is not null ? ctx.Guild.GetUser(userConfig.id) : null;
 
             StringBuilder badges = new();
             switch (player.Permission)
@@ -121,55 +111,47 @@ namespace Whispbot.Commands.ERLCCommands
                     break;
             }
 
-            await ctx.EditResponse(new MessageBuilder
-            {
-                embeds = [
-                    new EmbedBuilder
-                    {
-                        title = "{string.title.erlcplayer}",
-                        thumbnail = new EmbedThumbnail
-                        {
-                            url = await Roblox.GetUserAvatar(playerData.Split(":")[1])
-                        },
-                        description = 
-                            $"{(badges.Length > 0 ? badges.ToString() + " " : "")}" + // Emojis representing badges
-                            $"**@{username}** ({userId})", // @YellowMacaroni (1231233)
-                        fields = [
-                           ..(discordMember is not null ? 
-                           new List<EmbedField>() { 
-                               new() 
-                               {
-                                   name = "{string.title.erlcplayer.discord}",
-                                   value = 
-                                    $"{{emoji.indiscord}}" +
-                                    $"{(discordMember.premium_since is not null ? "{emoji.booster}" : "")} " +
-                                    $"<@{discordMember.user?.id}> ({discordMember.user?.id})"
-                               }
-                           } : []),
-                           new EmbedField
-                           {
-                                name = "{string.title.erlcplayer.location}",
-                                value = $"{{string.content.erlcplayer.location:postal={player.Location.PostalCode},street={player.Location.StreetName}}}"
-                           },
-                           ..(vehicle is not null ?
-                           new List<EmbedField>() {
-                               new()
-                               {
-                                   name = "{string.title.erlcplayer.vehicle}",
-                                   value = 
-                                    $"**{{string.title.erlcplayer.vehiclename}}**: {vehicle.Name}\n" +
-                                    $"**{{string.title.erlcplayer.vehicletexture}}**: {vehicle.Texture ?? "{string.general.none}"}\n" +
-                                    $"**{{string.title.erlcplayer.vehiclecolor}}**: {vehicle.ColorName} ({vehicle.ColorHex.ToUpper()})"
-                               }
-                           } : [])
-                        ],
-                        footer = new EmbedFooter
-                        {
-                            text = Cache.GenerateFooter(data)
-                        }
-                    }
-                ]
-            });
+            await ctx.EditResponse(
+                text: "",
+                embed: new EmbedBuilder()
+                    .WithTitle("{string.title.erlcplayer}")
+                    .WithThumbnailUrl(await Roblox.GetUserAvatar(playerData.Split(':')[1]))
+                    .WithDescription(
+                        $"{(badges.Length > 0 ? badges.ToString() + " " : "")}" + // Emojis representing badges
+                        $"**@{username}** ({userId})" // @YellowMacaroni (1231233)
+                    )
+                    .WithFields(
+                        [
+                            ..(discordMember is not null ? 
+                                new List<EmbedFieldBuilder>() { 
+                                    new EmbedFieldBuilder()
+                                        .WithName("{string.title.erlcplayer.discord}")
+                                        .WithValue(
+											$"{{emoji.indiscord}}" +
+											$"{(discordMember.PremiumSince is not null ? "{emoji.booster}" : "")} " +
+											$"<@{discordMember.Id}> ({discordMember.Id})"
+										)
+                               } : []),
+
+                            new EmbedFieldBuilder()
+                                .WithName("{string.title.erlcplayer.location}")
+                                .WithValue($"{{string.content.erlcplayer.location:postal={player.Location.PostalCode},street={player.Location.StreetName}}}"),
+
+							..(vehicle is not null ?
+                                new List<EmbedFieldBuilder>() {
+									new EmbedFieldBuilder()
+										.WithName("{string.title.erlcplayer.vehicle}")
+										.WithValue(
+											$"**{{string.title.erlcplayer.vehiclename}}**: {vehicle.Name}\n" +
+											$"**{{string.title.erlcplayer.vehicletexture}}**: {vehicle.Texture ?? "{string.general.none}"}\n" +
+											$"**{{string.title.erlcplayer.vehiclecolor}}**: {vehicle.ColorName} ({vehicle.ColorHex.ToUpper()})"
+										)
+							   } : [])
+						]
+                    )
+                    .WithFooter(ERLCCache.GenerateFooter(data))
+                    .Build()
+            );
         }
     }
 }

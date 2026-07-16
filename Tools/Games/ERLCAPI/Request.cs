@@ -3,9 +3,9 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Text;
-using Whispbot.Tools.Games.ERLC.Classes;
+using Whispbot.Tools.Games.ERLCAPI.Classes;
 
-namespace Whispbot.Tools.Games.ERLC
+namespace Whispbot.Tools.Games.ERLCAPI
 {
     public static class ERLCRequest
     {

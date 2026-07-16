@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Whispbot.PRC.PRC.Classes
+namespace Whispbot.Tools.Games.ERLCAPI.Classes
 {
     public class ERLCEmergencyCall
     {

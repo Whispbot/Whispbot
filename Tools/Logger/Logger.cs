@@ -10,7 +10,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Whispbot.Commands.ERLCCommands.Commands.Debug;
+using Whispbot.Commands.ERLC.Commands.Debug;
 
 namespace Whispbot
 {

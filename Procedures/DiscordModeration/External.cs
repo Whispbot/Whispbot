@@ -1,69 +1,63 @@
+using Discord;
+using Discord.WebSocket;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Commands;
-using YellowMacaroni.Discord.Cache;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
-using YellowMacaroni.Discord.Sharding;
-using YellowMacaroni.Discord.Websocket.Events;
 using static Sentry.MeasurementUnit;
 
 namespace Whispbot
 {
     public static partial class DiscordModeration
     {
-        private static readonly Dictionary<AuditActionType, DiscordModerationType> _moderationTypes = new()
+        private static readonly Dictionary<ActionType, DiscordModerationType> _moderationTypes = new()
         {
-            { AuditActionType.MemberBanAdd, DiscordModerationType.Ban },
-            { AuditActionType.MemberBanRemove, DiscordModerationType.Unban },
-            { AuditActionType.MemberKick, DiscordModerationType.Kick },
-            { AuditActionType.MemberUpdate, DiscordModerationType.Mute }
+            { ActionType.Ban, DiscordModerationType.Ban },
+            { ActionType.Unban, DiscordModerationType.Unban },
+            { ActionType.Kick, DiscordModerationType.Kick },
+            { ActionType.MemberUpdated, DiscordModerationType.Mute }
         };
 
-        public static void RegisterClient(Client client)
+        public static void RegisterClient(DiscordShardedClient client)
         {
-            client.GuildAuditLogEntryCreate += async (_, log) =>
+            client.AuditLogCreated += async (log, guild) =>
             {
-                Logger.WithData(log).Information("Recieved audit log:");
-                if (log.action_type is null) return;
-                if (!_moderationTypes.ContainsKey(log.action_type.Value)) return; // Not an audit log we care about
+                if (!_moderationTypes.TryGetValue(log.Action, out DiscordModerationType mType)) return; // Not an audit log we care about
 
                 // Bot already logs its own actions so ignore from events to avoid duplicates
-                if (log.user_id == client.readyData?.user?.id) return;
-
-                var mType = _moderationTypes[(AuditActionType)log.action_type];
+                if (log.User.Id == client.CurrentUser.Id) return;
                 var duration = -1L;
-                if (mType == DiscordModerationType.Mute)
+                SocketUser? target = null;
+                if (mType == DiscordModerationType.Mute && log.Data is SocketMemberUpdateAuditLogData data)
                 {
-                    var change = log.changes?.FirstOrDefault(c => c.key == "communication_disabled_until");
-                    if (change is null) return; // Only need to worry about changing mute duration
+                    var before = data.Before.TimedOutUntil;
+                    var after = data.After.TimedOutUntil;
 
-                    if (change.new_value is null)
+                    if (after is null)
                     {
                         mType = DiscordModerationType.Unmute;
                     }
-                    else if (change.new_value is DateTime dt)
+                    else
                     {
                         // Ceiling otherwise we end up with e.g. 59 minutes, 59 seconds instead of 1 hour
-                        duration = (long)Math.Ceiling((dt - DateTime.UtcNow).TotalSeconds);
+                        duration = (long)Math.Ceiling((after - DateTimeOffset.UtcNow).Value.TotalSeconds);
                     }
+
+                    target = data.Target.Value;
                 }
+                else if (log.Data is SocketBanAuditLogData banData) target = banData.Target.Value;
+                else if (log.Data is SocketUnbanAuditLogData unbanData) target = unbanData.Target.Value;
+                else if (log.Data is SocketKickAuditLogData kickData) target = kickData.Target.Value;
 
-                var guild = await DiscordCache.Guilds.Get(log.guild_id);
-                if (guild is null) return;
+                if (target is null) return; // :(
 
-                var moderator = await DiscordCache.Users.Get(log.user_id!);
-                if (moderator is null) return; // Couldnt find moderator user, cry about it
-
-                var target = await DiscordCache.Users.Get(log.target_id!);
-                if (target is null) return;
+                var moderator = log.User;
 
                 var context = new Context(
                     target,
-                    log.reason ?? "*No reason provided.*",
+                    log.Reason ?? "No reason provided",
                     duration,
                     guild,
                     moderator,
@@ -84,14 +78,6 @@ namespace Whispbot
 
                 await Log(mcase);
             };
-        }
-
-        public static void RegisterClient(ShardingManager manager)
-        {
-            foreach (var shard in manager.shards)
-            {
-                RegisterClient(shard.client);
-            }
         }
     }
 }

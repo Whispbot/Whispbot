@@ -1,43 +1,48 @@
-﻿using Newtonsoft.Json;
+﻿using Discord;
+using Discord.WebSocket;
+using Newtonsoft.Json;
 using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Sharding;
 
 namespace Whispbot.Databases
 {
     public static class DiscordPublisher
     {
-        private static object ConvertChannelToObject(Channel channel)
+        private static object? ConvertChannelToObject(SocketChannel rawChannel)
         {
+            if (rawChannel is not SocketGuildChannel channel) return null;
+
+            ulong? parentId = null;
+            if (channel is INestedChannel nested) parentId = nested.CategoryId;
+
             return new
             {
-                channel.id,
-                channel.name,
-                channel.parent_id,
-                channel.guild_id,
-                channel.position,
-                channel.type
+                id = channel.Id,
+                name = channel.Name,
+                parent_id = parentId,
+                guild_id = channel.Guild.Id,
+                position = channel.Position,
+                type = channel.ChannelType
             };
         }
 
-        private static object ConvertRoleToObject(Role role)
+        private static object ConvertRoleToObject(SocketRole role)
         {
             return new
             {
-                role.id,
-                role.name,
-                role.position,
-                role.hoist,
-                role.color
+                id = role.Id,
+                name = role.Name,
+                position = role.Position,
+                hoist = role.IsHoisted,
+                color = role.Colors.PrimaryColor
             };
         }
 
-        public static void Start(Client client)
+        public static void Start(DiscordShardedClient client)
         {
             var publisher = Redis.GetSubscriber();
             int attempts = 2;
@@ -50,47 +55,48 @@ namespace Whispbot.Databases
 
             if (publisher is null)
             {
-                Log.Error($"Failed to connect to redis for discord publisher after multiple attempts for shard {client.shard?.id ?? 0}");
+                Log.Error($"Failed to connect to redis for discord publisher after multiple attempts");
                 return;
             }
 
             // Channels
-            client.ChannelCreate += async (_, channel) =>
+            client.ChannelCreated += async (channel) =>
             {
-                await publisher.PublishAsync("discord:channel:create", JsonConvert.SerializeObject(ConvertChannelToObject(channel)));
+                var obj = ConvertChannelToObject(channel);
+                if (obj is null) return;
+
+                await publisher.PublishAsync("discord:channel:create", JsonConvert.SerializeObject(obj));
             };
-            client.ChannelDelete += async (_, channel) =>
+            client.ChannelDestroyed += async (channel) =>
             {
-                await publisher.PublishAsync("discord:channel:delete", JsonConvert.SerializeObject(new { channel.id, channel.guild_id }));
+                var obj = ConvertChannelToObject(channel);
+                if (obj is null) return;
+
+                await publisher.PublishAsync("discord:channel:delete", JsonConvert.SerializeObject(obj));
             };
-            client.ChannelUpdate += async (_, channel) =>
+            client.ChannelUpdated += async (_, newChannel) =>
             {
-                await publisher.PublishAsync("discord:channel:update", JsonConvert.SerializeObject(ConvertChannelToObject(channel)));
+                var obj = ConvertChannelToObject(newChannel);
+                if (obj is null) return;
+
+                await publisher.PublishAsync("discord:channel:update", JsonConvert.SerializeObject(obj));
             };
 
             // Roles
-            client.GuildRoleCreate += async (_, role) =>
+            client.RoleCreated += async (role) =>
             {
-                await publisher.PublishAsync("discord:role:create", JsonConvert.SerializeObject(new { role.guild_id, role = ConvertRoleToObject(role.role) }));
+                await publisher.PublishAsync("discord:role:create", JsonConvert.SerializeObject(new { role.Guild.Id, role = ConvertRoleToObject(role) }));
             };
-            client.GuildRoleDelete += async (_, role) =>
+            client.RoleDeleted += async (role) =>
             {
                 await publisher.PublishAsync("discord:role:delete", JsonConvert.SerializeObject(role));
             };
-            client.GuildRoleUpdate += async (_, role) =>
+            client.RoleUpdated += async (_, newRole) =>
             {
-                await publisher.PublishAsync("discord:role:update", JsonConvert.SerializeObject(new { role.guild_id, role = ConvertRoleToObject(role.role) }));
+                await publisher.PublishAsync("discord:role:update", JsonConvert.SerializeObject(new { newRole.Guild.Id, role = ConvertRoleToObject(newRole) }));
             };
 
-            Log.Verbose($"Started discord publisher on shard {client.shard?.id}");
-        }
-        
-        public static void Start(ShardingManager manager)
-        {
-            foreach (var shard in manager.shards)
-            {
-                Start(shard.client);
-            }
+            Log.Information($"Started discord publisher");
         }
     }
 }

@@ -1,3 +1,6 @@
+using Discord;
+using Discord.Rest;
+using Discord.WebSocket;
 using Newtonsoft.Json;
 using Serilog;
 using System;
@@ -6,10 +9,8 @@ using System.Linq;
 using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Extensions;
-using YellowMacaroni.Discord.Cache;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
 using static Microsoft.Extensions.Logging.EventSource.LoggingEventSource;
 
 namespace Whispbot.Commands
@@ -93,7 +94,7 @@ namespace Whispbot.Commands
 
     public class CommandContext
     {
-        public CommandContext(Client client, Message message, CommandArguments args)
+        public CommandContext(DiscordShardedClient client, SocketMessage message, CommandArguments args)
         {
             this.client = client;
             this.message = message;
@@ -101,7 +102,7 @@ namespace Whispbot.Commands
             this.type = CommandType.Legacy;
         }
 
-        public CommandContext(Client client, Interaction interaction, CommandArguments args)
+        public CommandContext(DiscordShardedClient client, SocketInteraction interaction, CommandArguments args)
         {
             this.client = client;
             this.interaction = interaction;
@@ -109,87 +110,146 @@ namespace Whispbot.Commands
             this.type = CommandType.Slash;
         }
 
-        public Client client;
+        public DiscordShardedClient client;
         public CommandType type;
-        public Message? message;
-        public Interaction? interaction;
+        public SocketMessage? message;
+        public SocketInteraction? interaction;
         public CommandArguments args;
 
-        public string? GuildId => 
-            type == CommandType.Legacy ? message?.channel?.guild_id : interaction?.guild_id;
-        public Guild? Guild => GuildId is not null ? DiscordCache.Guilds.Get(GuildId).GetAwaiter().GetResult() : null;
-        public User? User => 
-            type == CommandType.Legacy ? message?.author : interaction?.member?.user;
-        public string? UserId => User?.id;
+        public SocketGuildChannel GuildChannel =>
+            ((message?.Channel ?? interaction?.Channel) as SocketGuildChannel) ?? throw new InvalidOperationException("Channel not from guild");
+        public ulong GuildId => 
+            GuildChannel.Guild.Id;
+        public SocketGuild Guild => 
+            client.Guilds.SingleOrDefault(g => g.Id == GuildId) ?? throw new InvalidOperationException("Guild not found");
+        public SocketUser User =>
+            message?.Author ?? interaction?.User ?? throw new InvalidOperationException("User not found");
+        public SocketGuildUser Member => Guild.GetUser(UserId);
+        public ulong UserId => User.Id;
 
-        public Message? repliedMessage = null;
+        public bool hasResponded = false;
 
-        public UserConfig? UserConfig => UserId is not null ? WhispCache.UserConfig.Get(UserId).WaitFor() : null;
-        public GuildConfig? GuildConfig => GuildId is not null ? WhispCache.GuildConfig.Get(GuildId).WaitFor() : null;
+        public RestUserMessage? repliedMessage = null;
+
+        public UserConfig? UserConfig => WhispCache.UserConfig.Get(UserId).Result;
+        public GuildConfig? GuildConfig => WhispCache.GuildConfig.Get(GuildId).Result;
 
         public Tools.Strings.Language Language => (Tools.Strings.Language)(UserConfig?.language ?? GuildConfig?.default_language ?? 0);
 
-        private MessageBuilder Process(MessageBuilder message)
+        public T? Process<T>(T? obj) where T : class
         {
-            return JsonConvert.DeserializeObject<MessageBuilder>(JsonConvert.SerializeObject(message).Process(Language)) ?? new MessageBuilder() { content = "Something went wrong..." };
+            if (obj is null) return null;
+            return JsonConvert.DeserializeObject<T>(JsonConvert.SerializeObject(obj).ProcessObj(Language)!);
         }
 
-        public async Task<(Message?, DiscordError?)> Reply(MessageBuilder content, bool ephemeral = false)
+        public async Task Reply(
+            string? text = null,
+            bool isTTS = false,
+            bool ephemeral = false,
+            Embed? embed = null,
+            RequestOptions? options = null,
+            AllowedMentions? allowedMentions = null,
+            MessageReference? messageReference = null,
+            MessageComponent? components = null,
+            ISticker[]? stickers = null,
+            Embed[]? embeds = null,
+            MessageFlags flags = MessageFlags.None,
+            PollProperties? poll = null
+        )
         {
             using var _ = Tracer.Start("Reply");
 
+            text = text?.ProcessObj(Language);
+            embed = Process(embed);
+            embeds = Process(embeds);
+            components = Process(components);
+
             if (type == CommandType.Legacy)
             {
-                if (message?.channel is null) return (null, new(new()));
-
-                (Message? sentMessage, DiscordError? error) = await message.channel.Send(Process(content));
+                var sentMessage = await message!.Channel.SendMessageAsync(
+                    text,
+                    isTTS,
+                    embed,
+                    options,
+                    allowedMentions,
+                    messageReference,
+                    components,
+                    stickers,
+                    embeds,
+                    flags,
+                    poll
+                );
 
                 if (sentMessage is not null) repliedMessage = sentMessage;
-
-                return (sentMessage, error);
             }
             else
             {
-                if (interaction is null) return (null, new(new()));
-
-                if (ephemeral) content.flags |= MessageFlags.Ephemeral;
-
-                await interaction.Respond(Process(content));
-
-                return (null, null);
+                await interaction!.RespondAsync(
+                    text,
+                    embeds,
+                    isTTS,
+                    ephemeral,
+                    allowedMentions,
+                    components,
+                    embed,
+                    options,
+                    poll,
+                    flags
+                );
             }
+
+            hasResponded = true;
         }
 
-        public async Task<(Message?, DiscordError?)> Reply(string content, bool ephemeral = false)
-        {
-            return await Reply(new MessageBuilder { content = content }, ephemeral);
-        }
-
-        public async Task<(Message?, DiscordError?)> EditResponse(MessageBuilder content)
+        public async Task EditResponse(Action<MessageProperties> func)
         {
             using var _ = Tracer.Start($"EditReply");
 
             if (type == CommandType.Legacy)
             {
-                if (repliedMessage is not null)
-                {
-                    return await repliedMessage.Edit(Process(content));
-                }
-                else return await Reply(content);
+                if (repliedMessage is null) return;
+                await repliedMessage.ModifyAsync(func);
             }
             else
             {
-                if (interaction is null) return (null, new(new()));
-
-                await interaction.EditResponse(Process(content));
-
-                return (null, null);
+                await interaction!.ModifyOriginalResponseAsync(func);
             }
         }
 
-        public async Task<(Message?, DiscordError?)> EditResponse(string content)
+        public async Task EditResponse(
+            string? text = null,
+            bool isTTS = false,
+            bool ephemeral = false,
+            Embed? embed = null,
+            RequestOptions? options = null,
+            AllowedMentions? allowedMentions = null,
+            MessageReference? messageReference = null,
+            MessageComponent? components = null,
+            ISticker[]? stickers = null,
+            Embed[]? embeds = null,
+            MessageFlags flags = MessageFlags.None,
+            PollProperties? poll = null
+        )
         {
-            return await EditResponse(new MessageBuilder { content = content });
+            if (hasResponded)
+            {
+                text = text?.Process(Language);
+                embeds = (embeds ?? (embed is not null ? [embed] : null)).ProcessObj(Language);
+                components = components?.ProcessObj(Language);
+
+                await EditResponse(m =>
+                {
+                    m.Content = text;
+                    m.Embeds = embeds;
+                    m.AllowedMentions = allowedMentions;
+                    m.Components = components;
+                    m.Flags = m.Flags.GetValueOrDefault(MessageFlags.None) | flags;
+                });
+            }
+            else
+            {
+                await Reply(text, isTTS, ephemeral, embed, options, allowedMentions, messageReference, components, stickers, embeds, flags, poll);
+            }
         }
     }
 }

@@ -1,3 +1,4 @@
+using Discord;
 using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Newtonsoft.Json;
 using Serilog;
@@ -8,13 +9,13 @@ using System.Resources;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Databases;
 using Whispbot.Tools;
-using Whispbot.Tools.Games.ERLC;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
+using Whispbot.Tools.Disc;
+using Whispbot.Tools.Games.ERLCAPI;
 
-namespace Whispbot.Commands.ERLCCommands
+namespace Whispbot.Commands.ERLC
 {
     public class ERLC_Vehicles : Command
     {
@@ -32,21 +33,13 @@ namespace Whispbot.Commands.ERLCCommands
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
         {
-            if (ctx.User?.id is null) return;
-
-            if (ctx.GuildId is null) // Make sure ran in server
-            {
-                await ctx.Reply("{emoji.cross} {string.errors.general.guildonly}.");
-                return;
-            }
-
             if (!await WhispPermissions.CheckModuleMessage(ctx, Module.ERLC)) return;
             if (!await WhispPermissions.CheckPermissionsMessage(ctx, BotPermissions.UseERLC)) return;
 
             ERLCServerConfig? server = await ERLCDatabase.TryGetServer(ctx);
             if (server is null) return;
 
-            var response = await ERLC.GetERLCServer(ctx, server);
+            var response = await ERLCAPI.GetERLCServer(ctx, server);
             if (response is null) return;
             var vehicles = response?.Server?.Vehicles;
 
@@ -59,41 +52,35 @@ namespace Whispbot.Commands.ERLCCommands
                 }
 
                 List<Roblox.RobloxUser>? users = await Roblox.GetUserByUsername([.. vehicles.Select(v => v.Owner)]);
-                List<long> robloxIds = [.. users?.Select(u => long.Parse(u.id)) ?? []];
+                List<ulong> robloxIds = [.. users?.Select(u => ulong.Parse(u.id)) ?? []];
                 List<UserConfig> userConfigs = await Users.GetConfigsFromRobloxIds(robloxIds);
-                List<Member>? members = await Users.GetMembersFromConfigs(userConfigs, ctx);
+                List<IGuildUser>? members = await Users.GetMembersFromConfigs(userConfigs, ctx);
 
                 StringBuilder strings = new();
                 foreach (var vehicle in vehicles)
                 {
                     Roblox.RobloxUser? owner = users?.Find(u => u.name.Equals(vehicle.Owner, StringComparison.OrdinalIgnoreCase));
-                    UserConfig? config = userConfigs?.Find(u => u.roblox_id == long.Parse(owner?.id ?? "0"));
-                    Member? member = members?.Find(m => m.user?.id == config?.id.ToString());
+                    UserConfig? config = userConfigs?.Find(u => u.roblox_id.ToString() == owner?.id);
+                    IGuildUser? member = members?.Find(m => m.Id == config?.id);
 
                     StringBuilder flags = new();
                     if (member is not null)
                     {
                         flags.Append("{emoji.indiscord}");
 
-                        if (member.premium_since is not null) flags.Append("{emoji.booster}");
+                        if (member.PremiumSince is not null) flags.Append("{emoji.booster}");
                     }
 
                     strings.Append($"**{flags}{(flags.Length > 0 ? " " : "")}@{vehicle.Owner}**\n> **{{string.title.erlcvehicles.model}}:** {vehicle.Name}\n> **{{string.title.erlcvehicles.texture}}:** {(vehicle.Texture == "Standard" ? $"{vehicle.ColorName}" : vehicle.Texture)}\n\n");
                 }
 
                 await ctx.EditResponse(
-                    new MessageBuilder
-                    {
-                        content = "",
-                        embeds = [
-                            new EmbedBuilder
-                            {
-                                title = $"{{string.title.erlcvehicles}} ({vehicles.Count})",
-                                description = strings.ToString(),
-                                footer = new EmbedFooter { text = Cache.GenerateFooter(response!) }
-                            }
-                        ]
-                    }
+                    text: "",
+                    embed: new EmbedBuilder()
+					    .WithTitle($"{{string.title.erlcvehicles}} ({vehicles.Count})")
+                        .WithDescription(strings.ToString())
+                        .WithFooter(ERLCCache.GenerateFooter(response!))
+                        .Build()
                 );
             }
             else

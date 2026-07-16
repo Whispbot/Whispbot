@@ -5,13 +5,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Commands.Shifts;
 using Whispbot.Databases;
 using Whispbot.Extensions;
 using Whispbot.Tools;
-using YellowMacaroni.Discord.Cache;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot
 {
@@ -26,23 +24,26 @@ namespace Whispbot
         {
             if (moderation.message_id is null) return;
 
-            List<RobloxModerationType>? types = await WhispCache.RobloxModerationTypes.Get(moderation.guild_id.ToString());
+            List<RobloxModerationType>? types = await WhispCache.RobloxModerationTypes.Get(moderation.guild_id);
             RobloxModerationType? type = types?.Find(t => t.id == moderation.type);
             if (type is null) return;
 
-            GuildConfig? config = await WhispCache.GuildConfig.Get(moderation.guild_id.ToString());
+            GuildConfig? config = await WhispCache.GuildConfig.Get(moderation.guild_id);
             if (config is null) return;
 
-            long? log_channel_id = type.log_channel_id ?? config.roblox_moderation?.default_log_channel_id;
+            ulong? log_channel_id = type.log_channel_id ?? config.roblox_moderation?.default_log_channel_id;
             if (log_channel_id is null) return;
 
-            Message log = new()
-            {
-                id = moderation.message_id.ToString() ?? "",
-                channel_id = log_channel_id.ToString() ?? ""
-            };
+            var guild = Config.client!.GetGuild(moderation.guild_id);
+            var channel = guild.GetTextChannel(log_channel_id.Value);
 
-            await log.Edit(await GetRMLogMessage(moderation));
+            await channel.ModifyMessageAsync(moderation.message_id.Value, async m =>
+            {
+                var (embed, components) = await GetRMLogMessage(moderation);
+
+                m.Embed = embed;
+                m.Components = components;
+            });
         }
 
         /// <summary>
@@ -53,7 +54,7 @@ namespace Whispbot
         /// <param name="reason">The new reason</param>
         /// <param name="caseId">The ID of the case (why did i make this the last param)</param>
         /// <returns>The modified <see cref="RobloxModeration"/> or null if failed</returns>
-        public static async Task<RobloxModeration?> ChangeRMReason(string guildId, string moderatorId, string reason, int caseId)
+        public static async Task<RobloxModeration?> ChangeRMReason(ulong guildId, ulong moderatorId, string reason, int caseId)
         {
             // Decides if the moderator can edit cases at all
             bool hasDeletePerms = await WhispPermissions.HasPermission(guildId, moderatorId, BotPermissions.UseRobloxModerations);
@@ -78,7 +79,7 @@ namespace Whispbot
                     ) AND guild_id = @3 AND moderator_id = @2
                     RETURNING *;
                     ",
-                    [reason, long.Parse(moderatorId), long.Parse(guildId)]
+                    [reason, moderatorId, guildId]
                 );
             }
             else if (caseId == -2) // Edit last case in guild (admin only)
@@ -97,7 +98,7 @@ namespace Whispbot
                         ) AND guild_id = @3 AND is_deleted = FALSE
                         RETURNING *;
                         ",
-                        [reason, long.Parse(moderatorId), long.Parse(guildId)]
+                        [reason, moderatorId, guildId]
                     );
                 }
             }
@@ -110,7 +111,7 @@ namespace Whispbot
                     WHERE guild_id = @3 AND " + "\"case\"" + @$" = @4{(hasAdminPerms ? "" : " AND moderator_id = @2")} AND is_deleted = FALSE
                     RETURNING *;
                     ",
-                    [reason, long.Parse(moderatorId), long.Parse(guildId), caseId]
+                    [reason, moderatorId, guildId, caseId]
                 );
             }
 
@@ -127,7 +128,7 @@ namespace Whispbot
         /// <param name="type">The new type</param>
         /// <param name="caseId">The ID of the case to be edited</param>
         /// <returns></returns>
-        public static async Task<RobloxModeration?> ChangeRMType(string guildId, string moderatorId, RobloxModerationType type, int caseId)
+        public static async Task<RobloxModeration?> ChangeRMType(ulong guildId, ulong moderatorId, RobloxModerationType type, int caseId)
         {
             // Decides if the moderator can edit cases at all
             bool hasDeletePerms = await WhispPermissions.HasPermission(guildId, moderatorId, BotPermissions.UseRobloxModerations);
@@ -152,7 +153,7 @@ namespace Whispbot
                     ) AND guild_id = @3 AND moderator_id = @2 AND is_deleted = FALSE
                     RETURNING *;
                     ",
-                    [type.id, long.Parse(moderatorId), long.Parse(guildId)]
+                    [type.id, moderatorId, guildId]
                 );
             }
             else if (caseId == -2) // Edit last case in guild (admin only)
@@ -171,7 +172,7 @@ namespace Whispbot
                         ) AND guild_id = @3 AND is_deleted = FALSE
                         RETURNING *;
                         ",
-                        [type.id, long.Parse(moderatorId), long.Parse(guildId)]
+                        [type.id, moderatorId, guildId]
                     );
                 }
             }
@@ -184,7 +185,7 @@ namespace Whispbot
                     WHERE guild_id = @3 AND " + "\"case\"" + @$" = @4{(hasAdminPerms ? "" : " AND moderator_id = @2")} AND is_deleted = FALSE
                     RETURNING *;
                     ",
-                    [type.id, long.Parse(moderatorId), long.Parse(guildId), caseId]
+                    [type.id, moderatorId, guildId, caseId]
                 );
             }
 

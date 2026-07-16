@@ -1,3 +1,5 @@
+using Discord;
+using Discord.WebSocket;
 using Newtonsoft.Json;
 using OpenAI.Realtime;
 using Serilog;
@@ -7,7 +9,6 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using YellowMacaroni.Discord.Core;
 
 namespace Whispbot.Commands
 {
@@ -21,11 +22,11 @@ namespace Whispbot.Commands
             { CommandArgType.Mentionable, (ApplicationCommandOptionType.Mentionable, true) }
         };
 
-        public static List<ApplicationCommand> GenerateCommands (CommandManager manager)
+        public static List<SlashCommandProperties> GenerateCommands ()
         {
-            List<ApplicationCommand> commands = [];
+            List<SlashCommandBuilder> commands = [];
 
-            foreach (Command cmd in manager.commands)
+            foreach (Command cmd in CommandManager.commands)
             {
                 if (cmd.SlashCommand is not null && cmd.SlashCommand.Count > 0)
                 {
@@ -36,7 +37,7 @@ namespace Whispbot.Commands
 
                     if (name is null) continue;
 
-                    List<ApplicationCommandOption> options = [];
+                    List<SlashCommandOptionBuilder> options = [];
 
                     if (cmd.Arguments is not null)
                     {
@@ -51,98 +52,68 @@ namespace Whispbot.Commands
                                 ? temp 
                                 : (ApplicationCommandOptionType.String, true);
 
-                            options.Add(
-                                new ApplicationCommandOption
-                                {
-                                    name = inputName,
-                                    required = !isOptional,
-                                    type = typeData.Item1,
-                                    autocomplete = typeData.Item2,
-                                    description = description,
-                                    min_length = arg.min_length,
-                                    max_length = arg.max_length,
-                                    min_value = arg.min_values,
-                                    max_value = arg.max_values
-                                }
-                            );
+                            var opt = new SlashCommandOptionBuilder()
+                                .WithName(inputName)
+                                .WithDescription(description)
+                                .WithRequired(!isOptional)
+                                .WithType(typeData.Item1)
+                                .WithAutocomplete(typeData.Item2);
+
+                            if (arg.min_length is not null) opt.WithMinLength(arg.min_length.Value);
+                            if (arg.max_length is not null) opt.WithMaxLength(arg.max_length.Value);
+                            if (arg.min_values is not null) opt.WithMinValue(arg.min_values.Value);
+                            if (arg.max_values is not null) opt.WithMaxValue(arg.max_values.Value);
+
+                            options.Add(opt);
                         }
                     }
 
-                    ApplicationCommand command = commands.Find(x => x.name == name) ?? new ApplicationCommand
-                    {
-                        id = null!,
-                        name = name,
-                        description = cmd.Description,
-                        options = subCommandGroup is not null ? [] : options
-                    };
+                    var command = commands.Find(x => x.Name == name) ?? new SlashCommandBuilder()
+                        .WithName(name)
+                        .WithDescription(cmd.Description);
 
                     if (subCommandGroup is not null)
                     {
-                        var group = command.options?.Find(x => x.name == subCommandGroup) ?? new ApplicationCommandOption
-                        {
-                            name = subCommandGroup,
-                            description = cmd.Description,
-                            type = subCommand is not null ? ApplicationCommandOptionType.SubCommandGroup : ApplicationCommandOptionType.SubCommand,
-                            options = subCommand is not null ? [] : options
-                        };
+                        var group = command.Options?.Find(x => x.Name == subCommandGroup) ?? 
+                            new SlashCommandOptionBuilder()
+                                .WithName(subCommandGroup)
+                                .WithDescription(cmd.Description)
+                                .WithType(subCommand is not null ? ApplicationCommandOptionType.SubCommandGroup : ApplicationCommandOptionType.SubCommand);
 
                         if (subCommand is not null)
                         {
-                            group.options!.Add(new ApplicationCommandOption
-                            {
-                                name = subCommand,
-                                description = cmd.Description,
-                                type = ApplicationCommandOptionType.SubCommand,
-                                options = options
-                            });
-                        }
+                            var subCommandOption = new SlashCommandOptionBuilder()
+                                .WithName(subCommand)
+                                .WithDescription(cmd.Description)
+                                .WithType(ApplicationCommandOptionType.SubCommand);
 
-                        command.options!.Remove(group);
-                        command.options!.Add(group);
+                            options.ForEach(x => subCommandOption.AddOption(x));
+
+                            group.AddOption(subCommandOption);
+                        }
+                        else options.ForEach(x => group.AddOption(x));
+
+                        command.Options!.Remove(group);
+                        command.Options!.Add(group);
                     }
+                    else options.ForEach(x => command.AddOption(x));
+
 
                     commands.Remove(command);
                     commands.Add(command);
                 }
             }
 
-            return commands;
+            return [.. commands.Select(c => c.Build())];
         }
 
-        public static async Task SyncCommands(CommandManager manager, Client client)
+        public static async Task SyncCommands(DiscordShardedClient client)
         {
-            var commands = GenerateCommands(manager);
+            var commands = GenerateCommands();
 
-            HttpClient c = new();
+            await client.BulkOverwriteGlobalApplicationCommandsAsync([.. commands]);
 
-            string? token = Config.isDev ? Environment.GetEnvironmentVariable("DEV_TOKEN") : Environment.GetEnvironmentVariable("CLIENT_TOKEN");
-
-            if (token is null)
-            {
-                Log.Error("Failed to sync application commands due to missing token.");
-                return;
-            }
-
-            c.DefaultRequestHeaders.Add("Authorization", $"Bot {token}");
-
-            var result = await c.PutAsync(
-                $"https://discord.com/api/v10/applications/{client.readyData?.user.id}/commands",
-                new StringContent(JsonConvert.SerializeObject(commands), Encoding.UTF8, "application/json")
-            );
-
-            if (result.IsSuccessStatusCode)
-            {
-                Log.Information("Successfully synced application commands.");
-            }
-            else
-            {
-                string errorBody = await result.Content.ReadAsStringAsync();
-                object errorData = JsonConvert.DeserializeObject(errorBody)!;
-                Logger.WithData(errorData).Error($"Failed to sync application commands with status {(int)result.StatusCode}.");
-            }
+            Log.Information("Synced application commands!");
         }
-
-        [GeneratedRegex(@"<([^:]+):([^?]+)(\??)(.*)>")]
-        private static partial Regex CommandOptionRegex();
     }
 }

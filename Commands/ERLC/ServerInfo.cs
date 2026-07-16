@@ -1,3 +1,4 @@
+using Discord;
 using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Newtonsoft.Json;
 using Serilog;
@@ -7,14 +8,13 @@ using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Databases;
 using Whispbot.Extensions;
 using Whispbot.Tools;
-using Whispbot.Tools.Games.ERLC;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
+using Whispbot.Tools.Games.ERLCAPI;
 
-namespace Whispbot.Commands.ERLCCommands
+namespace Whispbot.Commands.ERLC
 {
     public class ERLC_ServerInfo: Command
     {
@@ -32,21 +32,13 @@ namespace Whispbot.Commands.ERLCCommands
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
         {
-            if (ctx.User?.id is null) return;
-
-            if (ctx.GuildId is null) // Make sure ran in server
-            {
-                await ctx.Reply("{emoji.cross} {string.errors.general.guildonly}.");
-                return;
-            }
-
             if (!await WhispPermissions.CheckModuleMessage(ctx, Module.ERLC)) return;
             if (!await WhispPermissions.CheckPermissionsMessage(ctx, BotPermissions.UseERLC)) return;
 
             ERLCServerConfig? server = await ERLCDatabase.TryGetServer(ctx);
             if (server is null) return;
 
-            var response = await ERLC.GetERLCServer(ctx, server);
+            var response = await ERLCAPI.GetERLCServer(ctx, server);
             if (response is null) return;
             var serverInfo = response?.Server;
 
@@ -55,38 +47,28 @@ namespace Whispbot.Commands.ERLCCommands
                 List<string> userIds = [..serverInfo.CoOwnerIds.Select(u=>u.ToString()), serverInfo.OwnerId.ToString()];
                 List<Roblox.RobloxUser>? relatedUsers = await Roblox.GetUserById(userIds);
                 Roblox.RobloxUser? owner = relatedUsers?.Find(u => u.id == serverInfo.OwnerId.ToString());
-                List<Roblox.RobloxUser> coOwners = relatedUsers?.FindAll(u => serverInfo.CoOwnerIds.Contains(long.Parse(u.id))) ?? [];
+                List<Roblox.RobloxUser> coOwners = relatedUsers?.FindAll(u => serverInfo.CoOwnerIds.Contains(ulong.Parse(u.id))) ?? [];
 
                 await ctx.EditResponse(
-                    new MessageBuilder
-                    {
-                        content = "",
-                        embeds = [
-                            new EmbedBuilder
-                            {
-                                title = "{string.title.erlcserver}",
-                                thumbnail = new EmbedThumbnail
-                                {
-                                    url = ctx.Guild?.icon_url
-                                },
-                                description = "{string.content.erlcserver}".Process(ctx.Language, new() {
-                                    { "name", serverInfo.Name },
-                                    { "owner", $"[@{owner?.name ?? "unknown"}](https://roblox.com/users/{serverInfo.OwnerId})" },
-                                    { "joinkey", $"[{serverInfo.JoinKey}](https://policeroleplay.community/join/{serverInfo.JoinKey})" },
-                                    { "current", serverInfo.CurrentPlayers.ToString() },
-                                    { "max", serverInfo.MaxPlayers.ToString() }
-                                }),
-                                fields = coOwners.Count > 0 ? [
-                                    new EmbedField
-                                    {
-                                        name = "{string.fields.erlcserver.coowners}",
-                                        value = coOwners.Select(u => $"{{emoji.inline}} [@{u.name}](https://roblox.com/users/{u.id})").Join("\n"),
-                                        inline = false
-                                    }
-                                ] : []
-                            }
-                        ]
-                    }
+                    text: "",
+                    embed: new EmbedBuilder()
+                        .WithTitle("{string.title.erlcserver}")
+                        .WithThumbnailUrl(ctx.Guild.IconUrl)
+                        .WithDescription("{string.content.erlcserver}".Process(ctx.Language, new() {
+							{ "name", serverInfo.Name },
+							{ "owner", $"[@{owner?.name ?? "unknown"}](https://roblox.com/users/{serverInfo.OwnerId})" },
+							{ "joinkey", $"[{serverInfo.JoinKey}](https://policeroleplay.community/join/{serverInfo.JoinKey})" },
+							{ "current", serverInfo.CurrentPlayers.ToString() },
+							{ "max", serverInfo.MaxPlayers.ToString() }
+						}))
+                        .WithFields(coOwners.Count > 0 ? [
+                            new EmbedFieldBuilder() {
+                                Name = "{string.fields.erlcserver.coowners}",
+								Value = coOwners.Select(u => $"{{emoji.inline}} [@{u.name}](https://roblox.com/users/{u.id})").Join("\n"),
+								IsInline = false
+							}
+                        ] : [])
+                        .Build()
                 );
             }
             else

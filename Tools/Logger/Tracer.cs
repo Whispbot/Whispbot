@@ -7,7 +7,6 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using Whispbot.Databases;
-using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot
 {

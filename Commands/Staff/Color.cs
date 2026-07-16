@@ -1,11 +1,10 @@
+using Discord;
 using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Commands.Staff
 {
@@ -24,25 +23,24 @@ namespace Whispbot.Commands.Staff
         public override async Task ExecuteAsync(CommandContext ctx)
         {
             string? arg = ctx.args.Get("color")?.GetString();
-            if (arg is null)
+            if (arg is null || arg.Length != 6)
             {
-                await ctx.Reply("No color provided.");
+                await ctx.Reply("Invalid color format. Please provide a 6-character hexadecimal color code.");
                 return;
             }
 
-            Color color = new(255, 255, 255)
-            {
-                Hex = arg
-            };
+            byte r = byte.Parse(arg[..2],            System.Globalization.NumberStyles.HexNumber);
+            byte g = byte.Parse(arg.Substring(2, 2), System.Globalization.NumberStyles.HexNumber);
+            byte b = byte.Parse(arg.Substring(4, 2), System.Globalization.NumberStyles.HexNumber);
 
-            await ctx.Reply(new MessageBuilder
-            {
-                embeds = [
-                    new EmbedBuilder()
-                    .SetColor(color)
-                    .SetDescription($"#{color.Hex}\n```cs\nnew Color({color.r}, {color.g}, {color.b})\n```")
-                ]
-            });
+            Color color = new(r, g, b);
+
+            await ctx.Reply(
+                embed: new EmbedBuilder()
+                    .WithColor(color)
+                    .WithDescription($"#{arg.ToUpper()}\n```cs\nnew Color({r}, {g}, {b})\n```")
+                    .Build()
+            );
         }
     }
 }

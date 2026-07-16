@@ -1,13 +1,13 @@
+using Discord;
 using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Databases;
 using Whispbot.Tools;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Commands.Roblox_Moderation
 {
@@ -29,14 +29,6 @@ namespace Whispbot.Commands.Roblox_Moderation
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
         {
-            if (ctx.UserId is null) return;
-
-            if (ctx.GuildId is null || ctx.Guild is null)
-            {
-                await ctx.Reply("{emoji.cross} {string.errors.general.guildonly}.");
-                return;
-            }
-
             if (!await WhispPermissions.CheckModuleMessage(ctx, Module.RobloxModeration)) return;
             if (!await WhispPermissions.CheckPermissionsMessage(ctx, BotPermissions.UseRobloxModerations)) return;
 
@@ -88,52 +80,26 @@ namespace Whispbot.Commands.Roblox_Moderation
             var (log, errormessage) = await Procedures.CreateModeration(
                 ctx.GuildId,
                 ctx.UserId,
-                user.id,
+                ulong.Parse(user.id),
                 modType,
                 reason ?? "*No reason provided.*"
             );
 
             if (log is not null)
             {
-                await ctx.Reply(new MessageBuilder
-                {
-                    embeds = [
-                        new EmbedBuilder
-                        {
-                            title = "{string.title.rmlog.logged}",
-                            description = $"{{emoji.tick}} {{string.success.rmlog:caseid={log.@case}}}.",
-                            author = new EmbedAuthor
-                            {
-                                name = $"{(ctx.User?.global_name is not null ? ctx.User.global_name : $"@{ctx.User?.username ?? "unknown"}")}",
-                                icon_url = ctx.User?.avatar_url
-                            },
-                            thumbnail = new EmbedThumbnail
-                            {
-                                url = await Roblox.GetUserAvatar(user.id)
-                            },
-                            fields = [
-                                new EmbedField
-                                {
-                                    name = "{string.title.rmlog.user}",
-                                    value = $"{{emoji.user}} **@{user.name}** ({user.id})",
-                                    inline = true
-                                },
-                                new EmbedField
-                                {
-                                    name = "{string.title.rmlog.type}",
-                                    value = $"{{emoji.folder}} {modType.name}",
-                                    inline = true
-                                },
-                                new EmbedField
-                                {
-                                    name = "{string.title.rmlog.reason}",
-                                    value = $"{{emoji.alignment}} {reason}",
-                                    inline = false
-                                }
-                            ]
-                        }
-                    ]
-                });
+                await ctx.Reply(
+                    embed: new EmbedBuilder()
+                        .WithTitle("{string.title.rmlog.logged}")
+                        .WithDescription($"{{emoji.tick}} {{string.success.rmlog:caseid={log.@case}}}")
+                        .WithAuthor(ctx.User.GlobalName ?? $"@{ctx.User.Username}", ctx.User.GetDisplayAvatarUrl())
+                        .WithThumbnailUrl(await Roblox.GetUserAvatar(user.id, 250))
+                        .WithFields(
+                            new EmbedFieldBuilder() { Name = "{string.title.rmlog.user}", Value = $"{{emoji.user}} **@{user.name}** ({user.id})", IsInline = true },
+                            new EmbedFieldBuilder() { Name = "{string.title.rmlog.type}", Value = $"{{emoji.folder}} {modType.name}", IsInline = true },
+                            new EmbedFieldBuilder() { Name = "{string.title.rmlog.reason}", Value = $"{{emoji.alignment}} {reason}", IsInline = false }
+                        )
+                        .Build()
+                );
             }
             else
             {

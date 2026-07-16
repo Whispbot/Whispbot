@@ -1,3 +1,4 @@
+using Discord;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -5,8 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Whispbot.AI;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
+using Whispbot.Extensions;
 
 namespace Whispbot.Commands.Staff
 {
@@ -36,18 +36,12 @@ namespace Whispbot.Commands.Staff
                 List<string> updates = ["{emoji.loading} Processing..."];
                 async Task onUpdate()
                 {
-                    await ctx.EditResponse(new MessageBuilder()
-                    {
-                        components = [
-                            new ContainerBuilder()
-                            {
-                                components = [
-                                    new TextDisplayBuilder(updates.Join("\n"))
-                                ]
-                            }
-                        ],
-                        flags = MessageFlags.IsComponentsV2
-                    });
+                    await ctx.EditResponse(
+                        components: new ComponentBuilderV2()
+                            .WithTextDisplay(updates.Join("\n"))
+                            .Build(),
+                        flags: MessageFlags.ComponentsV2
+                    );
                 }
                 void updater(string update)
                 {
@@ -56,30 +50,22 @@ namespace Whispbot.Commands.Staff
                 }
                 Task _ = onUpdate();
 
-                string? response = AIModel.SendMessage(message, $"staff-{ctx.User?.id}",
+                string? response = AIModel.SendMessage(message, $"staff-{ctx.UserId}",
                     $"""
-                    You are talking to: @{ctx.User?.username} ({ctx.User?.id})
-                    In the channel: {ctx.message?.channel?.name ?? "err"} ({ctx.message?.channel?.id})
-                    In the server: {ctx.Guild?.name ?? "err"} ({ctx.GuildId})
-                    As the bot: {ctx.client.readyData?.user?.username ?? "err"} ({ctx.client.readyData?.user?.id})
+                    You are talking to: @{ctx.User?.Username} ({ctx.UserId})
+                    In the channel: {ctx.message!.Channel.Name} ({ctx.message!.Channel.Id})
+                    In the server: {ctx.Guild.Name} ({ctx.GuildId})
+                    As the bot: {ctx.client.CurrentUser.Username} ({ctx.client.CurrentUser.Id})
                     """,
                     AIModel.AIType.Staff,
                     updater
                 );
 
                 await ctx.EditResponse(
-                    new MessageBuilder()
-                    {
-                        components = [
-                            new ContainerBuilder()
-                            {
-                                components = [
-                                    new TextDisplayBuilder(response ?? "No response from AI.")
-                                ]
-                            }
-                        ],
-                        flags = MessageFlags.IsComponentsV2
-                    }
+                    components: new ComponentBuilderV2()
+                        .WithTextDisplay(response ?? "No response from AI.")
+                        .Build(),
+                    flags: MessageFlags.ComponentsV2
                 );
             }
             catch (Exception ex)

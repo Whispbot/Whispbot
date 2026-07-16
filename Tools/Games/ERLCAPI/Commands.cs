@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Whispbot.Tools.Games.ERLC
+namespace Whispbot.Tools.Games.ERLCAPI
 {
     public static class ERLCCommands
     {

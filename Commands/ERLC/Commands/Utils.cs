@@ -4,11 +4,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Tools;
-using Whispbot.Tools.Games.ERLC;
-using Whispbot.Tools.Games.ERLC.Classes;
+using Whispbot.Tools.Games.ERLCAPI;
+using Whispbot.Tools.Games.ERLCAPI.Classes;
 
-namespace Whispbot.Commands.ERLCCommands.Commands
+namespace Whispbot.Commands.ERLC.Commands
 {
     public static class ERLCCommandUtils
     {
@@ -17,7 +18,7 @@ namespace Whispbot.Commands.ERLCCommands.Commands
             if (serverConfig.api_key is null || serverConfig.api_key is null || serverConfig.internal_id is null) return null;
             if (String.IsNullOrWhiteSpace(partialName)) return null;
 
-            PRCResponse? response = await ERLC.GetERLCServer(serverConfig);
+            PRCResponse? response = await ERLCAPI.GetERLCServer(serverConfig);
 
             if (response is null) return null;
             if (response.error == ErrorCode.Nothing && response.data is not null)

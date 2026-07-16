@@ -4,10 +4,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Databases;
 using Whispbot.Tools;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Commands.Shifts
 {
@@ -27,14 +26,6 @@ namespace Whispbot.Commands.Shifts
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
         {
-            if (ctx.UserId is null) return;
-
-            if (ctx.GuildId is null)
-            {
-                await ctx.Reply("{emoji.cross} {string.errors.general.guildonly}.");
-                return;
-            }
-
             if (!await WhispPermissions.CheckModuleMessage(ctx, Module.Shifts)) return;
             if (!await WhispPermissions.CheckPermissionsMessage(ctx, BotPermissions.UseShifts)) return;
 
@@ -55,15 +46,15 @@ namespace Whispbot.Commands.Shifts
                 return;
             }
 
-            var (message, errormessage) = await Procedures.GenerateShiftLeaderboard(ctx.GuildId, ctx.UserId, 1, type?.id);
+            var (embed, components, errormessage) = await Procedures.GenerateShiftLeaderboard(ctx.GuildId, ctx.UserId, 1, type?.id);
 
             if (errormessage is not null)
             {
                 await ctx.Reply(errormessage);
             }
-            else if (message is not null)
+            else
             {
-                await ctx.Reply(message);
+                await ctx.Reply(embed: embed, components: components);
             }
         }
     }

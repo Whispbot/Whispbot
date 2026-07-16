@@ -1,12 +1,11 @@
-﻿using Serilog;
+﻿using Discord;
+using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Databases;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Interactions.Errors
 {
@@ -16,15 +15,13 @@ namespace Whispbot.Interactions.Errors
         public override InteractionType Type => InteractionType.MessageComponent;
         public override async Task ExecuteAsync(InteractionContext ctx)
         {
-            if (ctx.UserId is null) return;
             if (await ctx.CheckAllowed()) return;
 
             await ctx.ShowModal(
-                new ModalBuilder
-                {
-                    title = "Error Feedback",
-                    custom_id = "error_feedback_modal"
-                }
+                new ModalBuilder()
+                .WithTitle("Error Feedback")
+                .WithCustomId("error_feedback_modal")
+                .Build()
             );
         }
     }

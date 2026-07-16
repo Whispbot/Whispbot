@@ -4,8 +4,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 
-namespace Whispbot.Commands.ERLCCommands.Commands.Debug
+namespace Whispbot.Commands.ERLC.Commands.Debug
 {
     public class ServerInfo: ERLCCommand
     {

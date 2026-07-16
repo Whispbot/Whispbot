@@ -1,3 +1,4 @@
+using Discord;
 using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Newtonsoft.Json;
 using Serilog;
@@ -8,13 +9,12 @@ using System.Resources;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Databases;
 using Whispbot.Tools;
-using Whispbot.Tools.Games.ERLC;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
+using Whispbot.Tools.Games.ERLCAPI;
 
-namespace Whispbot.Commands.ERLCCommands
+namespace Whispbot.Commands.ERLC
 {
     public class ERLC_JoinServer : Command
     {
@@ -32,14 +32,6 @@ namespace Whispbot.Commands.ERLCCommands
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
         {
-            if (ctx.User?.id is null) return;
-
-            if (ctx.GuildId is null) // Make sure ran in server
-            {
-                await ctx.Reply("{emoji.cross} {string.errors.general.guildonly}.");
-                return;
-            }
-
             if (!await WhispPermissions.CheckModuleMessage(ctx, Module.ERLC)) return;
             if (!await WhispPermissions.CheckPermissionsMessage(ctx, BotPermissions.UseERLC)) return;
 
@@ -48,29 +40,25 @@ namespace Whispbot.Commands.ERLCCommands
 
             string url = $"https://beta.whisp.bot/join/erlc/{server.id}";
 
-            await ctx.Reply(new MessageBuilder
-            {
-                components = [
-                    new ContainerBuilder
-                    {
-                        components = [
-                            new SectionBuilder
-                            {
-                                components = [
-                                    new TextDisplayBuilder($"Join **{server.name ?? "no name"}** using code '[{server.code ?? "nocode"}](<{url}>)'.")
-                                ],
-                                accessory = new ButtonBuilder
-                                {
-                                    style = ButtonStyle.Link,
-                                    label = "Quick Join",
-                                    url = url
-                                }
-                            }
-                        ],
-                    }
-                ],
-                flags = MessageFlags.IsComponentsV2
-            });
+            await ctx.Reply(
+                components:
+                    new ComponentBuilderV2()
+                        .WithContainer(
+                            new ContainerBuilder()
+                                .WithSection(
+                                    new SectionBuilder()
+                                        .WithTextDisplay($"Join **{server.name ?? "no name"}** using code '[{server.code ?? "nocode"}](<{url}>)'.")
+										.WithAccessory(
+											new ButtonBuilder()
+												.WithStyle(ButtonStyle.Link)
+												.WithLabel("Quick Join")
+												.WithUrl(url)
+                                        )
+								)
+                        )
+                        .Build(),
+                flags: MessageFlags.ComponentsV2
+            );
         }
     }
 }

@@ -6,7 +6,8 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Whispbot.Databases;
 using Whispbot.Tools;
-using YellowMacaroni.Discord.Core;
+using Whispbot.Tools.Disc;
+using Discord;
 
 namespace Whispbot.Commands.General
 {
@@ -26,14 +27,18 @@ namespace Whispbot.Commands.General
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
         {
-            if (ctx.GuildId is null) return;
-
             if (ctx.args.Count == 0)
             {
                 await ctx.Reply($"{{string.content.prefix:prefix={ctx.GuildConfig?.prefix ?? Config.prefix}}}.");
             }
             else
             {
+                if (!DiscordPermissions.HasPermissionOrAdmin(ctx.Member, GuildPermission.ManageGuild))
+                {
+                    await ctx.Reply("{emoji.cross} {string.errors.prefix.noperms}");
+                    return;
+                }
+
                 string newPrefix = ctx.args.Get("prefix")?.GetString() ?? "!";
 
                 if (newPrefix.Length > 10)
@@ -48,7 +53,7 @@ namespace Whispbot.Commands.General
                     return;
                 }
 
-                Postgres.Execute("UPDATE guild_config SET prefix = @1 WHERE id = @2", [newPrefix, long.Parse(ctx.GuildId)]);
+                Postgres.Execute("UPDATE guild_config SET prefix = @1 WHERE id = @2", [newPrefix, ctx.GuildId]);
 
                 await ctx.Reply($"{{emoji.tick}} {{string.success.prefix:prefix={newPrefix}}}.");
             }

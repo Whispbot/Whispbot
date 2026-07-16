@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.DataProtection.XmlEncryption;
+﻿using Discord;
+using Microsoft.AspNetCore.DataProtection.XmlEncryption;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -8,8 +9,6 @@ using System.Threading.Tasks;
 using Whispbot.Commands.Shifts;
 using Whispbot.Databases;
 using Whispbot.Tools;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Interactions.Roblox_Moderations
 {
@@ -19,11 +18,11 @@ namespace Whispbot.Interactions.Roblox_Moderations
         public override InteractionType Type => InteractionType.MessageComponent;
         public override async Task ExecuteAsync(InteractionContext ctx)
         {
-            if (ctx.UserId is null || ctx.GuildId is null || ctx.args.Count < 1) return;
+            if (ctx.GuildId is null || ctx.args.Count < 1) return;
 
-            _ = ctx.DeferUpdate();
+            _ = ctx.DeferResponse();
 
-            await Procedures.DeleteRM(ctx.GuildId, ctx.UserId, int.Parse(ctx.args[0]));
+            await Procedures.DeleteRM(ctx.GuildId.Value, ctx.UserId, int.Parse(ctx.args[0]));
         }
     }
 }

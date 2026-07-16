@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Whispbot.Tools.Games.ERLC.Classes
+namespace Whispbot.Tools.Games.ERLCAPI.Classes
 {
     public class ERLCStaff
     {

@@ -1,3 +1,5 @@
+using Discord;
+using Discord.WebSocket;
 using Newtonsoft.Json;
 using Serilog;
 using System;
@@ -6,16 +8,14 @@ using System.Linq;
 using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Databases;
 using Whispbot.Extensions;
 using Whispbot.Tools;
-using Whispbot.Tools.Games.ERLC;
-using Whispbot.Tools.Games.ERLC.Classes;
-using YellowMacaroni.Discord.Cache;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
+using Whispbot.Tools.Games.ERLCAPI;
+using Whispbot.Tools.Games.ERLCAPI.Classes;
 
-namespace Whispbot.Commands.ERLCCommands.Commands
+namespace Whispbot.Commands.ERLC.Commands
 {
     public abstract class ERLCCommand
     {
@@ -41,10 +41,10 @@ namespace Whispbot.Commands.ERLCCommands.Commands
         User
     }
 
-    public class ERLCCommandContext(Client client, Message message, ERLCServerConfig server, string username, string userId, List<string> args, List<string> flags)
+    public class ERLCCommandContext(DiscordShardedClient client, SocketMessage message, ERLCServerConfig server, string username, string userId, List<string> args, List<string> flags)
     {
-        public Client client = client;
-        public Message message = message;
+        public DiscordShardedClient client = client;
+        public SocketMessage message = message;
         public ERLCServerConfig server = server;
         public List<string> args = args;
         public List<string> flags = flags;
@@ -52,10 +52,11 @@ namespace Whispbot.Commands.ERLCCommands.Commands
         public string robloxUsername = username;
         public string robloxUserId = userId;
 
-        public string? GuildId => message.channel?.guild_id;
-        public Guild? Guild => GuildId is not null ? DiscordCache.Guilds.Get(GuildId).Result : null;
-        public User? User => UserId is not null ? DiscordCache.Users.Get(UserId).Result : null;
-        public string? UserId => UserConfig?.id.ToString();
+        public SocketGuildChannel? Channel => message.Channel is SocketGuildChannel gc ? gc : null;
+        public ulong GuildId => Channel?.Guild.Id ?? server.guild_id;
+        public SocketGuild? Guild => Channel?.Guild;
+        public IUser? User => client.GetUserAsync(UserId, CacheMode.AllowDownload, RequestOptions.Default).Result;
+        public ulong UserId => UserConfig!.id;
 
         private UserConfig? _userConfig = null;
         public UserConfig? UserConfig
@@ -68,14 +69,14 @@ namespace Whispbot.Commands.ERLCCommands.Commands
                 return _userConfig;
             }
         }
-        public GuildConfig? GuildConfig => GuildId is not null ? WhispCache.GuildConfig.Get(GuildId).Result : null;
+        public GuildConfig? GuildConfig => WhispCache.GuildConfig.Get(GuildId).Result;
 
         public Strings.Language Language => (Strings.Language)(UserConfig?.language ?? GuildConfig?.default_language ?? 0);
 
         public async Task<PRCResponse?> Reply(string content)
         {
             using var _ = Tracer.Start($"Reply");
-            return await ERLC.SendCommand(server, $":pm {robloxUsername} {content.Process(Language)}");
+            return await ERLCAPI.SendCommand(server, $":pm {robloxUsername} {content.ProcessObj(Language)}");
         }
     }
 }

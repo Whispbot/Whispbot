@@ -2,13 +2,13 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using Whispbot.Commands.ERLCCommands;
+using Whispbot.Commands.ERLC;
 using Whispbot.Databases;
-using Whispbot.Tools.Games.ERLC.Classes;
+using Whispbot.Tools.Games.ERLCAPI.Classes;
 
-namespace Whispbot.Tools.Games.ERLC
+namespace Whispbot.Tools.Games.ERLCAPI
 {
-    public static class Cache
+    public static class ERLCCache
     {
         public static readonly Dictionary<string, (DateTimeOffset, PRCResponse)> localCache = [];
 

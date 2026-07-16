@@ -19,6 +19,9 @@
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" Version="2.2.8" />
     <PackageReference Include="AWSSDK.S3" Version="4.0.100.2" />
+    <PackageReference Include="Discord.Net" Version="3.20.1" />
+    <PackageReference Include="Discord.Net.Interactions" Version="3.20.1" />
+    <PackageReference Include="Discord.Net.Rest" Version="3.20.1" />
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.23.0" />
     <PackageReference Include="Npgsql" Version="10.0.3" />
     <PackageReference Include="OpenAI" Version="2.12.0" />
@@ -26,7 +29,6 @@
     <PackageReference Include="Serilog" Version="4.3.1" />
     <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
     <PackageReference Include="StackExchange.Redis" Version="3.0.11" />
-    <PackageReference Include="YellowMacaroni.Discord" Version="1.1.0-dev202605082256" />
     <PackageReference Include="YellowMacaroni.Redis.Queue" Version="1.0.0" />
   </ItemGroup>
 

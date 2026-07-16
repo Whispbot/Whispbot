@@ -1,19 +1,20 @@
-﻿using Serilog;
+﻿using Discord;
+using Discord.WebSocket;
+using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Commands;
 using Whispbot.Databases;
-using YellowMacaroni.Discord.Cache;
-using YellowMacaroni.Discord.Core;
 
-namespace Whispbot.Tools
+namespace Whispbot.Tools.Disc
 {
     public static class Users
     {
-        public static async Task<User?> GetUserByString(string input, int minLength = 0, string? inGuildId = null)
+        public static async Task<IUser?> GetUserByString(string input, int minLength = 0, ulong? inGuildId = null)
         {
             if (string.IsNullOrWhiteSpace(input)) return null;
 
@@ -21,24 +22,25 @@ namespace Whispbot.Tools
 
             if (input.Length >= 17 && input.Length <= 20 && long.TryParse(input, out long _))
             {
-                return await DiscordCache.Users.Get(input) ?? new User(input);
+                return await Config.client!.GetUserAsync(ulong.Parse(input), CacheMode.AllowDownload, RequestOptions.Default);
             }
 
             if (inGuildId is not null && input.Length >= minLength)
             {
-                Guild? guild = await DiscordCache.Guilds.Get(inGuildId);
+                var guild = Config.client!.GetGuild(inGuildId.Value);
                 if (guild is null) return null;
 
-                return (await guild.SearchMembers(input))?.user;
+                var users = await guild.SearchUsersAsync(input, limit: 1);
+                return users.FirstOrDefault();
             }
 
             return null;
         }
 
-        public static async Task<List<UserConfig>> GetConfigsFromRobloxIds(List<long> ids)
+        public static async Task<List<UserConfig>> GetConfigsFromRobloxIds(List<ulong> ids)
         {
             List<UserConfig>? userConfigs = WhispCache.UserConfig.FindMany((u, _) => ids.Contains(u.id));
-            List<long> missingIds = [.. ids.Where(id => !userConfigs.Any(u => u.id == id))];
+            List<ulong> missingIds = [.. ids.Where(id => !userConfigs.Any(u => u.id == id))];
             if (missingIds.Count > 0)
             {
                 List<UserConfig>? fetchedConfigs = Postgres.Select<UserConfig>(
@@ -50,7 +52,7 @@ namespace Whispbot.Tools
                     userConfigs.AddRange(fetchedConfigs);
                     foreach (var config in fetchedConfigs)
                     {
-                        WhispCache.UserConfig.Insert(config.id.ToString(), config);
+                        WhispCache.UserConfig.Insert(config.id, config);
                     }
                 }
             }
@@ -58,23 +60,15 @@ namespace Whispbot.Tools
             return userConfigs;
         }
 
-        public static async Task<List<Member>> GetMembersFromConfigs(List<UserConfig> configs, CommandContext ctx)
+        public static async Task<List<IGuildUser>> GetMembersFromConfigs(List<UserConfig> configs, CommandContext ctx)
         {
-            Guild? guild = ctx.Guild;
+            SocketGuild? guild = ctx.Guild;
             if (guild is null) return [];
 
-            List<Member>? members = null;
-            if (configs.Count > 0)
-            {
-                members = guild.members.FindMany((m, _) => configs.Any(u => u.id.ToString() == m.user?.id));
-                List<string> remainingMembers = [.. configs.Where(u => !members.Any(m => m.user!.id == u.id.ToString())).Select(u => u.id.ToString())];
-                if (remainingMembers.Count > 0)
-                {
-                    members.AddRange(await guild.GetMembers(ctx.client, [.. configs.Select(u => u.id.ToString())]));
-                }
-            }
-
-            return members ?? [];
+            return [.. configs
+                .Select(c => guild.GetUser(c.id))
+                .Where(u => u is not null)
+                .Cast<IGuildUser>()];
         }
 
         public static readonly List<string> usernameEscapeChars = ["\\", "*", "_", "~", "`", ">", "|"];

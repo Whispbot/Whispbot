@@ -1,14 +1,14 @@
-﻿using Microsoft.AspNetCore.DataProtection.XmlEncryption;
+﻿using Discord;
+using Microsoft.AspNetCore.DataProtection.XmlEncryption;
 using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Commands.Shifts;
 using Whispbot.Databases;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Interactions.Shifts
 {
@@ -18,12 +18,12 @@ namespace Whispbot.Interactions.Shifts
         public override InteractionType Type => InteractionType.MessageComponent;
         public override async Task ExecuteAsync(InteractionContext ctx)
         {
-            if (ctx.UserId is null || ctx.GuildId is null || ctx.args.Count < 1) return;
+            if (ctx.GuildId is null || ctx.args.Count < 1) return;
             if (await ctx.CheckAllowed()) return;
 
             await ctx.DeferResponse(true);
 
-            List<ShiftType>? types = await WhispCache.ShiftTypes.Get(ctx.GuildId);
+            List<ShiftType>? types = await WhispCache.ShiftTypes.Get(ctx.GuildId.Value);
             ShiftType? thisType = ctx.args.Count >= 2 ? types?.Find(t => t.id.ToString() == ctx.args[1]) : types?.Find(t => t.is_default);
 
             if (thisType is null)
@@ -32,7 +32,7 @@ namespace Whispbot.Interactions.Shifts
                 return;
             }
 
-            var (shift, errormessage) = await Procedures.Clockin(long.Parse(ctx.GuildId), long.Parse(ctx.UserId), thisType);
+            var (shift, errormessage) = await Procedures.Clockin(ctx.GuildId.Value, ctx.UserId, thisType);
 
             if (shift is null)
             {
@@ -40,13 +40,13 @@ namespace Whispbot.Interactions.Shifts
             } 
             else
             {
-                ShiftsData? data = ShiftsData.Get(long.Parse(ctx.UserId), long.Parse(ctx.GuildId), thisType);
+                ShiftsData? data = ShiftsData.Get(ctx.UserId, ctx.GuildId.Value, thisType);
 
                 await ctx.DeleteResponse();
                 data ??= new ShiftsData { currentShiftStart = shift.start_time };
 
                 await ctx.EditMessage(
-                    data.generateMessage(ctx.UserId, thisType, false)
+                    m => m.Components = data.GenerateMessage(ctx.UserId, thisType, false)
                 );
             }
         }

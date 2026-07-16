@@ -1,3 +1,4 @@
+using Discord.WebSocket;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -6,28 +7,26 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using Whispbot.Commands.ERLCCommands.Commands.Debug;
-using Whispbot.Commands.ERLCCommands.Commands.Moderation;
+using Whispbot.Cache;
+using Whispbot.Commands.ERLC.Commands.Debug;
+using Whispbot.Commands.ERLC.Commands.Moderation;
 using Whispbot.Databases;
 using Whispbot.Extensions;
 using Whispbot.Tools;
-using YellowMacaroni.Discord.Cache;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
-using YellowMacaroni.Discord.Sharding;
+using Discord;
 
-namespace Whispbot.Commands.ERLCCommands.Commands
+namespace Whispbot.Commands.ERLC.Commands
 {
-    public class ERLCCommandManager
+    public static partial class ERLCCommandManager
     {
-        public readonly List<ERLCCommand> commands = [];
-        public readonly List<ERLCCommand> staffCommands = [];
+        public static readonly List<ERLCCommand> commands = [];
+        public static readonly List<ERLCCommand> staffCommands = [];
 
-        public readonly Dictionary<string, RatelimitData> ratelimits = [];
+        public static readonly Dictionary<string, RatelimitData> ratelimits = [];
 
-        public readonly Dictionary<string, ERLCServerConfig?> serverMap = [];
+        public static readonly Dictionary<string, ERLCServerConfig?> serverMap = [];
 
-        public ERLCCommandManager()
+        public static void Init(DiscordShardedClient client)
         {
             #region Commands
 
@@ -42,23 +41,28 @@ namespace Whispbot.Commands.ERLCCommands.Commands
 
             #endregion
 
-            Log.Debug($"[Debug] Loaded {commands.Count} ERLC commands");
+            Log.Debug($"Loaded {commands.Count} ERLC commands");
+
+            client.MessageReceived += async (message) =>
+            {
+                await HandleMessage(client, message);
+            };
         }
 
-        public void RegisterCommand(ERLCCommand command)
+        public static void RegisterCommand(ERLCCommand command)
         {
             if (commands.Any(c => c.Name == command.Name)) return;
             commands.Add(command);
         }
 
-        public void RegisterStaffCommand(ERLCCommand command)
+        public static void RegisterStaffCommand(ERLCCommand command)
         {
             if (staffCommands.Any(c => c.Name == command.Name)) return;
             staffCommands.Add(command);
         }
 
-        private int? _maxLength = null;
-        public int MaxLength
+        private static int? _maxLength = null;
+        public static int MaxLength
         {
             get
             {
@@ -67,13 +71,13 @@ namespace Whispbot.Commands.ERLCCommands.Commands
             }
         }
 
-        public async Task HandleMessage(Client client, Message message)
+        public static async Task HandleMessage(DiscordShardedClient client, SocketMessage message)
         {
-            if (message.webhook_id is null) return; // Not from command webhook
-            if (message.embeds.Count == 0) return; // Doesn't contain command data
-            if (message.channel?.guild_id is null) return;
+            if (message.Source != MessageSource.Webhook) return; // Not from command webhook
+            if (message.Embeds.Count == 0) return; // Doesn't contain command data
+            if (message.Channel is not SocketTextChannel channel) return;
 
-            GuildConfig? config = await WhispCache.GuildConfig.Get(message.channel.guild_id);
+            GuildConfig? config = await WhispCache.GuildConfig.Get(channel.Guild.Id);
             if (config is null) return;
             if (config.version != Config.EnvId) return; // Make sure commands are only responded to once
 
@@ -82,14 +86,14 @@ namespace Whispbot.Commands.ERLCCommands.Commands
             // Description: [Username:UserID](ProfileUrl) [used the command | kicked | banned] `:command args`
             // Footer: Private Server: Code
 
-            Embed commandEmbed = message.embeds[0];
-            string? description = commandEmbed.description;
-            string? footer = commandEmbed.footer?.text;
+            Embed commandEmbed = message.Embeds.First();
+            string? description = commandEmbed.Description;
+            string? footer = commandEmbed.Footer?.Text;
 
             if (description is null || footer is null || !footer.Contains("Private Server: ")) return; // Not valid command log
 
             // 1: Username, 2: UserID, 3: Action, 4: Command, 5: Args https://regex101.com/r/riJkf5/1
-            Regex regex = new(@"\[(.+):([0-9]+)\]\(.+\) (used the command:|banned|kicked) `([^ ]+) *(.*)`");
+            Regex regex = ERLCCommandRegex();
             var commandGroups = regex.Match(description).Groups;
             if (commandGroups.Count != 6) return; // Malformed data
 
@@ -109,16 +113,16 @@ namespace Whispbot.Commands.ERLCCommands.Commands
             {
                 serverConfig = Postgres.SelectFirst<ERLCServerConfig>(
                     "SELECT * FROM erlc_servers WHERE guild_id = @1 AND code = @2",
-                    [long.Parse(message.channel.guild_id), serverKey]
+                    [channel.Guild.Id, serverKey]
                 );
 
                 serverMap[serverKey] = serverConfig;
             }
 
             // Make sure that the config is for this server to avoid cross-server spoofing
-            if (serverConfig is null || serverConfig.guild_id.ToString() != message.channel.guild_id) return;
+            if (serverConfig is null || serverConfig.guild_id != channel.Guild.Id) return;
 
-            MatchCollection matches = Regex.Matches(commandArgs, @"--(\w+)");
+            MatchCollection matches = CommandArgsRegex().Matches(commandArgs);
             List<string> flags = [.. matches.Select(m => m.Groups[1].Value.ToLower())];
             List<string> args = [.. commandArgs.Split(" ").Where(a => !flags.Contains(a.Replace("--", "")))];
 
@@ -156,7 +160,6 @@ namespace Whispbot.Commands.ERLCCommands.Commands
                     }
                     else
                     {
-                        if (ctx.GuildId is null || ctx.UserId is null) return;
                         List<RobloxModerationType>? types = await WhispCache.RobloxModerationTypes.Get(ctx.GuildId);
 
                         if (types is null || types.Count == 0) return;
@@ -186,7 +189,9 @@ namespace Whispbot.Commands.ERLCCommands.Commands
                             return;
                         }
 
-                        var (moderation, error) = await Procedures.CreateModeration(ctx.GuildId, ctx.UserId, playerId, modType, reason);
+                        ulong targetId = ulong.Parse(playerId);
+
+                        var (moderation, error) = await Procedures.CreateModeration(ctx.GuildId, ctx.UserId, targetId, modType, reason);
 
                         if (moderation is null)
                         {
@@ -196,7 +201,7 @@ namespace Whispbot.Commands.ERLCCommands.Commands
 
                         if (ctx.flags.Contains("bolo"))
                         {
-                            var (bolo, boloError) = await Procedures.CreateBanRequest(ctx.GuildId, ctx.UserId, playerId, reason);
+                            var (bolo, boloError) = await Procedures.CreateBanRequest(ctx.GuildId, ctx.UserId, targetId, reason);
 
                             if (bolo is null)
                             {
@@ -216,7 +221,7 @@ namespace Whispbot.Commands.ERLCCommands.Commands
             }
             else if (action == "kicked" || action == "banned")
             {
-                if (ctx.GuildId is null || ctx.UserId is null || string.IsNullOrEmpty(commandName)) return;
+                if (string.IsNullOrEmpty(commandName)) return;
 
                 List<RobloxModerationType>? types = await WhispCache.RobloxModerationTypes.Get(ctx.GuildId);
 
@@ -234,6 +239,8 @@ namespace Whispbot.Commands.ERLCCommands.Commands
                     return;
                 }
 
+                ulong targetId = ulong.Parse(target.id);
+
                 string reason = ctx.args.Join(" ");
                 if (string.IsNullOrEmpty(reason))
                 {
@@ -244,13 +251,13 @@ namespace Whispbot.Commands.ERLCCommands.Commands
                     reason = reason.Replace(" - Player Not In Game", "");
                 }
 
-                    var (moderation, error) = await Procedures.CreateModeration(ctx.GuildId, ctx.UserId, target.id, modType, reason);
+                    var (moderation, error) = await Procedures.CreateModeration(ctx.GuildId, ctx.UserId, targetId, modType, reason);
 
                 if (moderation is not null)
                 {
                     if (ctx.flags.Contains("bolo"))
                     {
-                        var (bolo, boloError) = await Procedures.CreateBanRequest(ctx.GuildId, ctx.UserId, target.id, reason);
+                        var (bolo, boloError) = await Procedures.CreateBanRequest(ctx.GuildId, ctx.UserId, targetId, reason);
 
                         if (bolo is not null)
                         {
@@ -273,27 +280,15 @@ namespace Whispbot.Commands.ERLCCommands.Commands
             }
         }
 
-        public void Attach(Client client)
-        {
-            client.MessageCreate += async (c, message) =>
-            {
-                if (c is not Client cl) return;
-                await HandleMessage(client, message);
-            };
-        }
-
-        public void Attach(ShardingManager manager)
-        {
-            foreach (Shard shard in manager.shards)
-            {
-                Attach(shard.client);
-            }
-        }
-
         public class RatelimitData
         {
             public int Remaining;
             public DateTimeOffset Reset;
         }
+
+        [GeneratedRegex(@"\[(.+):([0-9]+)\]\(.+\) (used the command:|banned|kicked) `([^ ]+) *(.*)`")]
+        private static partial Regex ERLCCommandRegex();
+        [GeneratedRegex(@"--(\w+)")]
+        private static partial Regex CommandArgsRegex();
     }
 }

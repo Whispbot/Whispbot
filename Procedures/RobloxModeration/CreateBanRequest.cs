@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc.Formatters;
+﻿using Discord;
+using Microsoft.AspNetCore.Mvc.Formatters;
 using Newtonsoft.Json;
 using Serilog;
 using System;
@@ -6,13 +7,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Commands.Shifts;
 using Whispbot.Databases;
 using Whispbot.Extensions;
 using Whispbot.Tools;
-using YellowMacaroni.Discord.Cache;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot
 {
@@ -25,18 +24,22 @@ namespace Whispbot
         /// <returns></returns>
         public static async Task PostCreateBanRequest(BanRequest banRequest)
         {
-            GuildConfig? guildConfig = await WhispCache.GuildConfig.Get(banRequest.guild_id.ToString());
+            GuildConfig? guildConfig = await WhispCache.GuildConfig.Get(banRequest.guild_id);
             if (guildConfig is null) return;
 
-            long? logChannelId = guildConfig.roblox_moderation?.ban_request_channel_id;
+            ulong? logChannelId = guildConfig.roblox_moderation?.ban_request_channel_id;
 
             if (logChannelId is not null)
             {
-                Channel? logChannel = await DiscordCache.Channels.Get(logChannelId.ToString()!);
+                IGuild guild = Config.client!.GetGuild(banRequest.guild_id);
+                ITextChannel logChannel = await guild.GetTextChannelAsync(logChannelId.Value);
                 if (logChannel is not null)
                 {
-                    var (log, _) = await logChannel.Send(
-                        await GetBanRequestMessage(banRequest)
+                    var (embed, components) = await GetBanRequestMessage(banRequest);
+
+                    var log = await logChannel.SendMessageAsync(
+                        embed: embed,
+                        components: components
                     );
 
                     if (log is not null)
@@ -47,7 +50,7 @@ namespace Whispbot
                             SET message_id = @1
                             WHERE id = @2;
                             ",
-                            [long.Parse(log.id), banRequest.id]
+                            [log.Id, banRequest.id]
                         );
                     }
                 }
@@ -59,84 +62,58 @@ namespace Whispbot
         /// </summary>
         /// <param name="banRequest">The ban request to create the log for</param>
         /// <returns><see cref="MessageBuilder"/> of the log</returns>
-        public static async Task<MessageBuilder> GetBanRequestMessage(BanRequest banRequest)
+        public static async Task<(Embed, MessageComponent)> GetBanRequestMessage(BanRequest banRequest)
         {
-            User? moderator = await DiscordCache.Users.Get(banRequest.moderator_id.ToString());
+            IUser? moderator = await Config.client!.GetUserAsync(banRequest.moderator_id, CacheMode.AllowDownload, RequestOptions.Default);
             Roblox.RobloxUser? target = await Roblox.GetUserById(banRequest.target_id.ToString());
 
-            GuildConfig? guildConfig = await WhispCache.GuildConfig.Get(banRequest.guild_id.ToString());
+            GuildConfig? guildConfig = await WhispCache.GuildConfig.Get(banRequest.guild_id);
 
             // Get ERLC Servers that allow ban requests, if 0 then we just mark as banned instead of approving
-            List<ERLCServerConfig>? erlcServers = (await WhispCache.ERLCServerConfigs.Get(banRequest.guild_id.ToString()))?.Where(s => s.allow_ban_requests)?.ToList();
+            List<ERLCServerConfig>? erlcServers = (await WhispCache.ERLCServerConfigs.Get(banRequest.guild_id))?.Where(s => s.allow_ban_requests)?.ToList();
 
-            return new MessageBuilder
-            {
-                embeds = [
-                    new EmbedBuilder
-                    {
-                        author = new EmbedAuthor
-                        {
-                            name = moderator?.global_name is not null ? moderator.global_name : $"@{moderator?.username ?? "unknown"}",
-                            icon_url = moderator?.avatar_url
-                        },
-                        title = "{string.title.rmbr.newrequest}",
-                        thumbnail = new EmbedThumbnail
-                        {
-                            url = await Roblox.GetUserAvatar(banRequest.target_id)
-                        },
-                        fields = [
-                            new EmbedField
-                            {
-                                name = "{string.title.rmlog.user}",
-                                value = $"{{emoji.user}} {target?.name}\n{(!string.IsNullOrWhiteSpace(target?.displayName) && target.displayName != target.name ? $"{{emoji.chat}} {target?.displayName}\n" : "")}{{emoji.folder}} {target?.id}\n{{emoji.clock}} <t:{target?.createTime?.ToUnixTimeSeconds()}:d> (<t:{target?.createTime?.ToUnixTimeSeconds()}:R>)"
-                            },
-                            new EmbedField
-                            {
-                                name = "{string.title.rmlog.reason}",
-                                value = $"{{emoji.alignment}} {banRequest.reason ?? "*{string.content.rmlog.noreason}.*"}"
-                            },
-                            ..(
-                            banRequest.status is not null ?
-                                new List<EmbedField> {
-                                    new()
-                                    {
-                                        name = "{string.title.rmbr.status}",
-                                        value = banRequest.status == true ? "{emoji.loading} {string.content.rmbr.sending}..." : $"{{emoji.alignment}} {banRequest.status_message ?? "{string.errors.rmbr.unknownerror}"}"
-                                    }
-                                } :
-                                []
+            return (
+                new EmbedBuilder()
+                    .WithAuthor(moderator.GlobalName ?? $"@{moderator.Username}", moderator.GetDisplayAvatarUrl())
+                    .WithTitle("{string.title.rmbr.newrequest}")
+                    .WithThumbnailUrl(await Roblox.GetUserAvatar(banRequest.target_id.ToString()))
+                    .WithFields([
+                        new EmbedFieldBuilder()
+                            .WithName("{string.title.rmlog.user}")
+                            .WithValue($"{{emoji.user}} {target?.name}\n{(!string.IsNullOrWhiteSpace(target?.displayName) && target.displayName != target.name ? $"{{emoji.chat}} {target?.displayName}\n" : "")}{{emoji.folder}} {target?.id}\n{{emoji.clock}} <t:{target?.createTime?.ToUnixTimeSeconds()}:d> (<t:{target?.createTime?.ToUnixTimeSeconds()}:R>)"),
+                        new EmbedFieldBuilder()
+                            .WithName("{string.title.rmlog.reason}")
+                            .WithValue($"{{emoji.alignment}} {banRequest.reason ?? "*{string.content.rmlog.noreason}.*"}"),
+                        ..(banRequest.status is not null ? new List<EmbedFieldBuilder> {
+                            new EmbedFieldBuilder()
+                                .WithName("{string.title.rmbr.status}")
+                                .WithValue(banRequest.status == true ? "{emoji.loading} {string.content.rmbr.sending}..." : $"{{emoji.alignment}} {banRequest.status_message ?? "{string.errors.rmbr.unknownerror}"}")
+                        } : [])
+                    ])
+                    .WithFooter($"ID: {banRequest.id}")
+                    .Build()
+                    .ProcessObj((Strings.Language)(guildConfig?.default_language ?? 0))!,
+                new ComponentBuilder()
+                    .AddRow(
+                        new ActionRowBuilder()
+                            .WithButton(
+                                (erlcServers?.Count ?? 0) > 0 ? "{string.button.rmbr.approve}" : "{string.button.rmbr.markbanned}",
+                                $"rm_br_confirm {banRequest.id}", 
+                                ButtonStyle.Success, 
+                                Strings.GetEmoji("tick"), 
+                                disabled: banRequest.status == true
                             )
-                        ],
-                        footer = new EmbedFooter
-                        {
-                            text = $"ID: {banRequest.id}"
-                        }
-                    }
-                ],
-                components = [
-                    new ActionRowBuilder
-                    {
-                        components = [
-                            new ButtonBuilder
-                            {
-                                custom_id = $"rm_br_confirm {banRequest.id}",
-                                style = ButtonStyle.Success,
-                                emoji = Strings.GetEmoji("tick"),
-                                label = (erlcServers?.Count ?? 0) > 0 ? "{string.button.rmbr.approve}" : "{string.button.rmbr.markbanned}",
-                                disabled = banRequest.status == true
-                            },
-                            new ButtonBuilder
-                            {
-                                custom_id = $"rm_br_deny {banRequest.id}",
-                                style = ButtonStyle.Danger,
-                                emoji = Strings.GetEmoji("delete"),
-                                label = "{string.button.rmbr.deny}",
-                                disabled = banRequest.status == true
-                            }
-                        ]
-                    }
-                ]
-            }.Process((Strings.Language)(guildConfig?.default_language ?? 0), null, true);
+                            .WithButton(
+                                "{string.button.rmbr.deny}",
+                                $"rm_br_deny {banRequest.id}",
+                                ButtonStyle.Danger,
+                                Strings.GetEmoji("delete"),
+                                disabled: banRequest.status == true
+                            )
+                    )
+                    .Build()
+                    .ProcessObj((Strings.Language)(guildConfig?.default_language ?? 0))!
+            );
         }
 
         /// <summary>
@@ -147,13 +124,13 @@ namespace Whispbot
         /// <param name="targetId">The roblox user being banned</param>
         /// <param name="reason">The reason for the request</param>
         /// <returns>(<see cref="BanRequest?"/>, <see cref="string?"/>) where item1 is the new ban request and item2 is the error if failed</returns>
-        public static async Task<(BanRequest?, string?)> CreateBanRequest(long guildId, long moderatorId, long targetId, string reason = "No reason provided")
+        public static async Task<(BanRequest?, string?)> CreateBanRequest(ulong guildId, ulong moderatorId, ulong targetId, string reason = "No reason provided")
         {
             // Check if the module is even enabled
-            if (!(await WhispPermissions.CheckModule(guildId.ToString(), Commands.Module.RobloxModeration)).Item1) return (null, "{string.errors.rmlog.moduledisabled}");
+            if (!(await WhispPermissions.CheckModule(guildId, Commands.Module.RobloxModeration)).Item1) return (null, "{string.errors.rmlog.moduledisabled}");
 
             // Check if the moderator can use ban requests
-            if (!await WhispPermissions.HasPermission(guildId.ToString(), moderatorId.ToString(), BotPermissions.UseBanRequests))
+            if (!await WhispPermissions.HasPermission(guildId, moderatorId, BotPermissions.UseBanRequests))
             {
                 return (null, "{string.errors.rmlog.noperms}");
             }
@@ -185,19 +162,19 @@ namespace Whispbot
         /// <returns>(<see cref="BanRequest?"/>, <see cref="string?"/>) where item1 is the new ban request and item2 is the error if failed</returns>
         public static async Task<(BanRequest?, string?)> CreateBanRequest(string guildId, string moderatorId, string targetId, string raeson = "No reason provided")
         {
-            return await CreateBanRequest(long.Parse(guildId), long.Parse(moderatorId), long.Parse(targetId), raeson);
+            return await CreateBanRequest(ulong.Parse(guildId), ulong.Parse(moderatorId), ulong.Parse(targetId), raeson);
         }
     }
 
     public class BanRequest
     {
-        public long id;
-        public long guild_id;
-        public long moderator_id;
-        public long target_id;
+        public ulong id;
+        public ulong guild_id;
+        public ulong moderator_id;
+        public ulong target_id;
         public string? reason;
         public DateTimeOffset created_at;
-        public long? message_id;
+        public ulong? message_id;
         /// <summary>
         /// NULL - Pending
         /// True - Approved

@@ -1,3 +1,4 @@
+using Discord;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -5,8 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Databases;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
+using Whispbot.Extensions;
 
 namespace Whispbot.Commands.Staff
 {
@@ -48,36 +48,27 @@ namespace Whispbot.Commands.Staff
 
             string eventUrl = $"https://{error.organizationSlug}.sentry.io/issues/{error.@event.groupID}/?project={error.@event.projectID}";
 
-            await ctx.Reply(new MessageBuilder
+            var containers = new ComponentBuilderV2()
+                .WithContainer(
+                    new ContainerBuilder()
+                        .WithTextDisplay($"**{error.@event.title}**\n-# [View in sentry](<{eventUrl}>)")
+                        .WithTextDisplay($"> {error.@event.culprit ?? "unknown culprit"}")
+                );
+
+            foreach (var value in error.@event.entries?.Where(entry => entry.data.values is not null).SelectMany(entry => entry.data.values!).Take(5) ?? [])
             {
-                components = [
-                    new ContainerBuilder
-                    {
-                        components = [
-                            new TextDisplayBuilder($"**{error.@event.title}**\n-# [View in sentry](<{eventUrl}>)"),
-                            new TextDisplayBuilder($"> {error.@event.culprit ?? "unknown culprit"}")
-                        ]
-                    },
-                    ..(error.@event.entries?.Where(entry => entry.data.values is not null).SelectMany(entry => entry.data.values!.Select(value => new ContainerBuilder
-                    {
-                        components = [
-                            new TextDisplayBuilder($"```\n{value.type}: {value.value}\n{value.stacktrace.frames.Select(frame => $" at {frame.function} in {(frame.inApp ? frame.absPath : frame.filename)}:{frame.lineNo}:{frame.colNo?.ToString() ?? "??"}").Join("\n")}\n```")
-                        ]
-                    })) ?? []),
-                    new ActionRowBuilder
-                    {
-                        components = [
-                            new ButtonBuilder
-                            {
-                                style = ButtonStyle.Link,
-                                label = "View in Sentry",
-                                url = eventUrl
-                            }
-                        ]
-                    }
-                ],
-                flags = MessageFlags.IsComponentsV2
-            });
+                containers.WithContainer(
+                    new ContainerBuilder()
+                        .WithTextDisplay($"```\n{value.type}: {value.value}\n{value.stacktrace.frames.Select(frame => $" at {frame.function} in {(frame.inApp ? frame.absPath : frame.filename)}:{frame.lineNo}:{frame.colNo?.ToString() ?? "??"}").Join("\n")}\n```")
+                );
+            }
+
+            containers.WithActionRow([new ButtonBuilder(label: "View in Sentry", url: eventUrl, style: ButtonStyle.Link)]);
+
+            await ctx.Reply(
+                components: containers.Build(),
+                flags: MessageFlags.ComponentsV2
+            );
         }
     }
 }

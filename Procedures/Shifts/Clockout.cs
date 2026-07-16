@@ -1,80 +1,67 @@
-﻿using Serilog;
+﻿using Discord;
+using Discord.WebSocket;
+using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Databases;
 using Whispbot.Extensions;
 using Whispbot.Tools;
-using YellowMacaroni.Discord.Cache;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot
 {
     public static partial class Procedures
     {
-        public async static Task PostClockout(long guildId, long moderatorId, ShiftType type, Shift shift, long? adminId = null)
+        public async static Task PostClockout(ulong guildId, ulong moderatorId, ShiftType type, Shift shift, ulong? adminId = null)
         {
-            Guild? thisGuild = await DiscordCache.Guilds.Get(guildId.ToString());
+            SocketGuild? thisGuild = Config.client!.GetGuild(guildId);
             if (thisGuild is null) return;
 
-            Member? moderator = await thisGuild.members.Get(moderatorId.ToString());
+            SocketGuildUser moderator = thisGuild.GetUser(moderatorId);
 
-            if (type.role_id is not null && moderator is not null)
+            if (type.role_id is not null)
             {
-                var err = await moderator.RemoveRole(type.role_id!.ToString()!, $"Clocked out of shift type '{type.name}'.");
-
-                if (err is not null)
-                {
-                    Log.Warning($"Failed to remove role {type.role_id} for {moderatorId}\n{err}");
-                }
+                await moderator.RemoveRoleAsync(type.role_id!.Value, new RequestOptions { AuditLogReason = $"Clocked out of shift type '{type.name}'." });
             }
 
-            GuildConfig? config = await WhispCache.GuildConfig.Get(guildId.ToString());
+            GuildConfig? config = await WhispCache.GuildConfig.Get(guildId);
             if (config is null) return;
 
-            string? logChannelId = (type.log_channel_id ?? config.shifts?.default_log_channel_id)?.ToString();
+            ulong? logChannelId = (type.log_channel_id ?? config.shifts?.default_log_channel_id);
             if (logChannelId is null) return;
 
-            Channel? logChannel = await DiscordCache.Channels.Get(logChannelId);
+            SocketTextChannel? logChannel = thisGuild.GetTextChannel(logChannelId.Value);
             if (logChannel is null) return;
 
-            await logChannel.Send(new MessageBuilder()
-            {
-                embeds = [
+            await logChannel.SendMessageAsync(
+                embed:
                     new EmbedBuilder()
-                    {
-                        author = new EmbedAuthor()
-                        {
-                            name = $"@{moderator?.user?.username ?? "err"} ({moderatorId})",
-                            icon_url = moderator?.avatar_url ?? moderator?.user?.avatar_url
-                        },
-                        title = "{string.title.clockout}".Process((Tools.Strings.Language)(config.default_language ?? 0)),
-                        description = $"<@{moderatorId}> {"{string.content.clockout}".Process((Tools.Strings.Language)(config.default_language ?? 0), new Dictionary<string, string> {
+                        .WithAuthor($"{moderator.Username} ({moderatorId})")
+                        .WithTitle("{string.title.clockout}")
+                        .WithDescription($"<@{moderatorId}> {"{string.content.clockout}".Process((Tools.Strings.Language)(config.default_language ?? 0), new Dictionary<string, string> {
                             { "type_name", type.name },
                             { "duration", Time.ConvertMillisecondsToString((shift.end_time - shift.start_time)?.TotalMilliseconds ?? 0) }
-                        })}.",
-                        fields = adminId is null ? [] : [
-                            new EmbedField
-                            {
-                                name = "{string.title.clockout.admin}",
-                                value = $"<@{adminId}>"
-                            }
-                        ],
-                        color = (int)(new Color(150, 0, 0)),
-                        footer = new EmbedFooter() { text = $"ID: {shift.id}" }
-                    }
-                ]
-            });
+                        })}.")
+                        .WithFields(adminId is null ? [] : [
+                            new EmbedFieldBuilder()
+                                .WithName("{string.title.clockout.admin}")
+                                .WithValue($"<@{adminId}>")
+                        ])
+                        .WithColor(new Color(150, 0, 0))
+                        .WithFooter($"ID: {shift.id}")
+                        .Build()
+                        .ProcessObj((Strings.Language)(config.default_language ?? 0))
+            );
         }
 
-        public static async Task<(Shift?, string?)> Clockout(long guildId, long moderatorId, ShiftType type, long? adminId = null)
+        public static async Task<(Shift?, string?)> Clockout(ulong guildId, ulong moderatorId, ShiftType type, ulong? adminId = null)
         {
-            if (!(await WhispPermissions.CheckModule(guildId.ToString(), Commands.Module.Shifts)).Item1) return (null, "{string.errors.clockin.moduledisabled}");
+            if (!(await WhispPermissions.CheckModule(guildId, Commands.Module.Shifts)).Item1) return (null, "{string.errors.clockin.moduledisabled}");
 
-            if (adminId is not null && !await WhispPermissions.HasPermission(guildId.ToString(), (adminId ?? 0).ToString(), BotPermissions.ManageShifts))
+            if (adminId is not null && !await WhispPermissions.HasPermission(guildId, (adminId ?? 0), BotPermissions.ManageShifts))
             {
                 return (null, "{string.errors.clockin.adminnoperms}");
             }

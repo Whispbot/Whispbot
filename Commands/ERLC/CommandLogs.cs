@@ -1,3 +1,4 @@
+using Discord;
 using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Newtonsoft.Json;
 using Serilog;
@@ -8,13 +9,13 @@ using System.Resources;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Databases;
 using Whispbot.Tools;
-using Whispbot.Tools.Games.ERLC;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
+using Whispbot.Tools.Disc;
+using Whispbot.Tools.Games.ERLCAPI;
 
-namespace Whispbot.Commands.ERLCCommands
+namespace Whispbot.Commands.ERLC
 {
     public class ERLC_CommandLogs : Command
     {
@@ -32,21 +33,13 @@ namespace Whispbot.Commands.ERLCCommands
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
         {
-            if (ctx.User?.id is null) return;
-
-            if (ctx.GuildId is null) // Make sure ran in server
-            {
-                await ctx.Reply("{emoji.cross} {string.errors.general.guildonly}.");
-                return;
-            }
-
             if (!await WhispPermissions.CheckModuleMessage(ctx, Module.ERLC)) return;
             if (!await WhispPermissions.CheckPermissionsMessage(ctx, BotPermissions.UseERLC)) return;
 
             ERLCServerConfig? server = await ERLCDatabase.TryGetServer(ctx);
             if (server is null) return;
 
-            var response = await ERLC.GetERLCServer(ctx, server);
+            var response = await ERLCAPI.GetERLCServer(ctx, server);
             if (response is null) return;
             var commandLogs = response?.Server?.CommandLogs;
 
@@ -61,23 +54,23 @@ namespace Whispbot.Commands.ERLCCommands
                 commandLogs.Sort((a, b) => b.Timestamp.CompareTo(a.Timestamp));
                 commandLogs = [.. commandLogs.Take(20)];
 
-                List<long> robloxIds = [.. commandLogs.Where(j => j.Player != "Remote Server").Select(j => long.Parse(j.Player.Split(":")[1]))];
+                List<ulong> robloxIds = [.. commandLogs.Where(j => j.Player != "Remote Server").Select(j => ulong.Parse(j.Player.Split(":")[1]))];
                 robloxIds = [..robloxIds.Distinct()];
 
                 List<UserConfig> userConfigs = await Users.GetConfigsFromRobloxIds(robloxIds);
-                List<Member>? members = await Users.GetMembersFromConfigs(userConfigs, ctx);
+                List<IGuildUser>? members = await Users.GetMembersFromConfigs(userConfigs, ctx);
 
                 StringBuilder strings = new();
                 foreach (var log in commandLogs)
                 {
                     UserConfig? config = log.Player == "Remote Server" ? null : userConfigs?.Find(u => u.roblox_id.ToString() == log.Player.Split(":")[1]);
-                    Member? member = members?.Find(m => m.user?.id == config?.id.ToString());
+                    IGuildUser? member = members?.Find(m => m.Id == config?.id);
 
                     StringBuilder flags = new();
                     if (member is not null)
                     {
                         flags.Append("{emoji.indiscord}");
-                        if (member.premium_since is not null) flags.Append("{emoji.booster}");
+                        if (member.PremiumSince is not null) flags.Append("{emoji.booster}");
                     }
 
                     string action = "used";
@@ -98,18 +91,12 @@ namespace Whispbot.Commands.ERLCCommands
                 }
 
                 await ctx.EditResponse(
-                    new MessageBuilder
-                    {
-                        content = "",
-                        embeds = [
-                            new EmbedBuilder
-                            {
-                                title = $"{{string.title.commandlogs}}",
-                                description = strings.ToString(),
-                                footer = new EmbedFooter { text = Cache.GenerateFooter(response!) }
-                            }
-                        ]
-                    }
+                    "",
+                    embed: new EmbedBuilder()
+                        .WithTitle($"{{string.title.commandlogs}}")
+                        .WithDescription(strings.ToString())
+                        .WithFooter(ERLCCache.GenerateFooter(response!))
+                        .Build()
                 );
             }
             else

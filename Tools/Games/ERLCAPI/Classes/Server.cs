@@ -1,15 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
-using Whispbot.PRC.PRC.Classes;
+using Whispbot.Tools.Games.ERLCAPI.Classes;
 
-namespace Whispbot.Tools.Games.ERLC.Classes
+namespace Whispbot.Tools.Games.ERLCAPI.Classes
 {
     public class ERLCServer
     {
         public string Name { get; init; } = default!;
-        public long OwnerId { get; init; } = default!;
-        public List<long> CoOwnerIds { get; init; } = [];
+        public ulong OwnerId { get; init; } = default!;
+        public List<ulong> CoOwnerIds { get; init; } = [];
         public byte CurrentPlayers { get; init; } = default!;
         public byte MaxPlayers { get; init; } = default!;
         public string JoinKey { get; init; } = default!;
@@ -18,7 +18,7 @@ namespace Whispbot.Tools.Games.ERLC.Classes
         public List<ERLCPlayer>? Players { get; init; }
         public ERLCStaff? Staff { get; init; }
         public List<ERLCJoinLog>? JoinLogs { get; init; }
-        public List<long>? Queue { get; init; }
+        public List<ulong>? Queue { get; init; }
         public List<ERLCKillLog>? KillLogs { get; init; }
         public List<ERLCCommandLog>? CommandLogs { get; init; }
         public List<ERLCCallLog>? ModCalls { get; init; }

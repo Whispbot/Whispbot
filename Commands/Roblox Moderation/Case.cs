@@ -1,14 +1,13 @@
+using Discord;
 using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Databases;
 using Whispbot.Tools;
-using YellowMacaroni.Discord.Cache;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Commands.Roblox_Moderation
 {
@@ -28,14 +27,6 @@ namespace Whispbot.Commands.Roblox_Moderation
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
         {
-            if (ctx.UserId is null) return;
-
-            if (ctx.GuildId is null || ctx.Guild is null)
-            {
-                await ctx.Reply("{emoji.cross} {string.errors.general.guildonly}.");
-                return;
-            }
-
             if (!await WhispPermissions.CheckModuleMessage(ctx, Module.RobloxModeration)) return;
             if (!await WhispPermissions.CheckPermissionsMessage(ctx, BotPermissions.UseRobloxModerations)) return;
 
@@ -53,14 +44,14 @@ namespace Whispbot.Commands.Roblox_Moderation
             {
                 moderation = Postgres.SelectFirst<RobloxModeration>(
                     "SELECT * FROM roblox_moderations WHERE guild_id = @1 AND moderator_id = @2 ORDER BY \"case\" DESC LIMIT 1",
-                    [long.Parse(ctx.GuildId), long.Parse(ctx.UserId)]
+                    [ctx.GuildId, ctx.UserId]
                 );
             }
             else if (new List<string>() { "slast", "server-last", "serverlast" }.Contains(caseId.ToLower()))
             {
                 moderation = Postgres.SelectFirst<RobloxModeration>(
                     "SELECT * FROM roblox_moderations WHERE guild_id = @1 ORDER BY \"case\" DESC LIMIT 1",
-                    [long.Parse(ctx.GuildId)]
+                    [ctx.GuildId]
                 );
             }
             else
@@ -75,7 +66,7 @@ namespace Whispbot.Commands.Roblox_Moderation
 
                 moderation = Postgres.SelectFirst<RobloxModeration>(
                     "SELECT * FROM roblox_moderations WHERE guild_id = @1 AND \"case\" = @2",
-                    [long.Parse(ctx.GuildId), intCaseId]
+                    [ctx.GuildId, intCaseId]
                 );
             }
 
@@ -85,48 +76,23 @@ namespace Whispbot.Commands.Roblox_Moderation
                 return;
             }
 
-            User? moderator = await DiscordCache.Users.Get(moderation.moderator_id.ToString());
+            IUser? moderator = await Config.client!.GetUserAsync(moderation.moderator_id, CacheMode.AllowDownload, RequestOptions.Default);
             Roblox.RobloxUser? target = await Roblox.GetUser(moderation.target_id.ToString());
 
             List<RobloxModerationType>? types = await WhispCache.RobloxModerationTypes.Get(ctx.GuildId);
             RobloxModerationType? type = types?.Find(t => t.id == moderation.type);
 
             await ctx.Reply(
-                new MessageBuilder
-                {
-                    embeds = [
-                        new EmbedBuilder
-                        {
-                            author = new EmbedAuthor
-                            {
-                                name = $"{(moderator?.global_name is not null ? moderator.global_name : $"@{moderator?.username ?? moderation.moderator_id.ToString()}")}",
-                                icon_url = moderator?.avatar_url
-                            },
-                            title = $"{{string.title.rmcase:case={moderation.@case}}}",
-                            thumbnail = new EmbedThumbnail
-                            {
-                                url = await Roblox.GetUserAvatar(moderation.target_id, 250)
-                            },
-                            fields = [
-                                new EmbedField
-                                {
-                                    name = "{string.title.rmlog.user}",
-                                    value = $"{{emoji.user}} {target?.name}\n{(!string.IsNullOrWhiteSpace(target?.displayName) && target.displayName != target.name ? $"{{emoji.chat}} {target?.displayName}\n" : "")}{{emoji.folder}} {target?.id}\n{{emoji.clock}} <t:{target?.createTime?.ToUnixTimeSeconds()}:d> (<t:{target?.createTime?.ToUnixTimeSeconds()}:R>)"
-                                },
-                                new EmbedField
-                                {
-                                    name = "{string.title.rmlog.type}",
-                                    value = $"{{emoji.folder}} {type?.name ?? "Unknown Type"}{(type?.is_deleted == true ? " ({string.content.rmcase.typedeleted})" : "")}"
-                                },
-                                new EmbedField
-                                {
-                                    name = "{string.title.rmlog.reason}",
-                                    value = $"{{emoji.alignment}} {moderation.reason}"
-                                }
-                            ]
-                        }
-                    ]
-                }
+                embed: new EmbedBuilder()
+                    .WithAuthor(moderator.GlobalName ?? $"@{moderator.Username}")
+                    .WithTitle($"{{string.title.rmcase:case={moderation.@case}}}")
+                    .WithThumbnailUrl(await Roblox.GetUserAvatar(moderation.target_id.ToString(), 250))
+                    .WithFields(
+                        new EmbedFieldBuilder() { Name = "{string.title.rmlog.user}", Value = $"{{emoji.user}} {target?.name}\n{(!string.IsNullOrWhiteSpace(target?.displayName) && target.displayName != target.name ? $"{{emoji.chat}} {target?.displayName}\n" : "")}{{emoji.folder}} {target?.id}\n{{emoji.clock}} <t:{target?.createTime?.ToUnixTimeSeconds()}:d> (<t:{target?.createTime?.ToUnixTimeSeconds()}:R>)" },
+                        new EmbedFieldBuilder() { Name = "{string.title.rmlog.type}", Value = $"{{emoji.folder}} {type?.name ?? "Unknown Type"}{(type?.is_deleted == true ? " ({string.content.rmcase.typedeleted})" : "")}" },
+                        new EmbedFieldBuilder() { Name = "{string.title.rmlog.reason}", Value = $"{{emoji.alignment}} {moderation.reason}" }
+                    )
+                    .Build()
             );
         }
     }

@@ -7,8 +7,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Tools;
-using static Whispbot.WhispCache;
+using static Whispbot.Cache.WhispCache;
 
 namespace Whispbot.Databases
 {
@@ -42,27 +43,27 @@ namespace Whispbot.Databases
 
                         if (data.table == "guild_config" || data.table.StartsWith("module_", StringComparison.InvariantCultureIgnoreCase))
                         {
-                            GuildConfig? newConfig = await WhispCache.GuildConfig.Fetch(data.id.ToString());
+                            GuildConfig? newConfig = await WhispCache.GuildConfig.Fetch(data.id);
                             if (newConfig is null)
                             {
-                                WhispCache.GuildConfig.Remove(data.id.ToString());
+                                WhispCache.GuildConfig.Remove(data.id);
                             }
                         }
                         else if (data.table == "shift_types")
                         {
-                            List<ShiftType>? newTypes = await ShiftTypes.Fetch(data.id.ToString());
+                            List<ShiftType>? newTypes = await ShiftTypes.Fetch(data.id);
                         }
                         else if (data.table == "roblox_moderation_types")
                         {
-                            List<RobloxModerationType>? newTypes = await RobloxModerationTypes.Fetch(data.id.ToString());
+                            List<RobloxModerationType>? newTypes = await RobloxModerationTypes.Fetch(data.id);
                         }
                         else if (data.table == "erlc_servers")
                         {
-                            List<ERLCServerConfig>? newServers = await ERLCServerConfigs.Fetch(data.id.ToString());
+                            List<ERLCServerConfig>? newServers = await ERLCServerConfigs.Fetch(data.id);
                         }
                         else if (data.table == "permission_roles")
                         {
-                            List<PermissionRole>? newRoles = await WhispPermissions.permissionRoles.Fetch(data.id.ToString());
+                            List<PermissionRole>? newRoles = await WhispPermissions.permissionRoles.Fetch(data.id);
                         }
                     }
                     else if (e.Channel == "language_update")
@@ -106,7 +107,7 @@ namespace Whispbot.Databases
         }
 
 #pragma warning disable IDE1006
-        public record GuildUpdatePayload(long id, string table, string op);
+        public record GuildUpdatePayload(ulong id, string table, string op);
         public record ProofDeletePayload(string id, string guild_id, string extension);
         public record LanguageUpdatePayload(Strings.DBLanguage data, string op);
 #pragma warning restore IDE1006

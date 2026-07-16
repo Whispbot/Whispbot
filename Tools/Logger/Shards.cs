@@ -4,11 +4,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Diagnostics;
-using YellowMacaroni.Discord.Cache;
-using YellowMacaroni.Discord.Sharding;
 using Whispbot.Databases;
 using Serilog;
-using YellowMacaroni.Discord.Extentions;
+using Discord.WebSocket;
+using Whispbot.Commands;
+using Whispbot.Extensions;
 
 namespace Whispbot.Tools.Logger
 {
@@ -34,16 +34,16 @@ namespace Whispbot.Tools.Logger
             OFFLINE = 4
         }
 
-        public static void LogShardInfo(Shard shard, Status status)
+        public static async Task LogShardInfo(DiscordSocketClient shard, Status status)
         {
             // If in dev env or there are ignored guilds (another instance is starting) ignore
-            if (Config.EnvId != EnvironmentType.Prod || Config.commands?.ignoreGuilds.Count > 0) return;
+            if (Config.EnvId != EnvironmentType.Prod || CommandManager.ignoreGuilds.Count > 0) return;
 
             int clusterId = Config.cluster;
-            int shardId = shard.id;
-            double ping = shard.client.ping;
-            int guilds = DiscordCache.Guilds.Count;
-            int users = DiscordCache.Users.Count;
+            int shardId = shard.ShardId;
+            int ping = shard.Latency;
+            int guilds = shard.Guilds.Count;
+            int users = 0;
             int memUsageMb = (int)(Process.GetCurrentProcess().WorkingSet64 / (1024 * 1024));
             int cpuUsageP = 0;
 
@@ -61,7 +61,7 @@ namespace Whispbot.Tools.Logger
         public static void InitDB(int clusterId, int startShard, int endShard)
         {
             // If in dev env or there are ignored guilds (another instance is starting) ignore
-            if (Config.EnvId != EnvironmentType.Prod || Config.commands?.ignoreGuilds.Count > 0) return;
+            if (Config.EnvId != EnvironmentType.Prod || CommandManager.ignoreGuilds.Count > 0) return;
 
             int i = 2;
             Postgres.Execute($@"
@@ -70,19 +70,15 @@ namespace Whispbot.Tools.Logger
             ", [clusterId, .. Enumerable.Range(startShard, endShard - startShard + 1)]);
         }
 
-        public static void Init(ShardingManager manager)
+        public static void Init(DiscordShardedClient client)
         {
-            manager.shards.ForEach(shard =>
-            {
-                shard.client.Ready        += (_, _) => LogShardInfo(shard, Status.ONLINE);
-                shard.client.Connecting   += (_, _) => LogShardInfo(shard, Status.CONNECTING);
-                shard.client.Disconnected += (_, _) => LogShardInfo(shard, Status.OFFLINE);
-                shard.client.Connecting   += (_, _) => LogShardInfo(shard, Status.STARTING);
-                shard.client.Pinged       += (_, _) => LogShardInfo(shard, Status.ONLINE);
-            });
+            client.ShardReady           +=  (c)          => LogShardInfo(c, Status.ONLINE);
+            client.ShardConnected       +=  (c)          => LogShardInfo(c, Status.CONNECTING);
+            client.ShardDisconnected    +=  (e, c)       => LogShardInfo(c, Status.OFFLINE);
+            client.ShardLatencyUpdated  +=  (_, l, c)    => LogShardInfo(c, Status.ONLINE);
 
-            int start = manager.shards.Min(s => s.id);
-            int end = manager.shards.Max(s => s.id);
+            int start = client.Shards.Min(s => s.ShardId);
+            int end = client.Shards.Max(s => s.ShardId);
             InitDB(Config.cluster, start, end);
         }
     }

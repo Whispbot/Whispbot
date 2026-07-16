@@ -1,11 +1,12 @@
-﻿using System;
+﻿using Discord;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Databases;
-using Whispbot.Tools.Discord;
-using YellowMacaroni.Discord.Core;
+using Whispbot.Tools.Disc;
 
 namespace Whispbot
 {
@@ -15,28 +16,25 @@ namespace Whispbot
         {
             if (modifiedCase?.message_id is not null)
             {
-                var config = await WhispCache.GuildConfig.Get(modifiedCase.guild_id.ToString());
+                var config = await WhispCache.GuildConfig.Get(modifiedCase.guild_id);
                 if (config is null) return;
 
                 var logChannelId = config.discord_moderation?.log_channel_id;
                 if (logChannelId is not null)
                 {
-                    var logMessage = new Message
-                    { // who has time to fetch a message if you can just pretend you did
-                        id = modifiedCase.message_id.ToString()!,
-                        channel_id = logChannelId.ToString()!
-                    };
-                    await logMessage.Delete();
+                    var guild = Config.client!.GetGuild(modifiedCase.guild_id);
+                    var channel = guild.GetTextChannel(logChannelId.Value);
+                    await channel.DeleteMessageAsync(modifiedCase.message_id.Value);
                 }
             }
         }
 
-        public static async Task<DiscordModerationCase?> VoidCase(Guild guild, int caseId, User moderator)
+        public static async Task<DiscordModerationCase?> VoidCase(IGuild guild, int caseId, IUser moderator)
         {
             var canUpdateAny = await DiscordPermissions.HasPermissionOrAdmin(
                 guild,
-                moderator.id,
-                Permissions.ManageGuild
+                moderator.Id,
+                GuildPermission.ManageGuild
             );
 
             DiscordModerationCase? modifiedCase = null;
@@ -53,7 +51,7 @@ namespace Whispbot
                     ) AND guild_id = @2
                     RETURNING *;
                     ",
-                    [long.Parse(moderator.id), long.Parse(guild.id)]
+                    [moderator.Id, guild.Id]
                 );
             }
             else if (caseId > 0)
@@ -64,7 +62,7 @@ namespace Whispbot
                     WHERE case_id = @2 AND guild_id = @3{(!canUpdateAny ? " AND moderator_id = @1" : "")}
                     RETURNING *;
                     ",
-                    [long.Parse(moderator.id), caseId, long.Parse(guild.id)]
+                    [moderator.Id, caseId, guild.Id]
                 );
             }
 

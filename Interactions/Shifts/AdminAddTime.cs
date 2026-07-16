@@ -1,3 +1,4 @@
+using Discord;
 using Microsoft.AspNetCore.DataProtection.XmlEncryption;
 using Serilog;
 using System;
@@ -7,8 +8,6 @@ using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Commands.Shifts;
 using Whispbot.Databases;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Interactions.Shifts
 {
@@ -18,24 +17,19 @@ namespace Whispbot.Interactions.Shifts
         public override InteractionType Type => InteractionType.MessageComponent;
         public override async Task ExecuteAsync(InteractionContext ctx)
         {
-            if (ctx.UserId is null || ctx.GuildId is null || ctx.args.Count <= 1) return;
+            if (ctx.GuildId is null || ctx.args.Count <= 1) return;
             if (await ctx.CheckAllowed()) return;
 
-            ModalBuilder modal = new()
-            {
-                custom_id = $"sa_addtime {ctx.args[0]} {ctx.args[1]}",
-                title = "{string.button.shiftadmin.addtime}",
-                components = [
-                    new ActionRowBuilder(
-                        new TextInputBuilder("Time To Add")
-                        {
-                            custom_id = "time",
-                            required = true,
-                            placeholder = "E.G. 1h, 30m"
-                        }
-                    )
-                ]
-            };
+            var modal = new ModalBuilder()
+                .WithCustomId($"sa_addtime {ctx.args[0]} {ctx.args[1]}")
+                .WithTitle("{string.button.shiftadmin.addtime}")
+                .AddTextInput(
+                    label: "Time To Add",
+                    customId: "time",
+                    required: true,
+                    placeholder: "E.G. 1h, 30m"
+                )
+                .Build();
 
             await ctx.ShowModal(modal);
         }

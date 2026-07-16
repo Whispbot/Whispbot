@@ -1,11 +1,11 @@
-﻿using System;
+﻿using Discord;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Tools;
-using Whispbot.Tools.Discord;
-using YellowMacaroni.Discord.Core;
+using Whispbot.Tools.Disc;
 
 namespace Whispbot
 {
@@ -23,7 +23,7 @@ namespace Whispbot
                 return "{string.errors.dm.tooshort}";
             }
 
-            Member? member = await context.Guild!.members.Get(context.TargetUser!.id);
+            IGuildUser? member = await context.Guild!.GetUserAsync(context.TargetUser!.Id);
             if (member is null) return "{string.errors.dm.nomember}";
 
             //if (member.communication_disabled_until is not null && DateTimeOffset.Parse(member.communication_disabled_until) > DateTimeOffset.UtcNow)
@@ -31,17 +31,12 @@ namespace Whispbot
             //    return "{string.errors.dm.alreadytimedout}";
             //}
 
-            if (DiscordPermissions.HasPermission(member, Permissions.Administrator))
+            if (DiscordPermissions.HasPermission(member,  GuildPermission.Administrator))
             {
                 return "{string.errors.dm.hasadmin}";
             }
 
-            var error = await member.Timeout(DateTimeOffset.UtcNow + TimeSpan.FromSeconds((double)context.DurationSeconds!), context.Reason);
-
-            if (error is not null)
-            {
-                return "{string.errors.dm.failed_mute}";
-            }
+             await member.SetTimeOutAsync(TimeSpan.FromSeconds((double)context.DurationSeconds!), new RequestOptions { AuditLogReason = context.Reason });
 
             return null;
         }

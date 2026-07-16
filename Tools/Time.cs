@@ -147,11 +147,11 @@ namespace Whispbot.Tools
         {
             if (Length == 0)
             {
-                return (Small ? "0{string.duration.short.seconds}" : "0 {string.duration.long.seconds}").Process(language);
+                return (Small ? "0{string.duration.short.seconds}" : "0 {string.duration.long.seconds}").ProcessObj(language)!;
             }
             else if (Length < 0)
             {
-                return (Small ? "{string.duration.short.forever}" : "{string.duration.long.forever}").Process(language);
+                return (Small ? "{string.duration.short.forever}" : "{string.duration.long.forever}").ProcessObj(language)!;
             }
 
                 Length = Math.Ceiling(Length / RoundTo) * RoundTo;
@@ -184,7 +184,7 @@ namespace Whispbot.Tools
                 strings.Add($"{ThisLength}{(Small ? Biggest?.Value[0] : $" {(ThisLength > 1 ? Biggest?.Value[2] : Biggest?.Value[1])}")}");
                 Length -= ThisLength * (Biggest?.Key ?? 1);
             }
-            return string.Join(Seperator, strings).Process(language);
+            return string.Join(Seperator, strings).ProcessObj(language)!;
         }
 
         public static string ConvertMillisecondsToRelativeString(double ms, bool fromunix = false, string splitter = ", ", bool small = false, double roundto = 1)

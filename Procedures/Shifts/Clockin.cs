@@ -4,98 +4,76 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Databases;
 using Whispbot.Extensions;
 using Whispbot.Tools;
-using YellowMacaroni.Discord.Cache;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
+using Discord;
 
 namespace Whispbot
 {
     public static partial class Procedures
     {
-        public async static Task PostClockin(long guildId, long moderatorId, ShiftType type, Shift shift, long? adminId = null)
+        public async static Task PostClockin(ulong guildId, ulong moderatorId, ShiftType type, Shift shift, ulong? adminId = null)
         {
-            Guild? thisGuild = await DiscordCache.Guilds.Get(guildId.ToString());
-            if (thisGuild is null) return;
+            var thisGuild = Config.client!.GetGuild(guildId);
 
-            Member? moderator = await thisGuild.members.Get(moderatorId.ToString());
+            var moderator = thisGuild.GetUser(moderatorId);
             if (moderator is null) return;
 
             if (type.role_id is not null)
             {
-                var err = await moderator.AddRole(type.role_id!.ToString()!, $"Clocked in to shift type '{type.name}'.");
-
-                if (err is not null)
-                {
-                    Log.Warning($"Failed to add role {type.role_id} for {moderatorId}\n{err}");
-                }
+                await moderator.AddRoleAsync(type.role_id!.Value, new RequestOptions { AuditLogReason = $"Clocked in to shift type '{type.name}'." });
             }
 
-            GuildConfig? config = await WhispCache.GuildConfig.Get(guildId.ToString());
+            var config = await WhispCache.GuildConfig.Get(guildId);
             if (config is null) return;
 
-            string? logChannelId = (type.log_channel_id ?? config.shifts?.default_log_channel_id)?.ToString();
+            var logChannelId = (type.log_channel_id ?? config.shifts?.default_log_channel_id);
             if (logChannelId is null) return;
 
-            Channel? logChannel = await DiscordCache.Channels.Get(logChannelId);
+            var logChannel = thisGuild.GetTextChannel(logChannelId.Value);
             if (logChannel is null) return;
 
-            await logChannel.Send(new MessageBuilder()
-            {
-                embeds = [
-                    new EmbedBuilder()
-                    {
-                        author = new EmbedAuthor()
-                        {
-                            name = $"@{moderator?.user?.username ?? "err"} ({moderatorId})",
-                            icon_url = moderator?.avatar_url ?? moderator?.user?.avatar_url
-                        },
-                        title = "{string.title.clockin}".Process((Tools.Strings.Language)(config.default_language ?? 0)),
-                        description = $"<@{moderatorId}> {"{string.content.clockin}".Process((Tools.Strings.Language)(config.default_language ?? 0))} '{type.name}'.",
-                        fields = adminId is null ? [] : [
-                            new EmbedField
-                            {
-                                name = "{string.title.clockin.admin}",
-                                value = $"<@{adminId}>"
-                            }
-                        ],
-                        color = (int)(new Color(0, 150, 0)),
-                        footer = new EmbedFooter() { text = $"ID: {shift.id}" }
-                    }
-                ]
-            });
+            await logChannel.SendMessageAsync(
+                embed: new EmbedBuilder()
+                    .WithAuthor($"@{moderator.Username} ({moderatorId})", moderator.GetDisplayAvatarUrl())
+                    .WithTitle("{string.title.clockin}")
+                    .WithDescription($"<@{moderatorId}> {{string.content.clockin}} '{type.name}'.")
+                    .WithFields(adminId is null ? [] : [new EmbedFieldBuilder().WithName("{string.title.clockin.admin}").WithValue($"<@{adminId}>")])
+                    .WithColor(new Color(0, 150, 0))
+                    .WithFooter($"ID: {shift.id}")
+                    .Build()
+            );
         }
 
-        public static async Task<(Shift?, string?)> Clockin(long guildId, long moderatorId, ShiftType type, long? adminId = null)
+        public static async Task<(Shift?, string?)> Clockin(ulong guildId, ulong moderatorId, ShiftType type, ulong? adminId = null)
         {
-            if (!(await WhispPermissions.CheckModule(guildId.ToString(), Commands.Module.Shifts)).Item1) return (null, "{string.errors.clockin.moduledisabled}");
+            if (!(await WhispPermissions.CheckModule(guildId, Commands.Module.Shifts)).Item1) return (null, "{string.errors.clockin.moduledisabled}");
 
             if (type.is_deleted)
             {
                 return (null, "{string.errors.clockin.invalidtype}");
             }
 
-            if (adminId is not null && !await WhispPermissions.HasPermission(guildId.ToString(), (adminId ?? 0).ToString(), BotPermissions.ManageShifts))
+            if (adminId is not null && !await WhispPermissions.HasPermission(guildId, (adminId ?? 0), BotPermissions.ManageShifts))
             {
                 return (null, "{string.errors.clockin.adminnoperms}");
             }
 
-            if (!await WhispPermissions.HasPermission(guildId.ToString(), moderatorId.ToString(), BotPermissions.UseShifts))
+            if (!await WhispPermissions.HasPermission(guildId, moderatorId, BotPermissions.UseShifts))
             {
                 return (null, adminId is null ? "{string.errors.clockin.noperms}" : "{string.errors.clockin.usernoperms}");
             }
 
             if ((type.required_roles ?? []).Count > 0)
             {
-                Guild? guild = await DiscordCache.Guilds.Get(guildId.ToString());
-                if (guild is null) return (null, "{string.errors.clockin.noguild}");
+                IGuild? guild = Config.client!.GetGuild(guildId);
 
-                Member? moderator = await guild.members.Get(moderatorId.ToString());
+                IGuildUser? moderator = await guild.GetUserAsync(moderatorId);
                 if (moderator is null) return (null, "{string.errors.clockin.nomember}");
 
-                if (!(moderator.roles ?? []).Any(r => type.required_roles!.Contains(r))) return (null, adminId is null ? "{string.errors.clockin.missingrole}" : "{string.errors.clockin.usermissingrole}");
+                if (!(moderator.RoleIds ?? []).Any(r => type.required_roles!.Contains(r))) return (null, adminId is null ? "{string.errors.clockin.missingrole}" : "{string.errors.clockin.usermissingrole}");
             }
 
             Shift? thisShift = null;
@@ -127,10 +105,10 @@ namespace Whispbot
 
     public class Shift
     {
-        public long id = 0;
-        public long guild_id = 0;
-        public long moderator_id = 0;
-        public long type = 0;
+        public ulong id = 0;
+        public ulong guild_id = 0;
+        public ulong moderator_id = 0;
+        public ulong type = 0;
         public DateTimeOffset start_time = DateTimeOffset.UtcNow;
         public DateTimeOffset? end_time = null;
     }

@@ -1,3 +1,4 @@
+using Discord;
 using Newtonsoft.Json;
 using Serilog;
 using System;
@@ -5,13 +6,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Commands.Shifts;
 using Whispbot.Databases;
 using Whispbot.Extensions;
 using Whispbot.Tools;
-using YellowMacaroni.Discord.Cache;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot
 {
@@ -24,24 +23,25 @@ namespace Whispbot
         /// <returns></returns>
         private static async Task PostCreateModeration(RobloxModeration moderation)
         {
-            GuildConfig? guildConfig = await WhispCache.GuildConfig.Get(moderation.guild_id.ToString());
+            GuildConfig? guildConfig = await WhispCache.GuildConfig.Get(moderation.guild_id);
             if (guildConfig is null) return;
 
-            List<RobloxModerationType>? types = await WhispCache.RobloxModerationTypes.Get(moderation.guild_id.ToString());
+            List<RobloxModerationType>? types = await WhispCache.RobloxModerationTypes.Get(moderation.guild_id);
             RobloxModerationType? type = types?.Find(t => t.id == moderation.type);
 
-            long? logChannelId = type?.log_channel_id ?? guildConfig.roblox_moderation?.default_log_channel_id;
+            ulong? logChannelId = type?.log_channel_id ?? guildConfig.roblox_moderation?.default_log_channel_id;
 
             if (logChannelId is not null)
             {
-                Channel? logChannel = await DiscordCache.Channels.Get(logChannelId.ToString()!);
+                var guild = Config.client!.GetGuild(moderation.guild_id);
+                var logChannel = guild.GetTextChannel(logChannelId.Value);
                 if (logChannel is not null)
                 {
-                    var (log, _) = await logChannel.Send(
-                        await GetRMLogMessage(moderation)
-                    );
+                    var (embed, components) = await GetRMLogMessage(moderation);
 
-                    if (log is not null)
+                    var message = await logChannel.SendMessageAsync(embed: embed, components: components);
+
+                    if (message is not null)
                     {
                         Postgres.Execute( // Update moderation with log message ID
                             @"
@@ -49,7 +49,7 @@ namespace Whispbot
                         SET message_id = @1
                         WHERE guild_id = @2 AND " + "\"case\"" + @" = @3;
                         ",
-                            [long.Parse(log.id), moderation.guild_id, moderation.@case]
+                            [message.Id, moderation.guild_id, moderation.@case]
                         );
                     }
                 }
@@ -61,83 +61,45 @@ namespace Whispbot
         /// </summary>
         /// <param name="moderation">The case to make the message for</param>
         /// <returns><see cref="MessageBuilder"/> with the log message</returns>
-        public static async Task<MessageBuilder> GetRMLogMessage(RobloxModeration moderation)
+        public static async Task<(Embed, MessageComponent)> GetRMLogMessage(RobloxModeration moderation)
         {
-            User? moderator = await DiscordCache.Users.Get(moderation.moderator_id.ToString());
+            IUser? moderator = await Config.client!.GetUserAsync(moderation.moderator_id, CacheMode.AllowDownload, RequestOptions.Default);
             Roblox.RobloxUser? target = await Roblox.GetUserById(moderation.target_id.ToString());
 
-            List<RobloxModerationType>? types = await WhispCache.RobloxModerationTypes.Get(moderation.guild_id.ToString());
+            List<RobloxModerationType>? types = await WhispCache.RobloxModerationTypes.Get(moderation.guild_id);
             RobloxModerationType? type = types?.Find(t => t.id == moderation.type);
 
-            GuildConfig? guildConfig = await WhispCache.GuildConfig.Get(moderation.guild_id.ToString());
+            GuildConfig? guildConfig = await WhispCache.GuildConfig.Get(moderation.guild_id);
 
-            return new MessageBuilder
-            {
-                embeds = [
-                    new EmbedBuilder
-                    {
-                        author = new EmbedAuthor
-                        {
-                            name = moderator?.global_name is not null ? moderator.global_name : $"@{moderator?.username ?? "unknown"}",
-                            icon_url = moderator?.avatar_url,
-                            url = $"{Config.websiteUrl}/case/{moderation.guild_id}/{moderation.@case}"
-                        },
-                        title = "{string.title.rmlog.newmoderation}",
-                        thumbnail = new EmbedThumbnail
-                        {
-                            url = await Roblox.GetUserAvatar(moderation.target_id)
-                        },
-                        fields = [
-                            new EmbedField
-                            {
-                                name = "{string.title.rmlog.user}",
-                                value = $"{{emoji.user}} {target?.name}\n{(!string.IsNullOrWhiteSpace(target?.displayName) && target.displayName != target.name ? $"{{emoji.chat}} {target?.displayName}\n" : "")}{{emoji.folder}} {target?.id}\n{{emoji.clock}} <t:{target?.createTime?.ToUnixTimeSeconds()}:d> (<t:{target?.createTime?.ToUnixTimeSeconds()}:R>)"
-                            },
-                            new EmbedField
-                            {
-                                name = "{string.title.rmlog.type}",
-                                value = $"{{emoji.moderation}} {type?.name ?? "Unknown Type"}"
-                            },
-                            new EmbedField
-                            {
-                                name = "{string.title.rmlog.reason}",
-                                value = $"{{emoji.alignment}} {moderation.reason ?? "*{string.content.rmlog.noreason}.*"}"
-                            }
-                        ],
-                        footer = new EmbedFooter
-                        {
-                            text = $"{{string.content.rmlog.case}}: {moderation.@case}"
-                        }
-                    }
-                ],
-                components = [
-                    new ActionRowBuilder
-                    {
-                        components = [
-                            new ButtonBuilder
-                            {
-                                custom_id = $"rm_log_editreason {moderation.@case}",
-                                style = ButtonStyle.Secondary,
-                                emoji = Strings.GetEmoji("pen"),
-                                label = "{string.button.rmlog.editreason}"
-                            },
-                            new ButtonBuilder
-                            {
-                                custom_id = $"rm_log_edittype {moderation.@case}",
-                                style = ButtonStyle.Secondary,
-                                emoji = Strings.GetEmoji("folder"),
-                                label = "{string.button.rmlog.edittype}"
-                            },
-                            new ButtonBuilder
-                            {
-                                custom_id = $"rm_log_delete {moderation.@case}",
-                                style = ButtonStyle.Danger,
-                                emoji = Strings.GetEmoji("delete")
-                            }
-                        ]
-                    }
-                ]
-            }.Process((Strings.Language)(guildConfig?.default_language ?? 0), null, true);
+            return (
+                new EmbedBuilder()
+                    .WithAuthor(moderator.GlobalName ?? $"@{moderator.Username}", moderator.GetDisplayAvatarUrl(), $"{Config.websiteUrl}/case/{moderation.guild_id}/{moderation.@case}")
+                    .WithTitle("{string.title.rmlog.newmoderation}")
+                    .WithThumbnailUrl(await Roblox.GetUserAvatar(moderation.target_id.ToString()))
+                    .WithFields(
+                        new EmbedFieldBuilder()
+                            .WithName("{string.title.rmlog.user}")
+                            .WithValue($"{{emoji.user}} {target?.name}\n{(!string.IsNullOrWhiteSpace(target?.displayName) && target.displayName != target.name ? $"{{emoji.chat}} {target?.displayName}\n" : "")}{{emoji.folder}} {target?.id}\n{{emoji.clock}} <t:{target?.createTime?.ToUnixTimeSeconds()}:d> (<t:{target?.createTime?.ToUnixTimeSeconds()}:R>)"),
+                        new EmbedFieldBuilder()
+                            .WithName("{string.title.rmlog.type}")
+                            .WithValue($"{{emoji.moderation}} {type?.name ?? "Unknown Type"}"),
+                        new EmbedFieldBuilder()
+                            .WithName("{string.title.rmlog.reason}")
+                            .WithValue($"{{emoji.alignment}} {moderation.reason ?? "*{string.content.rmlog.noreason}.*"}")
+                    )
+                    .WithFooter($"{{string.content.rmlog.case}}: {moderation.@case}")
+                    .Build()
+                    .ProcessObj((Strings.Language)(guildConfig?.default_language ?? 0))!,
+                new ComponentBuilder()
+                    .AddRow(
+                        new ActionRowBuilder()
+                            .WithButton("{string.button.rmlog.editreason}", $"rm_log_editreason {moderation.@case}", ButtonStyle.Secondary, Strings.GetEmoji("pen"))
+                            .WithButton("{string.button.rmlog.edittype}", $"rm_log_edittype {moderation.@case}", ButtonStyle.Secondary, Strings.GetEmoji("folder"))
+                            .WithButton("{string.button.rmlog.delete}", $"rm_log_delete {moderation.@case}", ButtonStyle.Danger, Strings.GetEmoji("delete"))
+                    )
+                    .Build()
+                    .ProcessObj((Strings.Language)(guildConfig?.default_language ?? 0))!
+            );
         }
 
         /// <summary>
@@ -150,13 +112,13 @@ namespace Whispbot
         /// <param name="reason">The reason behind the case</param>
         /// <param name="flags">Flags for the moderation (1 - from ban request)</param>
         /// <returns>(<see cref="RobloxModeration?"/>, <see cref="string?"/>) where item1 is the new case and item2 is the error if failed to create</returns>
-        public static async Task<(RobloxModeration?, string?)> CreateModeration(long guildId, long moderatorId, long targetId, RobloxModerationType type, string reason = "No reason provided", int flags = 0)
+        public static async Task<(RobloxModeration?, string?)> CreateModeration(ulong guildId, ulong moderatorId, ulong targetId, RobloxModerationType type, string reason = "No reason provided", int flags = 0)
         {
             // Makes sure the rm module is enabled
-            if (!(await WhispPermissions.CheckModule(guildId.ToString(), Commands.Module.RobloxModeration)).Item1) return (null, "{string.errors.rmlog.moduledisabled}");
+            if (!(await WhispPermissions.CheckModule(guildId, Commands.Module.RobloxModeration)).Item1) return (null, "{string.errors.rmlog.moduledisabled}");
 
             // Makes sure the moderator has permissions to create the case
-            if (!await WhispPermissions.HasPermission(guildId.ToString(), moderatorId.ToString(), BotPermissions.UseRobloxModerations))
+            if (!await WhispPermissions.HasPermission(guildId, moderatorId, BotPermissions.UseRobloxModerations))
             {
                 return (null, "{string.errors.rmlog.noperms}");
             }
@@ -184,7 +146,7 @@ namespace Whispbot
 
         public static async Task<(RobloxModeration?, string?)> CreateModeration(string guildId, string moderatorId, string targetId, RobloxModerationType type, string raeson = "No reason provided", int flags = 0)
         {
-            return await CreateModeration(long.Parse(guildId), long.Parse(moderatorId), long.Parse(targetId), type, raeson, flags);
+            return await CreateModeration(ulong.Parse(guildId), ulong.Parse(moderatorId), ulong.Parse(targetId), type, raeson, flags);
         }
     }
 
@@ -192,16 +154,16 @@ namespace Whispbot
     {
         [JsonProperty("case")]
         public int @case;
-        public long guild_id;
-        public long moderator_id;
-        public long target_id;
+        public ulong guild_id;
+        public ulong moderator_id;
+        public ulong target_id;
         public Guid type;
         public string? reason;
         public RobloxModerationFlags flags;
         public DateTimeOffset created_at;
         public DateTimeOffset updated_at;
-        public long? updated_by;
-        public long? message_id;
+        public ulong? updated_by;
+        public ulong? message_id;
     }
 
     public enum RobloxModerationFlags

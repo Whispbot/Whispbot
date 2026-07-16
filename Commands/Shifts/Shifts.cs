@@ -1,13 +1,13 @@
+using Discord;
 using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Databases;
 using Whispbot.Tools;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Commands.Shifts
 {
@@ -27,14 +27,6 @@ namespace Whispbot.Commands.Shifts
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
         {
-            if (ctx.UserId is null) return;
-
-            if (ctx.GuildId is null) // Make sure ran in server
-            {
-                await ctx.Reply("{emoji.cross} {string.errors.general.guildonly}.");
-                return;
-            }
-
             if (!await WhispPermissions.CheckModuleMessage(ctx, Module.Shifts)) return;
             if (!await WhispPermissions.CheckPermissionsMessage(ctx, BotPermissions.UseShifts)) return;
 
@@ -55,7 +47,7 @@ namespace Whispbot.Commands.Shifts
                 return;
             }
 
-            ShiftsData? data = ShiftsData.Get(long.Parse(ctx.UserId), long.Parse(ctx.GuildId), type);
+            ShiftsData? data = ShiftsData.Get(ctx.UserId, ctx.GuildId, type);
 
             if (data is null)
             {
@@ -64,7 +56,8 @@ namespace Whispbot.Commands.Shifts
             }
 
             await ctx.Reply(
-                data.generateMessage(ctx.UserId!, type)
+                components: data.GenerateMessage(ctx.UserId, type),
+                flags: MessageFlags.ComponentsV2
             );
         }
     }
@@ -82,51 +75,29 @@ namespace Whispbot.Commands.Shifts
         /// </summary>
         /// <param name="status">false for none, true for just clocked out</param>
         /// <returns></returns>
-        public MessageBuilder generateMessage(string userId, ShiftType? type = null, bool status = false, Shift? shift = null) {
-            return new MessageBuilder
-            {
-                components = [
-                    new ContainerBuilder
-                    {
-                        components = [
-                            new TextDisplayBuilder("## {string.title.shift}"),
-                            ..(currentShiftStart is not null ? [
-                                new TextDisplayBuilder($"{{emoji.clockedin}} {{string.content.shift.clockedin}} <t:{currentShiftStart.Value.ToUnixTimeSeconds()}:R>."),
-                                new Seperator()
-                            ] : status && shift?.end_time is not null ? new List<Component> {
-                                new TextDisplayBuilder($"{{emoji.clockedout}} {{string.content.shift.clockedout}} {Time.ConvertMillisecondsToString((shift.end_time - shift.start_time).Value.TotalMilliseconds)}."),
-                                new Seperator()
-                            } : []),
-                            new TextDisplayBuilder($"{{string.title.shift.alltime}}: {totalCount} ({Time.ConvertMillisecondsToString(totalDuration * 1000, ", ", true, 60000)})\n{{string.title.shift.weekly}}: {weeklyCount} ({Time.ConvertMillisecondsToString(weeklyDuration * 1000, ", ", true, 60000)})"),
-                            new TextDisplayBuilder($"-# Type: {type?.name ?? "all"}")
-                        ],
-                        accent_color = (status ? new Color(150, 0, 0) : currentShiftStart is not null ? new Color(0, 150, 0) : null)?.ToInt(),
-                    },
-                    new ActionRowBuilder
-                    {
-                        components = [
-                            new ButtonBuilder
-                            {
-                                label = "{string.button.shift.clockin}",
-                                style = ButtonStyle.Success,
-                                custom_id = $"clockin {userId} {type?.id}",
-                                disabled = currentShiftStart is not null
-                            },
-                            new ButtonBuilder
-                            {
-                                label = "{string.button.shift.clockout}",
-                                style = ButtonStyle.Danger,
-                                custom_id = $"clockout {userId} {type?.id}",
-                                disabled = currentShiftStart is null
-                            }
-                        ]
-                    }
-                ],
-                flags = MessageFlags.IsComponentsV2
-            };
+        public MessageComponent GenerateMessage(ulong userId, ShiftType? type = null, bool status = false, Shift? shift = null) {
+            return new ComponentBuilderV2()
+                .WithContainer(
+                    new ContainerBuilder()
+                        .WithTextDisplay($"## {{string.title.shift}}")
+                        .WithTextDisplay(
+                            currentShiftStart is not null ? $"{{emoji.clockedin}} {{string.content.shift.clockedin}} <t:{currentShiftStart.Value.ToUnixTimeSeconds()}:R>." 
+                            : status && shift?.end_time is not null ? $"{{emoji.clockedout}} {{string.content.shift.clockedout}} {Time.ConvertMillisecondsToString((shift.end_time - shift.start_time).Value.TotalMilliseconds)}." : ""
+                        )
+                        .WithSeparator()
+                        .WithTextDisplay($"{{string.title.shift.alltime}}: {totalCount} ({Time.ConvertMillisecondsToString(totalDuration * 1000, ", ", true, 60000)})\n{{string.title.shift.weekly}}: {weeklyCount} ({Time.ConvertMillisecondsToString(weeklyDuration * 1000, ", ", true, 60000)})")
+                        .WithTextDisplay($"-# Type: {type?.name ?? "all"}")
+                        .WithAccentColor(status ? new Color(150, 0, 0) : currentShiftStart is not null ? new Color(0, 150, 0) : null)
+                )
+                .WithActionRow(
+                    new ActionRowBuilder()
+                        .WithButton("{string.button.shift.clockin}", $"clockin {userId} {type?.id}", ButtonStyle.Success, disabled: currentShiftStart is not null)
+                        .WithButton("{string.button.shift.clockout}", $"clockout {userId} {type?.id}", ButtonStyle.Danger, disabled: currentShiftStart is null)
+                )
+                .Build();
         }
 
-        public static ShiftsData? Get(long userid, long guildid, ShiftType? type = null)
+        public static ShiftsData? Get(ulong userid, ulong guildid, ShiftType? type = null)
         {
             return Postgres.SelectFirst<ShiftsData>(
                 @"
@@ -145,7 +116,7 @@ namespace Whispbot.Commands.Shifts
                         ) ELSE NULL END AS currentShiftStart
                     FROM shifts
                     WHERE moderator_id = @1 AND guild_id = @2" + (type is not null ? " AND type = @3" : ""),
-                [userid, guildid, .. (type is not null ? new long[] { type.id } : [])]
+                [userid, guildid, .. (type is not null ? new ulong[] { type.id } : [])]
             );
         }
     }

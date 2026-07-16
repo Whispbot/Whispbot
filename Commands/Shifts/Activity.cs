@@ -1,13 +1,13 @@
+using Discord;
 using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Databases;
 using Whispbot.Tools;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Commands.Shifts
 {
@@ -30,14 +30,6 @@ namespace Whispbot.Commands.Shifts
         public override async Task ExecuteAsync(CommandContext ctx)
         {
             // !shift activity [duration] [requirement] [type]
-
-            if (ctx.UserId is null) return;
-
-            if (ctx.GuildId is null || ctx.Guild is null)
-            {
-                await ctx.Reply("{emoji.cross} {string.errors.general.guildonly}.");
-                return;
-            }
 
             if (!await WhispPermissions.CheckModuleMessage(ctx, Module.Shifts)) return;
             if (!await WhispPermissions.CheckPermissionsMessage(ctx, BotPermissions.ManageShifts)) return;
@@ -90,9 +82,9 @@ namespace Whispbot.Commands.Shifts
                 LEFT JOIN agg a ON a.moderator_id = m.moderator_id;
                 ",
                 [
-                    long.Parse(ctx.GuildId),
+                    ctx.GuildId,
                     duration.TotalMilliseconds,
-                    .. (type is not null ? new List<long> { type.id } : [])
+                    .. (type is not null ? new List<ulong> { type.id } : [])
                 ]
             );
 
@@ -107,7 +99,7 @@ namespace Whispbot.Commands.Shifts
                 return;
             }
 
-            List<string> roles = [];
+            List<ulong> roles = [];
 
             if (type is not null && type.required_roles is not null)
             {
@@ -130,31 +122,31 @@ namespace Whispbot.Commands.Shifts
                 ];
             }
 
-            List<Member> members = await ctx.Guild.GetMembers(ctx.client, [.. userActivities.Select(ua => ua.moderator_id.ToString())], TimeSpan.FromSeconds(1));
+            List<IGuildUser> members = [.. userActivities.Select(ua => ctx.Guild.GetUser(ua.moderator_id))];
 
-            List<Member> eligibleMembers = [..members
-                .Where(m => m.roles is not null && roles.Any(r => m.roles.Contains(r)))
+            List<IGuildUser> eligibleMembers = [..members
+                .Where(m => roles.Any(r => m.RoleIds.Contains(r)))
             ];
 
             List<string> metRequirement = [];
             List<string> notMetRequirement = [];
 
-            List<ShiftUserActivity> activities = [.. userActivities.Where(u => eligibleMembers.Any(m => m.user?.id == u.moderator_id.ToString()))];
+            List<ShiftUserActivity> activities = [.. userActivities.Where(u => eligibleMembers.Any(m => m.Id == u.moderator_id))];
 
             List<Embed> embeds = [
                 new EmbedBuilder
                 {
-                    title = "{string.title.shiftactivity}",
-                    description = $"**{{string.title.shiftactivity.totalshifts}}**: {
+                    Title = "{string.title.shiftactivity}",
+                    Description = $"**{{string.title.shiftactivity.totalshifts}}**: {
                         activities.Sum(u => u.shifts)
                     }\n**{{string.title.shiftactivity.totalduration}}**: {
                         Time.ConvertMillisecondsToString(activities.Sum(u => u.duration), ", ", false, 60000)
                     }",
-                    footer = new EmbedFooter
+                    Footer = new EmbedFooterBuilder
                     {
-                        text = $"{{string.title.shiftactivity.duration}}: {Time.ConvertMillisecondsToString(duration.TotalMilliseconds, ", ", true)} | {{string.title.shiftactivity.requirement}}: {Time.ConvertMillisecondsToString(requirement.TotalMilliseconds, ", ", true)} | {{string.title.shiftactivity.type}}: {type?.name ?? "all"}"
+                        Text = $"{{string.title.shiftactivity.duration}}: {Time.ConvertMillisecondsToString(duration.TotalMilliseconds, ", ", true)} | {{string.title.shiftactivity.requirement}}: {Time.ConvertMillisecondsToString(requirement.TotalMilliseconds, ", ", true)} | {{string.title.shiftactivity.type}}: {type?.name ?? "all"}"
                     }
-                }
+                }.Build()
             ];
 
             int metRequirementLength = 0;
@@ -192,30 +184,28 @@ namespace Whispbot.Commands.Shifts
             if (metRequirement.Count == 0) metRequirement.Add("*{string.content.shiftactivity.nobody}.*");
             if (notMetRequirement.Count == 0) notMetRequirement.Add("*{string.content.shiftactivity.nobody}.*");
 
-            embeds = [
-                ..embeds,
-                ..metRequirement.Select((v) => new EmbedBuilder
-                {
-                    description = v,
-                    color = new Color(0, 150, 0).ToInt(),
-                }),
-                ..notMetRequirement.Select((v) => new EmbedBuilder
-                {
-                    description = v,
-                    color = new Color(150, 0, 0).ToInt(),
-                })
-            ];
 
-            await ctx.Reply(new MessageBuilder
-            {
-                embeds = embeds
-            });
+            await ctx.Reply(
+                embeds: [
+                    ..embeds,
+                    ..metRequirement.Select((v) => new EmbedBuilder
+                    {
+                        Description = v,
+                        Color = new Color(0, 150, 0),
+                    }.Build()),
+                    ..notMetRequirement.Select((v) => new EmbedBuilder
+                    {
+                        Description = v,
+                        Color = new Color(150, 0, 0),
+                    }.Build())
+                ]
+            );
         }
     }
 
     public class ShiftUserActivity
     {
-        public long moderator_id;
+        public ulong moderator_id;
         public double duration;
         public int shifts;
     }

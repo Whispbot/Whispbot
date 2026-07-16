@@ -4,9 +4,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using YellowMacaroni.Discord.Extentions;
+using Whispbot.Extensions;
 
-namespace Whispbot.Commands.ERLCCommands.Commands.Moderation
+namespace Whispbot.Commands.ERLC.Commands.Moderation
 {
     public class EditReason : ERLCCommand
     {
@@ -17,8 +17,6 @@ namespace Whispbot.Commands.ERLCCommands.Commands.Moderation
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(ERLCCommandContext ctx)
         {
-            if (ctx.GuildId is null || ctx.UserId is null) return;
-
             if (ctx.args.Count < 1)
             {
                 await ctx.Reply("{string.errors.erlccommand.ermr.missingcase}.");

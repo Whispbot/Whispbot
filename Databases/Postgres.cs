@@ -1,4 +1,5 @@
 ﻿using Npgsql;
+using NpgsqlTypes;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -7,7 +8,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Extensions;
-using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Databases
 {
@@ -261,7 +261,20 @@ namespace Whispbot.Databases
             int i = 1;
             foreach (var arg in args)
             {
-                command.Parameters.AddWithValue($"@{i}", arg);
+                object value = arg ?? DBNull.Value;
+
+                // Convert unsigned types to signed equivalents for PostgreSQL
+                // (Discord snowflakes safely fit in signed 64-bit range)
+                if (arg is ulong ulongValue)
+                {
+                    value = (long)ulongValue;
+                }
+                else if (arg is uint uintValue)
+                {
+                    value = (int)uintValue;
+                }
+
+                command.Parameters.AddWithValue($"@{i}", value);
                 i++;
             }
             return command;

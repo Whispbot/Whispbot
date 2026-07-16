@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.DataProtection.XmlEncryption;
+﻿using Discord;
+using Microsoft.AspNetCore.DataProtection.XmlEncryption;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -7,8 +8,6 @@ using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Commands.Shifts;
 using Whispbot.Databases;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Interactions.Roblox_Moderations
 {
@@ -18,28 +17,24 @@ namespace Whispbot.Interactions.Roblox_Moderations
         public override InteractionType Type => InteractionType.MessageComponent;
         public override async Task ExecuteAsync(InteractionContext ctx)
         {
-            if (ctx.UserId is null || ctx.GuildId is null || ctx.args.Count < 1) return;
+            if (ctx.GuildId is null || ctx.args.Count < 1) return;
 
             DBReason? reason = Postgres.SelectFirst<DBReason>(
                 "SELECT reason FROM roblox_moderations WHERE guild_id = @1 AND \"case\" = @2",
-                [long.Parse(ctx.GuildId), int.Parse(ctx.args[0])]
+                [ctx.GuildId, int.Parse(ctx.args[0])]
             );
 
-            ModalBuilder modal = new()
-            {
-                custom_id = $"rm_modal_editreason {ctx.args[0]}",
-                title = "{string.button.rmlog.editreason}",
-                components = [
-                    new ActionRowBuilder(
-                        new TextInputBuilder("{string.title.rmlog.reason}")
-                        {
-                            custom_id = "reason",
-                            required = true,
-                            value = reason?.reason ?? ""
-                        }
-                    )
-                ]
-            };
+            var modal = new ModalBuilder()
+                .WithCustomId($"rm_modal_editreason {ctx.args[0]}")
+                .WithTitle("{string.button.rmlog.editreason}")
+                .AddTextInput(
+                    "Reason",
+                    customId: "reason",
+                    required: true,
+                    value: reason?.reason,
+                    placeholder: "New reason"
+                )
+                .Build();
 
             await ctx.ShowModal(modal);
         }

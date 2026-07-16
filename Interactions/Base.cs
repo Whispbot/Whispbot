@@ -1,15 +1,17 @@
-﻿using Newtonsoft.Json;
+﻿using Amazon.S3.Model;
+using Discord;
+using Discord.Rest;
+using Discord.WebSocket;
+using Newtonsoft.Json;
 using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Commands;
 using Whispbot.Extensions;
-using YellowMacaroni.Discord.Cache;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Interactions
 {
@@ -20,120 +22,120 @@ namespace Whispbot.Interactions
         public abstract Task ExecuteAsync(InteractionContext ctx);
     }
 
-    public class InteractionContext(Client client, Interaction interaction, List<string> args)
+    public class InteractionContext(DiscordShardedClient client, SocketInteraction interaction, List<string> args)
     {
-        public Client client = client;
-        public Interaction interaction = interaction;
+        public DiscordShardedClient client = client;
+        public SocketInteraction interaction = interaction;
         public List<string> args = args;
 
-        public string? GuildId => interaction.guild_id;
-        public string? ChannelId => interaction.channel?.id;
-        public string? UserId => interaction.user?.id ?? interaction.member?.user?.id;
-        public Guild? Guild => GuildId is not null ? DiscordCache.Guilds.Get(GuildId).WaitFor() : null;
-        public Channel? Channel => ChannelId is not null ? DiscordCache.Channels.Get(ChannelId).WaitFor() : null;
-        public User? User => interaction.user ?? interaction.member?.user;
+        public ulong? GuildId => interaction.GuildId;
+        public ulong? ChannelId => interaction.ChannelId;
+        public ulong UserId => interaction.User.Id;
+        public SocketGuild? Guild => GuildId is not null ? client.GetGuild(GuildId.Value) : null;
+        public SocketChannel? Channel => ChannelId is not null ? client.GetChannel(ChannelId.Value) : null;
+        public SocketUser User => interaction.User;
 
-        public UserConfig? UserConfig => UserId is not null ? WhispCache.UserConfig.Get(UserId).WaitFor() : null;
-        public GuildConfig? GuildConfig => GuildId is not null ? WhispCache.GuildConfig.Get(GuildId).WaitFor() : null;
+        public UserConfig? UserConfig => WhispCache.UserConfig.Get(UserId).Result;
+        public GuildConfig? GuildConfig => GuildId is not null ? WhispCache.GuildConfig.Get(GuildId.Value).Result : null;
 
         public Tools.Strings.Language Language => (Tools.Strings.Language)(UserConfig?.language ?? GuildConfig?.default_language ?? 0);
 
-        public async Task Respond(MessageBuilder content, bool ephmeral = false)
+        public T? Process<T>(T? obj) where T : class
         {
-            if (ephmeral && !content.flags.HasFlag(MessageFlags.Ephemeral)) content.flags |= MessageFlags.Ephemeral;
-            await interaction.Respond(JsonConvert.DeserializeObject<MessageBuilder>(JsonConvert.SerializeObject(content).Process(Language)) ?? new MessageBuilder() { content = "Something went wrong..." });
+            if (obj is null) return null;
+            return JsonConvert.DeserializeObject<T>(JsonConvert.SerializeObject(obj).ProcessObj(Language)!);
         }
 
-        public async Task Respond(string content, bool ephmeral = false)
+        public async Task Respond(
+            string? text = null, 
+            Embed[]? embeds = null, 
+            bool isTTS = false, 
+            bool ephemeral = true, 
+            AllowedMentions? allowedMentions = null,
+            MessageComponent? components = null,
+            Embed? embed = null,
+            RequestOptions? options = null,
+            PollProperties? poll = null,
+            MessageFlags flags = MessageFlags.None
+        )
         {
-            await Respond(new MessageBuilder { content = content }, ephmeral);
+            text = text?.ProcessObj(Language);
+            embeds = Process(embeds);
+            embed = Process(embed);
+            components = Process(components);
+
+            await interaction.RespondAsync(text, embeds, isTTS, ephemeral, allowedMentions, components, embed, options, poll, flags);
         }
 
-        public async Task<(Message?, DiscordError?)> UpdateResponse(MessageBuilder content)
+        public async Task UpdateResponse(Action<MessageProperties> func)
         {
-            return await interaction.EditResponse(JsonConvert.DeserializeObject<MessageBuilder>(JsonConvert.SerializeObject(content).Process(Language)) ?? new MessageBuilder() { content = "Something went wrong..." });
+            await interaction.ModifyOriginalResponseAsync(func);
         }
 
-        public async Task<(Message?, DiscordError?)> UpdateResponse(string content)
+        public async Task DeferResponse(bool ephemeral = true)
         {
-            return await UpdateResponse(new MessageBuilder { content = content });
-        }
-
-        public async Task DeferResponse(bool ephmeral = false)
-        {
-            await interaction.DeferResponse(ephmeral);
-        }
-
-        public async Task DeferUpdate()
-        {
-            await interaction.DeferUpdate();
+            await interaction.DeferAsync(ephemeral);
         }
 
         public async Task DeleteResponse()
         {
-            await interaction.DeleteResponse();
+            await interaction.DeleteOriginalResponseAsync();
         }
 
-        public async Task<(Message?, DiscordError?)> SendFollowup(MessageBuilder content, bool ephemeral = false)
+        public async Task<RestFollowupMessage> SendFollowup(
+            string? text = null,
+            Embed[]? embeds = null,
+            bool isTTS = false,
+            bool ephemeral = false,
+            AllowedMentions? allowedMentions = null,
+            MessageComponent? components = null,
+            Embed? embed = null,
+            RequestOptions? options = null,
+            PollProperties? poll = null,
+            MessageFlags flags = MessageFlags.None
+        )
         {
-            if (ephemeral && !content.flags.HasFlag(MessageFlags.Ephemeral)) content.flags |= MessageFlags.Ephemeral;
-            return await interaction.SendFollowup(JsonConvert.DeserializeObject<MessageBuilder>(JsonConvert.SerializeObject(content).Process(Language)) ?? new MessageBuilder() { content = "Something went wrong..." });
+            text = text?.ProcessObj(Language);
+            embeds = Process(embeds);
+            embed = Process(embed);
+            components = Process(components);
+
+            return await interaction.FollowupAsync(text, embeds, isTTS, ephemeral, allowedMentions, components, embed, options, poll, flags);
         }
 
-        public async Task<(Message?, DiscordError?)> SendFollowup(string content, bool ephemeral = false)
+        public async Task EditMessage(Action<MessageProperties> func)
         {
-            return await SendFollowup(new MessageBuilder { content = content }, ephemeral);
+            var message = await interaction.GetOriginalResponseAsync();
+
+            await message.ModifyAsync(func);
         }
 
-        public async Task<(Message?, DiscordError?)> EditFollowup(string messageId, MessageBuilder content)
+        public async Task AutocompleteResult(IEnumerable<AutocompleteResult> choices)
         {
-            return await interaction.EditFollowup(messageId, JsonConvert.DeserializeObject(JsonConvert.SerializeObject(content).Process(Language)) ?? new MessageBuilder() { content = "Something went wrong..." });
+            if (interaction is SocketAutocompleteInteraction autocomplete)
+            {
+                await autocomplete.RespondAsync(choices);
+            }
         }
 
-        public async Task<(Message?, DiscordError?)> EditMessage(MessageBuilder content)
+        public async Task ShowModal(Modal modal)
         {
-            if (interaction.message is null) return (null, new DiscordError(new()));
-            return await interaction.message.Edit(JsonConvert.DeserializeObject(JsonConvert.SerializeObject(content).Process(Language)) ?? new MessageBuilder() { content = "Something went wrong..." });
+            modal = JsonConvert.DeserializeObject<Modal>(JsonConvert.SerializeObject(modal).ProcessObj(Language)!) ?? modal;
+            await interaction.RespondWithModalAsync(modal);
         }
 
-        public async Task<(Message?, DiscordError?)> EditFollowup(string messageId, string content)
-        {
-            return await EditFollowup(messageId, new MessageBuilder { content = content });
-        }
-
-        public async Task DeleteFollowup(string messageId)
-        {
-            await interaction.DeleteFollowup(messageId);
-        }
-
-        public async Task AutocompleteResult(List<AutocompleteChoices> choices)
-        {
-            await interaction.AutocompleteResult(choices);
-        }
-
-        public async Task ShowModal(ModalBuilder modal)
-        {
-            modal = JsonConvert.DeserializeObject<ModalBuilder>(JsonConvert.SerializeObject(modal).Process(Language)) ?? modal;
-            await interaction.ShowModal(modal);
-        }
-
-        public async Task LaunchActivity()
-        {
-            await interaction.LaunchActivity();
-        }
-
-        public async Task<bool> CheckAllowed(string allowedUserId)
+        public async Task<bool> CheckAllowed(ulong allowedUserId)
         {
             if (allowedUserId != UserId)
             {
-                await Respond("{emoji.cross} {string.errors.notyours}.", true);
+                await Respond("{emoji.cross} {string.errors.notyours}.", ephemeral: true);
                 return true;
             }
             else return false;
         }
         public async Task<bool> CheckAllowed()
         {
-            return await CheckAllowed(args.FirstOrDefault() ?? "");
+            return await CheckAllowed(ulong.Parse(args.FirstOrDefault() ?? "0"));
         }
     }
 }

@@ -7,7 +7,6 @@ using System.Collections.Generic;
 using System.Data;
 using System.Dynamic;
 using System.Reflection;
-using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Extensions
 {

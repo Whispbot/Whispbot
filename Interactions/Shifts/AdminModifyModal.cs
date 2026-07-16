@@ -1,15 +1,15 @@
-﻿using Microsoft.AspNetCore.DataProtection.XmlEncryption;
+﻿using Discord;
+using Microsoft.AspNetCore.DataProtection.XmlEncryption;
 using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Commands.Shifts;
 using Whispbot.Databases;
 using Whispbot.Tools;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Interactions.Shifts
 {
@@ -19,12 +19,12 @@ namespace Whispbot.Interactions.Shifts
         public override InteractionType Type => InteractionType.ModalSubmit;
         public override async Task ExecuteAsync(InteractionContext ctx)
         {
-            if (ctx.UserId is null || ctx.GuildId is null || ctx.args.Count <= 1) return;
+            if (ctx.GuildId is null || ctx.args.Count <= 1 || ctx.interaction.Data is not IModalInteractionData data) return;
             if (await ctx.CheckAllowed()) return;
 
             if (!await WhispPermissions.CheckPermissionsInteraction(ctx, BotPermissions.ManageShifts)) return;
 
-            List<ShiftType>? types = await WhispCache.ShiftTypes.Get(ctx.GuildId);
+            List<ShiftType>? types = await WhispCache.ShiftTypes.Get(ctx.GuildId.Value);
             if (types is null)
             {
                 await ctx.Respond("{emoji.cross} {string.errors.clockin.dbfailed}");
@@ -40,8 +40,8 @@ namespace Whispbot.Interactions.Shifts
 
             string userId = ctx.args[1];
 
-            string? entered_shift_id = ctx.interaction.GetStringField("shift_id");
-            string? shift_id = string.IsNullOrEmpty(entered_shift_id) ? ctx.interaction.GetStringSelectField("recent_shift")?.FirstOrDefault() : entered_shift_id;
+            string? entered_shift_id = data.Components.FirstOrDefault(c => c.CustomId == "shift_id")?.Value;
+            string? shift_id = string.IsNullOrEmpty(entered_shift_id) ? data.Components.FirstOrDefault(c => c.CustomId == "recent_shift")?.Value : entered_shift_id;
 
             if (shift_id is null)
             {
@@ -55,11 +55,11 @@ namespace Whispbot.Interactions.Shifts
                 return;
             }
 
-            await ctx.DeferUpdate();
+            await ctx.DeferResponse();
 
             Shift? shift = Postgres.SelectFirst<Shift>(
                 @"SELECT * FROM shifts WHERE id = @1 AND guild_id = @2 AND moderator_id = @3;",
-                [long.Parse(shift_id), long.Parse(ctx.GuildId), long.Parse(userId)]
+                [long.Parse(shift_id), ctx.GuildId.Value, long.Parse(userId)]
             );
 
             if (shift is null)
@@ -68,7 +68,7 @@ namespace Whispbot.Interactions.Shifts
                 return;
             }
 
-            await ctx.EditMessage(await ShiftAdminMessages.GetModifyMessage(shift, ctx.args[0]));
+            await ctx.EditMessage(async m => m.Components = await ShiftAdminMessages.GetModifyMessage(shift, ctx.args[0]));
         }
     }
 }

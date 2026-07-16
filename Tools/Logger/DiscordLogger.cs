@@ -1,3 +1,7 @@
+using Amazon.Runtime.Internal.Util;
+using Discord;
+using Discord.Rest;
+using Discord.Webhook;
 using Newtonsoft.Json;
 using Serilog;
 using System;
@@ -6,20 +10,22 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Extensions;
-using YellowMacaroni.Discord.Core;
 
 namespace Whispbot
 {
     public static class DiscordLogger
     {
-        private readonly static HttpClient _client = new();
+        private static DiscordWebhookClient? _client;
         private readonly static string? _webhookUrl = Environment.GetEnvironmentVariable("DISCORD_WEBHOOK_URL");
         private static bool _hasWarned = false;
 
-        public static async Task Log(MessageBuilder message)
+        public static async Task Log(
+            string? text = null,
+            Embed[]? embeds = null,
+            MessageFlags flags = MessageFlags.None
+        )
         {
-            if (string.IsNullOrEmpty(_webhookUrl))
-            {
+            if (string.IsNullOrEmpty(_webhookUrl)) { 
                 if (!_hasWarned)
                 {
                     _hasWarned = true;
@@ -29,21 +35,16 @@ namespace Whispbot
                 return;
             }
 
-            try
-            {
-                await _client.PostAsync(_webhookUrl, new StringContent(
-                    JsonConvert.SerializeObject(message).Process(),
-                    Encoding.UTF8,
-                    "application/json"
-                ));
-            }
-            catch { }
-        }
+            _client ??= new(_webhookUrl);
 
-        public static async Task Log(string message)
-        {
-            if (string.IsNullOrEmpty(message)) return;
-            await Log(new MessageBuilder() { content = message });
+            text = text?.Process();
+            embeds = embeds?.ProcessObj();
+
+            await _client.SendMessageAsync(
+                text: text,
+                embeds: embeds,
+                flags: flags
+            );
         }
 
         public static async Task Log(object message)

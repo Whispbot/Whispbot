@@ -1,14 +1,14 @@
+using Discord;
 using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Databases;
+using Whispbot.Extensions;
 using Whispbot.Tools;
-using YellowMacaroni.Discord.Cache;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Commands.Shifts
 {
@@ -29,19 +29,11 @@ namespace Whispbot.Commands.Shifts
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
         {
-            if (ctx.UserId is null) return;
-
-            if (ctx.GuildId is null) // Make sure ran in server
-            {
-                await ctx.Reply("{emoji.cross} {string.errors.general.guildonly}.");
-                return;
-            }
-
             if (!await WhispPermissions.CheckModuleMessage(ctx, Module.Shifts)) return;
             if (!await WhispPermissions.CheckPermissionsMessage(ctx, BotPermissions.ManageShifts)) return;
 
-            User? userArg = ctx.args.Get("user")?.GetUser();
-            User? user = userArg is not null ? userArg : ctx.User;
+            IUser? userArg = ctx.args.Get("user")?.GetUser();
+            IUser? user = userArg is not null ? userArg : ctx.User;
             if (user is null)
             {
                 await ctx.Reply("{emoji.cross} {string.errors.general.invaliduser}");
@@ -58,8 +50,8 @@ namespace Whispbot.Commands.Shifts
             string? typeArg = ctx.args.Get("type")?.GetString();
             ShiftType? type = typeArg is not null ? shiftTypes.Find(t => t.triggers.Contains(typeArg) || t.id.ToString() == typeArg) : null;
 
-            MessageBuilder message = await ShiftAdminMessages.GetMainMessage(ctx.GuildId, user.id, ctx.UserId, type);
-            await ctx.Reply(message);
+            var message = await ShiftAdminMessages.GetMainMessage(ctx.GuildId, user.Id, ctx.UserId, type);
+            await ctx.Reply(components: message, flags: MessageFlags.ComponentsV2);
         }
     }
 
@@ -76,9 +68,9 @@ namespace Whispbot.Commands.Shifts
 
     public static class ShiftAdminMessages
     {
-        public static async Task<MessageBuilder> GetMainMessage(string guildId, string userId, string adminId, ShiftType? type = null)
+        public static async Task<MessageComponent> GetMainMessage(ulong guildId, ulong userId, ulong adminId, ShiftType? type = null)
         {
-            Task<User?> userTask = DiscordCache.Users.Get(userId);
+            var userTask = Config.client!.GetUserAsync(userId, CacheMode.AllowDownload, RequestOptions.Default);
             Task<List<ShiftType>?> typesTask = WhispCache.ShiftTypes.Get(guildId);
             ShiftAdminData? data = Postgres.SelectFirst<ShiftAdminData>(@"
                 SELECT
@@ -122,14 +114,13 @@ namespace Whispbot.Commands.Shifts
                     ), '[]'::json) AS recentShifts
                 FROM shifts s
                 WHERE s.moderator_id = @1 AND s.guild_id = @2" + (type is not null ? " AND s.type = @3" : "") + @"; 
-            ", [long.Parse(userId), long.Parse(guildId), ..(type is not null ? new List<long> { type.id } : [])]);
+            ", [userId, guildId, ..(type is not null ? new List<ulong> { type.id } : [])]);
 
             if (data is null)
             {
-                return new MessageBuilder
-                {
-                    content = "{emoji.warning} {string.errors.shiftadmin.failedgetdata}"
-                };
+                return new ComponentBuilderV2()
+                    .WithTextDisplay("{emoji.warning} {string.errors.shiftadmin.failedgetdata}")
+                    .Build();
             }
 
             float percent = MathF.Abs(MathF.Round(data.weeklyDurationIncreasePercent * 10f) / 10f);
@@ -138,220 +129,108 @@ namespace Whispbot.Commands.Shifts
 
             List<ShiftType>? types = await typesTask;
             List<Shift> recentShifts = Newtonsoft.Json.JsonConvert.DeserializeObject<List<Shift>>(data.recentShifts) ?? [];
-            User? user = await userTask;
+            IUser? user = await userTask;
 
-            List<TextDisplay> topComponents = [
-                new TextDisplayBuilder($"## {{string.title.shiftadmin}}\n-# @{user?.username ?? "unknown"}"),
+            List<TextDisplayBuilder> topComponents = [
+                new TextDisplayBuilder($"## {{string.title.shiftadmin}}\n-# @{user.Username}"),
                 new TextDisplayBuilder($"**{{string.title.shift.alltime}}:** {data.totalCount} ({Time.ConvertMillisecondsToString(data.totalDuration * 1000, ", ", true)})\n**{{string.title.shift.weekly}}:** {data.weeklyCount} ({Time.ConvertMillisecondsToString(data.weeklyDuration * 1000, ", ", true)})\n**{{string.title.shiftadmin.trend}}**: {{string.content.shiftadmin.{(increase ? "increase" : decrease ? "decrease" : "same")}:percent={percent}}}"),
             ];
 
-            return new MessageBuilder
-            {
-                components = [
-                    new ContainerBuilder
-                    {
-                        components = [
-                            ..(user?.avatar_url is not null ? new List<Component> {
-                                new SectionBuilder {
-                                    components = topComponents,
-                                    accessory = new ThumbnailBuilder(user.avatar_url)
-                                }
-                            } : [.. topComponents]),
-                            new Seperator(),
-                            new TextDisplayBuilder(recentShifts.Count > 0 ? $"**{{string.content.shiftadmin.recentshifts}}**:\n{recentShifts.ConvertAll(s => $"{types?.Find(t => t.id == s.type)?.name ?? "*{string.errors.shiftadmin.unknowntype}*"} @ <t:{s.start_time.ToUnixTimeSeconds()}:R> {(s.end_time is not null ? $"{{string.content.shiftadmin.for}} {Time.ConvertMillisecondsToString((s.end_time - s.start_time).Value.TotalMilliseconds, ", ", true, 60000)}" : "{string.content.shiftadmin.untilnow}")}").Join("\n")}" : "{string.errors.shiftadmin.norecentshifts}."),
-                            new TextDisplayBuilder($"-# Type: {type?.name ?? "all"}")
-                        ]
-                    },
-                    new ActionRowBuilder(
-                        new ButtonBuilder
-                        {
-                            custom_id = $"sa_clockin {adminId} {userId} {type?.id}",
-                            label = "{string.button.shift.clockin}",
-                            style = ButtonStyle.Success,
-                            emoji = Strings.GetEmoji("shiftstart"),
-                            disabled = data.currentShiftStart is not null
-                        },
-                        new ButtonBuilder
-                        {
-                            custom_id = $"sa_clockout {adminId} {userId} {type?.id}",
-                            label = "{string.button.shift.clockout}",
-                            style = ButtonStyle.Danger,
-                            emoji = Strings.GetEmoji("shiftstop"),
-                            disabled = data.currentShiftStart is null
-                        },
-                        new ButtonBuilder
-                        {
-                            custom_id = $"sa_modify {adminId} {userId}",
-                            label = "{string.button.shiftadmin.modify}",
-                            style = ButtonStyle.Primary,
-                            emoji = Strings.GetEmoji("pen"),
-                            disabled = data.totalCount == 0
-                        }
-                    ),
-                    new ActionRowBuilder(
-                        new ButtonBuilder
-                        {
-                            custom_id = $"sa_list {adminId} {userId} {type?.id ?? 0} 1",
-                            label = "{string.button.shiftadmin.listshifts}",
-                            style = ButtonStyle.Secondary,
-                            emoji = Strings.GetEmoji("folder"),
-                            disabled = data.totalCount == 0
-                        },
-                        new ButtonBuilder
-                        {
-                            custom_id = $"sa_wipe {adminId} {userId} {type?.id}",
-                            label = "{string.button.shiftadmin.wipeshifts}",
-                            style = ButtonStyle.Danger,
-                            emoji = Strings.GetEmoji("delete"),
-                            disabled = data.totalCount == 0
-                        }
-                    )
-                ],
-                flags = MessageFlags.IsComponentsV2
-            };
+            return new ComponentBuilderV2()
+                .WithContainer(
+                    new ContainerBuilder()
+                        .WithSection(topComponents, new ThumbnailBuilder(user.GetDisplayAvatarUrl()))
+                        .WithSeparator()
+                        .WithTextDisplay(recentShifts.Count > 0 ? $"**{{string.content.shiftadmin.recentshifts}}**:\n{recentShifts.ConvertAll(s => $"{types?.Find(t => t.id == s.type)?.name ?? "*{string.errors.shiftadmin.unknowntype}*"} @ <t:{s.start_time.ToUnixTimeSeconds()}:R> {(s.end_time is not null ? $"{{string.content.shiftadmin.for}} {Time.ConvertMillisecondsToString((s.end_time - s.start_time).Value.TotalMilliseconds, ", ", true, 60000)}" : "{string.content.shiftadmin.untilnow}")}").Join("\n")}" : "{string.errors.shiftadmin.norecentshifts}.")
+                        .WithTextDisplay($"-# Type: {type?.name ?? "all"}")
+                )
+                .WithActionRow(
+                    new ActionRowBuilder()
+                        .WithButton("{string.button.shift.clockin}", $"sa_clockin {adminId} {userId} {type?.id}", ButtonStyle.Success, Strings.GetEmoji("shiftstart"), disabled: data.currentShiftStart is not null)
+                        .WithButton("{string.button.shift.clockout}", $"sa_clockout {adminId} {userId} {type?.id}", ButtonStyle.Danger, Strings.GetEmoji("shiftstop"), disabled: data.currentShiftStart is null)
+                        .WithButton("{string.button.shiftadmin.modify}", $"sa_modify {adminId} {userId}", ButtonStyle.Primary, Strings.GetEmoji("pen"), disabled: data.totalCount == 0)
+                )
+                .WithActionRow(
+                    new ActionRowBuilder()
+                        .WithButton("{string.button.shiftadmin.listshifts}", $"sa_list {adminId} {userId} {type?.id ?? 0} 1", ButtonStyle.Secondary, Strings.GetEmoji("folder"), disabled: data.totalCount == 0)
+                        .WithButton("{string.button.shiftadmin.wipeshifts}", $"sa_wipe {adminId} {userId} {type?.id}", ButtonStyle.Danger, Strings.GetEmoji("delete"), disabled: data.totalCount == 0)
+                )
+                .Build();
         }
 
-        public static async Task<MessageBuilder> GetListMessage(string guildId, string userId, string adminId, ShiftType? type = null, int page = 1)
+        public static async Task<MessageComponent> GetListMessage(ulong guildId, ulong userId, ulong adminId, ShiftType? type = null, int page = 1)
         {
-            Task<User?> userTask = DiscordCache.Users.Get(userId);
-            Task<List<ShiftType>?> typeTask = WhispCache.ShiftTypes.Get(guildId);
+            var userTask = Config.client!.GetUserAsync(userId, CacheMode.AllowDownload, RequestOptions.Default);
+            var typeTask = WhispCache.ShiftTypes.Get(guildId);
             int i = 3;
+
             List<Shift>? shifts = Postgres.Select<Shift>(@"
                 SELECT *
                 FROM shifts
                 WHERE moderator_id = @1 AND guild_id = @2" + (type is not null ? $" AND type = @{i++}" : "") + @$"
                 ORDER BY start_time DESC
                 LIMIT 5 OFFSET @{i++};
-            ", [long.Parse(userId), long.Parse(guildId), .. (type is not null ? new List<long> { type.id } : []), (page - 1) * 5]);
+            ", [userId, guildId, .. (type is not null ? new List<ulong> { type.id } : []), (page - 1) * 5]);
             PostgresCount? countReq = Postgres.SelectFirst<PostgresCount>(@"
                 SELECT COUNT(*) AS count
                 FROM shifts
                 WHERE moderator_id = @1 AND guild_id = @2" + (type is not null ? " AND type = @3" : ""),
-                [long.Parse(userId), long.Parse(guildId), .. (type is not null ? new List<long> { type.id } : [])]
+                [userId, guildId, .. (type is not null ? new List<ulong> { type.id } : [])]
             );
             long totalCount = countReq?.count ?? 0;
 
             if (shifts is null || shifts.Count == 0)
             {
-                return new MessageBuilder
-                {
-                    content = "{ emoji.warning} {string.errors.shiftadmin.failedgetdata}"
-                };
+                return new ComponentBuilderV2()
+                    .WithTextDisplay("{emoji.warning} {string.errors.shiftadmin.failedgetdata}")
+                    .Build();
             }
 
-            User? user = await userTask;
+            IUser? user = await userTask;
             List<ShiftType>? types = await typeTask;
 
-            return new MessageBuilder
-            {
-                components = [
-                    new ContainerBuilder
-                    {
-                        components = [
-                            new TextDisplayBuilder($"## {{string.title.shiftadmin.list}}\n-# @{user?.username ?? "unknown"}"),
-                            ..shifts.SelectMany<Shift, Component>(s => [new TextDisplayBuilder($"`{s.id}`\n**{{string.content.shiftadminlist.started}}**: <t:{s.start_time.ToUnixTimeSeconds()}:f>\n**{{string.content.shiftadminlist.ended}}**: {(s.end_time is not null ? $"<t:{s.end_time.Value.ToUnixTimeSeconds()}:f>" : "{string.content.shiftadmin.notfinished}")}\n**{{string.content.shiftadminlist.duration}}:** {Time.ConvertMillisecondsToString(((s.end_time ?? DateTimeOffset.UtcNow) - s.start_time).TotalMilliseconds, ", ", true, 60000)}\n**{{string.content.shiftadminlist.type}}:** {types?.Find(t => t.id == s.type)?.name ?? "unknown"}"), new SeperatorBuilder()]).SkipLast(1),
-                            new TextDisplayBuilder($"-# Type: {type?.name ?? "all"}")
-                        ]
-                    },
-                    new ActionRowBuilder
-                    {
-                        components = [
-                            new ButtonBuilder
-                            {
-                                custom_id = $"sa_main {adminId} {userId} {type?.id}",
-                                emoji = Strings.GetEmoji("back"),
-                                style = ButtonStyle.Secondary
-                            },
-                            new ButtonBuilder
-                            {
-                                custom_id = $"sa_list {adminId} {userId} {type?.id ?? 0} {page - 1}",
-                                emoji = Strings.GetEmoji("left"),
-                                style = ButtonStyle.Primary,
-                                disabled = page <= 1
-                            },
-                            new ButtonBuilder
-                            {
-                                custom_id = "null",
-                                label = $"{page}/{Math.Ceiling((double)totalCount / 5)}",
-                                style = ButtonStyle.Primary,
-                                disabled = true
-                            },
-                            new ButtonBuilder
-                            {
-                                custom_id = $"sa_list {adminId} {userId} {type?.id ?? 0} {page + 1}",
-                                emoji = Strings.GetEmoji("right"),
-                                style = ButtonStyle.Primary,
-                                disabled = page * 5 >= totalCount
-                            }
-                        ]
-                    }
-                ],
-                flags = MessageFlags.IsComponentsV2
-            };
+            return new ComponentBuilderV2()
+                .WithContainer(
+                    new ContainerBuilder()
+                        .WithTextDisplay($"## {{string.title.shiftadmin.list}}\n-# @{user?.Username ?? "unknown"}")
+                        .WithComponents(shifts.SelectMany<Shift, TextDisplayBuilder>(s => [
+                            new TextDisplayBuilder($"`{s.id}`\n**{{string.content.shiftadminlist.started}}**: <t:{s.start_time.ToUnixTimeSeconds()}:f>\n**{{string.content.shiftadminlist.ended}}**: {(s.end_time is not null ? $"<t:{s.end_time.Value.ToUnixTimeSeconds()}:f>" : "{string.content.shiftadmin.notfinished}")}\n**{{string.content.shiftadminlist.duration}}:** {Time.ConvertMillisecondsToString(((s.end_time ?? DateTimeOffset.UtcNow) - s.start_time).TotalMilliseconds, ", ", true, 60000)}\n**{{string.content.shiftadminlist.type}}:** {types?.Find(t => t.id == s.type)?.name ?? "unknown"}")
+                        ]))
+                        .WithTextDisplay($"-# Type: {type?.name ?? "all"}")
+                )
+                .WithActionRow(
+                    new ActionRowBuilder()
+                        .WithButton("{string.button.shiftadmin.back}", $"sa_main {adminId} {userId} {type?.id}", ButtonStyle.Secondary, Strings.GetEmoji("back"))
+                        .WithButton("{string.button.shiftadmin.previous}", $"sa_list {adminId} {userId} {type?.id ?? 0} {page - 1}", ButtonStyle.Primary, Strings.GetEmoji("left"), disabled: page <= 1)
+                        .WithButton($"{page}/{Math.Ceiling((double)totalCount / 5)}", "null", ButtonStyle.Primary, disabled: true)
+                        .WithButton("{string.button.shiftadmin.next}", $"sa_list {adminId} {userId} {type?.id ?? 0} {page + 1}", ButtonStyle.Primary, Strings.GetEmoji("right"), disabled: page * 5 >= totalCount)
+                )
+                .Build();
         }
         
-        public static async Task<MessageBuilder> GetModifyMessage(Shift shift, string adminId)
+        public static async Task<MessageComponent> GetModifyMessage(Shift shift, string adminId)
         {
-            List<ShiftType>? types = await WhispCache.ShiftTypes.Get(shift.guild_id.ToString());
+            List<ShiftType>? types = await WhispCache.ShiftTypes.Get(shift.guild_id);
 
-            return new MessageBuilder
-            {
-                components = [
-                    new ContainerBuilder
-                    {
-                        components = [
-                            new TextDisplayBuilder($"## {{string.title.shiftadmin.modify}}\n-# {shift.id}"),
-                            new TextDisplayBuilder($"**{{string.content.shiftadminmodify.started}}:** <t:{shift.start_time.ToUnixTimeSeconds()}:f>\n**{{string.content.shiftadminmodify.ended}}:** <t:{shift.end_time?.ToUnixTimeSeconds()}:f>\n**{{string.content.shiftadminmodify.duration}}:** {Time.ConvertMillisecondsToString(((shift.end_time ?? DateTimeOffset.UtcNow) - shift.start_time).TotalMilliseconds, ", ", true, 60000)}\n**{{string.content.shiftadminmodify.type}}:** {types?.Find(t => t.id == shift.type)?.name ?? "unknown"}")
-                        ]
-                    },
-                    new ActionRowBuilder(
-                        new ButtonBuilder
-                        {
-                            custom_id = $"sa_main {adminId} {shift.moderator_id} {shift.type}",
-                            style = ButtonStyle.Secondary,
-                            emoji = Strings.GetEmoji("back")
-                        },
-                        new ButtonBuilder
-                        {
-                            custom_id = $"sa_addtime {adminId} {shift.id}",
-                            label = "{string.button.shiftadmin.addtime}",
-                            style = ButtonStyle.Success,
-                            emoji = Strings.GetEmoji("clockplus")
-                        },
-                        new ButtonBuilder
-                        {
-                            custom_id = $"sa_removetime {adminId} {shift.id}",
-                            label = "{string.button.shiftadmin.removetime}",
-                            style = ButtonStyle.Danger,
-                            emoji = Strings.GetEmoji("clockminus")
-                        },
-                        new ButtonBuilder
-                        {
-                            custom_id = $"sa_settime {adminId} {shift.id}",
-                            label = "{string.button.shiftadmin.settime}",
-                            style = ButtonStyle.Primary,
-                            emoji = Strings.GetEmoji("clockedit")
-                        }
-                    ),
-                    new ActionRowBuilder(
-                        new ButtonBuilder
-                        {
-                            custom_id = $"sa_changetype {adminId} {shift.id}",
-                            label = "{string.button.shiftadmin.changetype}",
-                            style = ButtonStyle.Primary,
-                            emoji = Strings.GetEmoji("pen")
-                        },
-                        new ButtonBuilder
-                        {
-                            custom_id = $"sa_delete {adminId} {shift.moderator_id} {shift.type} {shift.id}",
-                            label = "{string.button.shiftadmin.deleteshift}",
-                            style = ButtonStyle.Danger,
-                            emoji = Strings.GetEmoji("delete")
-                        }
-                    )
-                ],
-                flags = MessageFlags.IsComponentsV2
-            };
+            return new ComponentBuilderV2()
+                .WithContainer(
+                    new ContainerBuilder()
+                        .WithTextDisplay($"## {{string.title.shiftadmin.modify}}\n-# {shift.id}")
+                        .WithTextDisplay($"**{{string.content.shiftadminmodify.started}}:** <t:{shift.start_time.ToUnixTimeSeconds()}:f>\n**{{string.content.shiftadminmodify.ended}}:** <t:{shift.end_time?.ToUnixTimeSeconds()}:f>\n**{{string.content.shiftadminmodify.duration}}:** {Time.ConvertMillisecondsToString(((shift.end_time ?? DateTimeOffset.UtcNow) - shift.start_time).TotalMilliseconds, ", ", true, 60000)}\n**{{string.content.shiftadminmodify.type}}:** {types?.Find(t => t.id == shift.type)?.name ?? "unknown"}")
+                )
+                .WithActionRow(
+                    new ActionRowBuilder()
+                        .WithButton($"sa_main {adminId} {shift.moderator_id} {shift.type}", "{string.button.shiftadmin.back}", ButtonStyle.Secondary, Strings.GetEmoji("back"))
+                        .WithButton($"sa_addtime {adminId} {shift.id}", "{string.button.shiftadmin.addtime}", ButtonStyle.Success, Strings.GetEmoji("clockplus"))
+                        .WithButton($"sa_removetime {adminId} {shift.id}", "{string.button.shiftadmin.removetime}", ButtonStyle.Danger, Strings.GetEmoji("clockminus"))
+                        .WithButton($"sa_settime {adminId} {shift.id}", "{string.button.shiftadmin.settime}", ButtonStyle.Primary, Strings.GetEmoji("clockedit"))
+                )
+                .WithActionRow(
+                    new ActionRowBuilder()
+                        .WithButton($"sa_changetype {adminId} {shift.id}", "{string.button.shiftadmin.changetype}", ButtonStyle.Primary, Strings.GetEmoji("pen"))
+                        .WithButton($"sa_delete {adminId} {shift.moderator_id} {shift.type} {shift.id}", "{string.button.shiftadmin.deleteshift}", ButtonStyle.Danger, Strings.GetEmoji("delete"))
+                )
+                .Build();
         }
     }
 }

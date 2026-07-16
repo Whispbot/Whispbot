@@ -1,3 +1,5 @@
+using Discord;
+using Discord.WebSocket;
 using Newtonsoft.Json;
 using Serilog;
 using System;
@@ -9,17 +11,14 @@ using Whispbot.Databases;
 using Whispbot.Interactions.Roblox_Connection;
 using Whispbot.Interactions.Roblox_Moderations;
 using Whispbot.Interactions.Shifts;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
-using YellowMacaroni.Discord.Sharding;
 
 namespace Whispbot.Interactions
 {
-    public class InteractionManager
+    public static class InteractionManager
     {
-        private List<InteractionCommandData> _interactions = [];
+        private static readonly List<InteractionCommandData> _interactions = [];
 
-        public InteractionManager()
+        public static void Init(DiscordShardedClient client)
         {
             RegisterInteraction(new RobloxDisconnect());
             RegisterInteraction(new RobloxDisconnect());
@@ -63,60 +62,47 @@ namespace Whispbot.Interactions
             RegisterInteraction(new BanRequestApproveModal());
             RegisterInteraction(new BanRequestDeny());
 
-            Log.Debug($"[Debug] Loaded {_interactions.Count} interactions");
+            Log.Debug($"Loaded {_interactions.Count} interactions");
+
+            client.InteractionCreated += async (interaction) =>
+            {
+                await HandleInteraction(client, interaction);
+            };
         }
 
-        public void RegisterInteraction(InteractionCommandData interaction)
+        public static void RegisterInteraction(InteractionCommandData interaction)
         {
             if (_interactions.Any(i => i.CustomId == interaction.CustomId && i.Type == interaction.Type)) return;
             _interactions.Add(interaction);
         }
 
-        public async Task HandleInteraction(Client client, Interaction interaction)
+        public static async Task HandleInteraction(DiscordShardedClient client, SocketInteraction interaction)
         {
-            if (interaction.type == InteractionType.Ping) return;
-            else if (interaction.type == InteractionType.ApplicationCommandAutocomplete) await Autocomplete.Handle(interaction);
-            else if (interaction.type == InteractionType.ApplicationCommand) await Commands.Handle(client, interaction);
+            if (interaction.Type == InteractionType.Ping) return;
+            else if (interaction.Type == InteractionType.ApplicationCommandAutocomplete) await Autocomplete.Handle(interaction);
+            else if (interaction.Type == InteractionType.ApplicationCommand) await Commands.Handle(client, interaction);
 
-            if (interaction.data?.custom_id is null) return;
+            if (interaction.Data is not IComponentInteractionData data) return;
 
-            List<string> args = [.. interaction.data.custom_id.Split(' ', StringSplitOptions.RemoveEmptyEntries)];
+            List<string> args = [.. data.CustomId.Split(' ', StringSplitOptions.RemoveEmptyEntries)];
             if (args.Count == 0) return;
             string command = args[0];
             args.RemoveAt(0);
 
-            InteractionCommandData? data = _interactions.FirstOrDefault(i => i.CustomId == command && i.Type == interaction.type);
-
-            if (data is null) return;
+            InteractionCommandData? commandData = _interactions.FirstOrDefault(i => i.CustomId == command && i.Type == interaction.Type);
+            if (commandData is null) return;
 
             var ctx = new InteractionContext(client, interaction, args);
 
-            var localeMatches = Tools.Strings.Languages.Where(l => l.Value.Item1 == interaction.locale);
+            var localeMatches = Tools.Strings.Languages.Where(l => l.Value.Item1 == interaction.UserLocale);
             int language = (int)(localeMatches.Any() ? localeMatches.First().Key : 0);
             if (ctx.UserConfig is not null && (ctx.UserConfig?.language ?? ctx.GuildConfig?.default_language) != language)
             {
                 ctx.UserConfig!.language = language;
-                _ = Task.Run(() => Postgres.Execute("UPDATE user_config SET language = @1 WHERE id = @2;", [language, long.Parse(ctx.UserId!)]));
+                _ = Task.Run(() => Postgres.Execute("UPDATE user_config SET language = @1 WHERE id = @2;", [language, ctx.UserId]));
             }
 
-            await data.ExecuteAsync(ctx);
-        }
-
-        public void Attach(Client client)
-        {
-            client.InteractionCreate += async (c, interaction) =>
-            {
-                if (c is not Client client) return;
-                await HandleInteraction(client, interaction);
-            };
-        }
-
-        public void Attach(ShardingManager manager)
-        {
-            foreach (Shard shard in manager.shards)
-            {
-                Attach(shard.client);
-            }
+            await commandData.ExecuteAsync(ctx);
         }
     }
 }

@@ -5,7 +5,6 @@ using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Databases;
 using Whispbot.Tools;
-using YellowMacaroni.Discord.Core;
 
 namespace Whispbot.Commands.Discord_Moderation
 {

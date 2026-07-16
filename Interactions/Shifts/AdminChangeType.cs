@@ -1,3 +1,4 @@
+using Discord;
 using Microsoft.AspNetCore.DataProtection.XmlEncryption;
 using Serilog;
 using System;
@@ -5,10 +6,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Commands.Shifts;
 using Whispbot.Databases;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Interactions.Shifts
 {
@@ -18,34 +18,31 @@ namespace Whispbot.Interactions.Shifts
         public override InteractionType Type => InteractionType.MessageComponent;
         public override async Task ExecuteAsync(InteractionContext ctx)
         {
-            if (ctx.UserId is null || ctx.GuildId is null || ctx.args.Count < 2) return;
+            if (ctx.GuildId is null || ctx.args.Count < 2) return;
             if (await ctx.CheckAllowed()) return;
 
-            List<ShiftType>? types = await WhispCache.ShiftTypes.Get(ctx.GuildId);
+            List<ShiftType>? types = await WhispCache.ShiftTypes.Get(ctx.GuildId.Value);
             if (types is null || types.Count == 0)
             {
                 await ctx.Respond("{emoji.cross} {string.errors.clockin.dbfailed}");
                 return;
             }
 
-            await ctx.ShowModal(new ModalBuilder
-            {
-                title = "{string.button.shiftadmin.changetype}",
-                custom_id = $"sa_changetype {ctx.args[0]} {ctx.args[1]}",
-                components = [
-                    new LabelBuilder("Select new type", new StringSelectBuilder("new_type")
+            await ctx.ShowModal(new ModalBuilder()
+                .WithTitle("{string.button.shiftadmin.changetype}")
+                .WithCustomId($"sa_changetype {ctx.args[0]} {ctx.args[1]}")
+                .AddSelectMenu(
+                    label: "Select new type",
+                    customId: "new_type",
+                    options: [.. types.Where(t => !t.is_deleted).Select(t => new SelectMenuOptionBuilder
                     {
-                        options = [..types.Where(t => !t.is_deleted).Select(t => new StringSelectOption
-                        {
-                            label = t.name,
-                            value = t.id.ToString()
-                        })],
-                        required = true,
-                        min_values = 1,
-                        max_values = 1
-                    })
-                ]
-            });
+                        Label = t.name,
+                        Value = t.id.ToString()
+                    })],
+                    required: true
+                )
+                .Build()
+            );
         }
     }
 }

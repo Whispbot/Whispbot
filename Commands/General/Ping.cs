@@ -1,11 +1,12 @@
-﻿using System;
+﻿using Discord;
+using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Databases;
 using Whispbot.Tools;
-using YellowMacaroni.Discord.Core;
 
 namespace Whispbot.Commands.General
 {
@@ -23,19 +24,17 @@ namespace Whispbot.Commands.General
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
         {
+            TimeSpan uptime = DateTime.UtcNow - Process.GetCurrentProcess().StartTime.ToUniversalTime();
+
             await ctx.Reply(
-                new MessageBuilder
-                {
-                    embeds = [
-                        new EmbedBuilder()
-                        .SetTitle("Pong!")
-                        .AddField(
-                            new EmbedField { name = "Ping", value = $"{Math.Floor(ctx.client.ping)}ms", inline = true },
-                            new EmbedField { name = "Database", value = $"{(Postgres.IsConnected() ? $"Connected ({Math.Floor(Postgres.Ping)}ms)" : "Disconnected")}", inline = true }
-                        )
-                        .SetFooter($"Cluster {Config.cluster} • Shard {ctx.client.shard?.id} • {Time.ConvertMillisecondsToRelativeString(ctx.client.startupTime.ToUnixTimeMilliseconds(), true, ", ", false, 60000)}")
-                    ]
-                }
+                embed: new EmbedBuilder()
+                    .WithTitle("Pong!")
+                    .WithFields(
+                        new EmbedFieldBuilder() { Name = "Ping", Value = $"{ctx.client.Latency}ms", IsInline = true },
+                        new EmbedFieldBuilder() { Name = "Database", Value = $"{(Postgres.IsConnected() ? $"Connected ({Math.Floor(Postgres.Ping)}ms)" : "Disconnected")}", IsInline = true }
+                    )
+                    .WithFooter($"Cluster {Config.cluster} • {Time.ConvertMillisecondsToString(uptime.TotalMilliseconds, Small: true, RoundTo: 60_000, language: ctx.Language)}")
+                    .Build()
             );
         }
     }

@@ -1,14 +1,15 @@
-﻿using Microsoft.AspNetCore.DataProtection.XmlEncryption;
+﻿using Discord;
+using Microsoft.AspNetCore.DataProtection.XmlEncryption;
 using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Commands.Shifts;
 using Whispbot.Databases;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
+using Whispbot.Extensions;
 
 namespace Whispbot.Interactions.Roblox_Moderations
 {
@@ -18,31 +19,25 @@ namespace Whispbot.Interactions.Roblox_Moderations
         public override InteractionType Type => InteractionType.MessageComponent;
         public override async Task ExecuteAsync(InteractionContext ctx)
         {
-            if (ctx.UserId is null || ctx.GuildId is null || ctx.args.Count < 1) return;
+            if (ctx.GuildId is null || ctx.args.Count < 1) return;
 
-            List<RobloxModerationType>? types = (await WhispCache.RobloxModerationTypes.Get(ctx.GuildId))?.Where(t => !t.is_deleted)?.ToList();
+            List<RobloxModerationType>? types = (await WhispCache.RobloxModerationTypes.Get(ctx.GuildId.Value))?.Where(t => !t.is_deleted)?.ToList();
             if (types is null || types.Count == 0)
             {
-                await ctx.Respond("{emoji.cross} {string.errors.rmlog.dbfailed}", true);
+                await ctx.Respond("{emoji.cross} {string.errors.rmlog.dbfailed}", ephemeral: true);
                 return;
             }
 
-            ModalBuilder modal = new()
-            {
-                custom_id = $"rm_modal_edittype {ctx.args[0]}",
-                title = "{string.button.rmlog.edittype}",
-                components = [
-                    new LabelBuilder
-                    {
-                        label = "{string.title.rmlog.type}",
-                        component = new StringSelectBuilder("type")
-                        {
-                            options = [..types.Select(t => new StringSelectOption { label = t.name, value = t.id.ToString(), description = t.triggers.Count > 0 ? t.triggers.Join() : null })],
-                            required = true
-                        }
-                    }
-                ]
-            };
+            var modal = new ModalBuilder()
+                .WithCustomId($"rm_modal_edittype {ctx.args[0]}")
+                .WithTitle("{string.button.rmlog.edittype}")
+                .AddSelectMenu(
+                    label: "{string.title.rmlog.type}",
+                    customId: "type",
+                    options: [.. types.Select(t => new SelectMenuOptionBuilder().WithLabel(t.name).WithValue(t.id.ToString()).WithDescription(t.triggers.Count > 0 ? t.triggers.Join(", ") : null))],
+                    required: true
+                )
+                .Build();
 
             await ctx.ShowModal(modal);
         }

@@ -11,14 +11,12 @@ using System.Threading.Tasks;
 using Whispbot.Commands;
 using Whispbot.Databases;
 using Whispbot.Tools;
-using YellowMacaroni.Discord.Cache;
-using YellowMacaroni.Discord.Extentions;
 
-namespace Whispbot
+namespace Whispbot.Cache
 {
     public partial class WhispCache
     {
-        public static readonly Collection<GuildConfig> GuildConfig = new(async (key, args) =>
+        public static readonly Collection<ulong, GuildConfig> GuildConfig = new(async (key) =>
         {
             using var _ = Tracer.Start("FetchGuildConfig");
 
@@ -42,12 +40,12 @@ namespace Whispbot
                     LEFT JOIN feature_flags ff ON ff.id = gff.feature_flag_id
                     WHERE gc.id = @1
                     GROUP BY gc.id, mrm.id, ms.id, mdm.id;",
-                  [long.Parse(key)]
+                  [key]
                 );
 
                 return existingRecord ?? Postgres.SelectFirst<GuildConfig>(
-                    @"INSERT INTO guild_config (id, name) VALUES (@1, @2) RETURNING *;",
-                    [long.Parse(key), DiscordCache.Guilds.Get(key).Result?.name ?? ""]
+                    @"INSERT INTO guild_config (id) VALUES (@1) RETURNING *;",
+                    [key]
                 );
             } 
             catch (Exception ex)
@@ -57,7 +55,7 @@ namespace Whispbot
             }
         });
 
-        public static readonly Collection<UserConfig> UserConfig = new(async (key, args) =>
+        public static readonly Collection<ulong, UserConfig> UserConfig = new(async (key) =>
         {
             using var _ = Tracer.Start("FetchUserConfig");
 
@@ -69,39 +67,39 @@ namespace Whispbot
                 LEFT JOIN user_feature_flags uff ON uff.user_id = uc.id
                 LEFT JOIN feature_flags ff ON ff.id = uff.feature_flag_id
                 WHERE uc.id = @1;",
-              [long.Parse(key)]
+              [key]
             );
 
             return existingRecord ?? Postgres.SelectFirst<UserConfig>(
                 @"INSERT INTO user_config (id) VALUES (@1) RETURNING *;",
-                [long.Parse(key)]
+                [key]
             );
         });
 
-        public static readonly Collection<List<ERLCServerConfig>> ERLCServerConfigs = new(async (key, args) =>
+        public static readonly Collection<ulong, List<ERLCServerConfig>> ERLCServerConfigs = new(async (key) =>
         {
             using var _ = Tracer.Start("FetchERLCServerConfigs");
 
             return Postgres.Select<ERLCServerConfig>(
                 @"SELECT * FROM erlc_servers WHERE guild_id = @1;",
-                [long.Parse(key)]
+                [key]
             );
         });
 
-        public static readonly Collection<List<ShiftType>> ShiftTypes = new(async (key, args) =>
+        public static readonly Collection<ulong, List<ShiftType>> ShiftTypes = new(async (key) =>
         {
             using var _ = Tracer.Start("FetchShiftTypes");
 
             List<ShiftType>? types = Postgres.Select<ShiftType>(
                 @"SELECT * FROM shift_types WHERE guild_id = @1;",
-                [long.Parse(key)]
+                [key]
             );
 
             if (types is not null && types.Count == 0)
             {
                 ShiftType? defaultType = Postgres.SelectFirst<ShiftType>(
                     @"INSERT INTO shift_types (guild_id, is_default) VALUES (@1, true) RETURNING *;",
-                    [long.Parse(key)]
+                    [key]
                 );
 
                 if (defaultType is not null)
@@ -113,13 +111,13 @@ namespace Whispbot
             return types;
         });
 
-        public static readonly Collection<List<RobloxModerationType>> RobloxModerationTypes = new(async (key, args) =>
+        public static readonly Collection<ulong, List<RobloxModerationType>> RobloxModerationTypes = new(async (key) =>
         {
             using var _ = Tracer.Start("FetchRobloxModerationTypes");
 
             List<RobloxModerationType>? types = Postgres.Select<RobloxModerationType>(
                 @"SELECT * FROM roblox_moderation_types WHERE guild_id = @1;",
-                [long.Parse(key)]
+                [key]
             );
 
             if (types is not null && types.Count == 0)
@@ -131,7 +129,7 @@ namespace Whispbot
                            ( @1, 'Kick',    '{k,kick}',         true,  false ),
                            ( @1, 'Ban',     '{b,ban}',          false, true  )
                     ",
-                    [long.Parse(key)]
+                    [key]
                 );
 
                 if (defaultTypes is not null)
@@ -146,12 +144,12 @@ namespace Whispbot
 
     public class GuildConfig
     {
-        public long id = 0;
+        public ulong id = 0;
         public string? name;
         public string? icon_url;
         public EnvironmentType version = EnvironmentType.Prod;
         public List<string> feature_flags = [];
-        public long enabled_modules = 0;
+        public ulong enabled_modules = 0;
         public string? prefix;
 
         public int? default_language = 0;
@@ -163,19 +161,19 @@ namespace Whispbot
 
     public class ModuleRobloxModeration
     {
-        public long? default_log_channel_id;
+        public ulong? default_log_channel_id;
         public bool require_reason = false;
-        public long? ban_request_channel_id;
+        public ulong? ban_request_channel_id;
     }
 
     public class ModuleShifts
     {
-        public long? default_log_channel_id;
+        public ulong? default_log_channel_id;
     }
 
     public class ModuleDiscordModeration
     {
-        public long? log_channel_id;
+        public ulong? log_channel_id;
 
         public bool display_case_id = true;
         public bool display_case_reason = true;
@@ -193,8 +191,8 @@ namespace Whispbot
 
     public class UserConfig
     {
-        public long id = 0;
-        public long? roblox_id = null;
+        public ulong id = 0;
+        public ulong? roblox_id = null;
         public DateTimeOffset created_at = DateTimeOffset.MinValue;
         public int? language = 0;
         public bool ack_required = false;
@@ -205,7 +203,7 @@ namespace Whispbot
     public class ERLCServerConfig
     {
         public Guid id;
-        public long guild_id = 0;
+        public ulong guild_id = 0;
         public bool is_default = false;
         public string api_key = "";
         public string internal_id = "";
@@ -218,30 +216,30 @@ namespace Whispbot
 
     public class ShiftType
     {
-        public long id = 0;
-        public long guild_id = 0;
+        public ulong id = 0;
+        public ulong guild_id = 0;
         public string name = "New Shift Type";
         public bool is_default = false;
         public DateTimeOffset created_at = DateTimeOffset.UtcNow;
         public DateTimeOffset updated_at = DateTimeOffset.UtcNow;
         public bool is_deleted = false;
         public List<string> triggers = [];
-        public long? role_id = null;
-        public long? log_channel_id = null;
-        public List<string>? required_roles = [];
+        public ulong? role_id = null;
+        public ulong? log_channel_id = null;
+        public List<ulong>? required_roles = [];
     }
 
     public class RobloxModerationType
     {
         public Guid id;
-        public long guild_id;
+        public ulong guild_id;
         public string name = "New Moderation Type";
         public bool is_deleted = false;
         public List<string> triggers = [];
         public bool is_kick_type = false;
         public bool is_ban_type = false;
-        public long? log_channel_id;
-        public List<string>? required_roles;
+        public ulong? log_channel_id;
+        public List<ulong>? required_roles;
         public DateTimeOffset created_at = DateTimeOffset.UtcNow;
         public DateTimeOffset updated_at = DateTimeOffset.UtcNow;
     }

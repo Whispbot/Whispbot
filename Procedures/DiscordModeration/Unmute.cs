@@ -1,10 +1,10 @@
-﻿using System;
+﻿using Discord;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Tools;
-using YellowMacaroni.Discord.Core;
 
 namespace Whispbot
 {
@@ -12,7 +12,7 @@ namespace Whispbot
     {
         public static async Task<string?> Unmute(Context context)
         {
-            Member? member = await context.Guild!.members.Get(context.TargetUser!.id);
+            IGuildUser? member = await context.Guild!.GetUserAsync(context.TargetUser!.Id);
             if (member is null) return "{string.errors.dm.nomember}";
 
             //if (member.communication_disabled_until is null || DateTimeOffset.Parse(member.communication_disabled_until) < DateTimeOffset.UtcNow)
@@ -20,12 +20,7 @@ namespace Whispbot
             //    return "{string.errors.dm.nottimedout}";
             //}
 
-            var error = await member.RemoveTimeout(context.Reason);
-
-            if (error is not null)
-            {
-                return "{string.errors.dm.failed_unmute}";
-            }
+            await member.RemoveTimeOutAsync(new RequestOptions { AuditLogReason = context.Reason });
 
             return null;
         }

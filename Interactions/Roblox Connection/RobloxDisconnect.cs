@@ -1,12 +1,12 @@
-﻿using Serilog;
+﻿using Discord;
+using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Databases;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
 using static Whispbot.Commands.General.Connections;
 
 namespace Whispbot.Interactions.Roblox_Connection
@@ -17,23 +17,22 @@ namespace Whispbot.Interactions.Roblox_Connection
         public override InteractionType Type => InteractionType.MessageComponent;
         public override async Task ExecuteAsync(InteractionContext ctx)
         {
-            if (ctx.UserId is null) return;
             if (await ctx.CheckAllowed()) return;
 
-            Task _ = ctx.DeferUpdate();
+            Task _ = ctx.DeferResponse();
 
             UserConfig? updatedConfig = Postgres.SelectFirst<UserConfig>(
                 @"UPDATE user_config SET roblox_id = NULL WHERE id = @1 RETURNING *;",
-                [long.Parse(ctx.UserId)]
+                [ctx.UserId]
             );
 
             if (updatedConfig is null)
             {
-                await ctx.Respond("{emoji.cross} {string.errors.disconnect.failedroblox}.", true);
+                await ctx.Respond("{emoji.cross} {string.errors.disconnect.failedroblox}.", ephemeral: true);
             }
             else
             {
-                await ctx.EditMessage(GetConnectionsMessage(false, ctx.UserId, null));
+                await ctx.EditMessage(m => { m.Components = GetConnectionsMessage(false, ctx.UserId, null); });
             }
         }
     }

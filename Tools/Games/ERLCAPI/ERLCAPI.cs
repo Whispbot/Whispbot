@@ -1,18 +1,20 @@
-﻿using System;
+﻿using Discord;
+using System;
 using System.Collections.Generic;
 using System.Text;
+using Whispbot.Cache;
 using Whispbot.Commands;
-using Whispbot.Tools.Games.ERLC.Classes;
+using Whispbot.Tools.Games.ERLCAPI.Classes;
 
-namespace Whispbot.Tools.Games.ERLC
+namespace Whispbot.Tools.Games.ERLCAPI
 {
-    public static class ERLC
+    public static class ERLCAPI
     {
         public static async Task<PRCResponse?> GetERLCServer(CommandContext ctx, ERLCServerConfig server)
         {
             using var _ = Tracer.Start($"ERLC.GetServerV2");
 
-            var response = await Cache.GetCache(new PRCRequest // Fake request to check if the server is cached
+            var response = await ERLCCache.GetCache(new PRCRequest // Fake request to check if the server is cached
             {
                 method = "GET",
                 endpoint = "/v2/server?Players=true&Staff=true&JoinLogs=true&Queue=true&KillLogs=true&CommandLogs=true&ModCalls=true&EmergencyCalls=true&Vehicles=true",
@@ -26,14 +28,14 @@ namespace Whispbot.Tools.Games.ERLC
 
                 if (response is null)
                 {
-                    await ctx.EditResponse("{emoji.cross} {string.errors.erlcserver.apierror}");
+                    await ctx.EditResponse(m => m.Content = "{emoji.cross} {string.errors.erlcserver.apierror}");
                     return null;
                 }
             }
 
             if (Errors.ResponseHasError(response, out var errorMessage))
             {
-                await ctx.EditResponse(errorMessage!);
+                await ctx.EditResponse(m => { m.Components = errorMessage!; m.Flags = MessageFlags.ComponentsV2; });
                 return null;
             }
 

@@ -1,3 +1,5 @@
+using Discord;
+using Discord.WebSocket;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -5,21 +7,19 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Commands;
 using Whispbot.Databases;
 using Whispbot.Extensions;
 using Whispbot.Interactions;
-using YellowMacaroni.Discord.Cache;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Tools
 {
     public class WhispPermissions
     {
-        public static readonly Collection<List<PermissionRole>> permissionRoles = new(async (key, args) =>
+        public static readonly Collection<ulong, List<PermissionRole>> permissionRoles = new(async (key) =>
         {
-            return Postgres.Select<PermissionRole>(@"SELECT * FROM permission_roles WHERE guild_id = @1", [long.Parse(key)]);
+            return Postgres.Select<PermissionRole>(@"SELECT * FROM permission_roles WHERE guild_id = @1", [key]);
         });
 
         public static bool HasPermissionsAny(BotPermissions userPermissions, BotPermissions requiredPermissions)
@@ -31,61 +31,55 @@ namespace Whispbot.Tools
             return (userPermissions & requiredPermissions) == requiredPermissions;
         }
 
-        public async static Task<bool> HasPermission(string guildId, string userId, BotPermissions requiredPermissions)
+        public async static Task<bool> HasPermission(ulong guildId, ulong userId, BotPermissions requiredPermissions)
         {
             BotPermissions permissions = await GetPermissions(guildId, userId);
             return HasPermissionsAny(permissions, requiredPermissions | BotPermissions.Administrator);
         }
-        public async static Task<bool> HasAllPermissions(string guildId, string userId, BotPermissions requiredPermissions)
+        public async static Task<bool> HasAllPermissions(ulong guildId, ulong userId, BotPermissions requiredPermissions)
         {
             BotPermissions permissions = await GetPermissions(guildId, userId);
             return HasPermissionsAll(permissions, requiredPermissions);
         }
 
-        public async static Task<BotPermissions> GetPermissions(string guildId, string userId)
+        public async static Task<BotPermissions> GetPermissions(ulong guildId, ulong userId)
         {
             List<PermissionRole>? pRoles = await permissionRoles.Get(guildId);
             if (pRoles is null || pRoles.Count == 0) return 0;
 
-            Guild? guild = await DiscordCache.Guilds.Get(guildId);
+            SocketGuild? guild = Config.client?.GetGuild(guildId);
             if (guild is null) return 0;
 
-            Member? member = await guild.members.Get(userId);
+            IGuildUser? member = guild.GetUser(userId);
             if (member is null) return 0;
 
             BotPermissions permissions = 0;
 
-            foreach (var role in pRoles.Where(r => r.roles.Any(ro => member.roles?.Contains(ro) ?? false))) permissions |= (BotPermissions)role.permissions;
+            foreach (var role in pRoles.Where(r => r.roles.Any(ro => member.RoleIds.Contains(ro)))) permissions |= (BotPermissions)role.permissions;
 
             return permissions;
         }
 
         public static async Task<bool> CheckPermissionsMessage(CommandContext ctx, BotPermissions permissions)
         {
-            if (ctx.GuildId is null || ctx.UserId is null) return false;
-
             BotPermissions userPermissions = await GetPermissions(ctx.GuildId, ctx.UserId);
             if (!HasPermissionsAny(userPermissions, permissions | BotPermissions.Administrator))
             {
                 List<string> missingPermissions = [];
-                foreach (BotPermissions perm in Enum.GetValues(typeof(BotPermissions)))
+                foreach (BotPermissions perm in Enum.GetValues<BotPermissions>())
                 {
                     if ((permissions & perm) != 0 && (userPermissions & perm) == 0) missingPermissions.Add(perm.ToString());
                 }
 
-                await ctx.Reply(new MessageBuilder
-                {
-                    embeds = [
-                        new EmbedBuilder
-                        {
-                            title = "{string.title.permissions.invalid}",
-                            description = "{string.content.permissions.invalid}.".Process(ctx.Language, new Dictionary<string, string>() {
-                                { "missing_perms", missingPermissions.Join(", ", " or ") }
-                            }),
-                            color = new Color(150, 50, 50).ToInt()
-                        }
-                    ]
-                });
+                await ctx.Reply(
+                    embed: new EmbedBuilder()
+                        .WithTitle("{string.title.permissions.invalid}")
+                        .WithDescription("{string.content.permissions.invalid}.".Process(ctx.Language, new Dictionary<string, string>() {
+                            { "missing_perms", missingPermissions.Join(", ", " or ") }
+                        }))
+                        .WithColor(new Color(150, 50, 50))
+                        .Build()
+                );
 
                 return false;
             }
@@ -95,30 +89,27 @@ namespace Whispbot.Tools
 
         public static async Task<bool> CheckPermissionsInteraction(InteractionContext ctx, BotPermissions permissions)
         {
-            if (ctx.GuildId is null || ctx.UserId is null) return false;
+            if (ctx.GuildId is null) return false;
 
-            BotPermissions userPermissions = await GetPermissions(ctx.GuildId, ctx.UserId);
+            BotPermissions userPermissions = await GetPermissions(ctx.GuildId.Value, ctx.UserId);
             if (!HasPermissionsAny(userPermissions, permissions | BotPermissions.Administrator))
             {
                 List<string> missingPermissions = [];
-                foreach (BotPermissions perm in Enum.GetValues(typeof(BotPermissions)))
+                foreach (BotPermissions perm in Enum.GetValues<BotPermissions>())
                 {
                     if ((permissions & perm) != 0 && (userPermissions & perm) == 0) missingPermissions.Add(perm.ToString());
                 }
 
-                await ctx.Respond(new MessageBuilder
-                {
-                    embeds = [
-                        new EmbedBuilder
-                        {
-                            title = "{string.title.permissions.invalid}",
-                            description = "{string.content.permissions.invalid}.".Process(ctx.Language, new Dictionary<string, string>() {
-                                { "missing_perms", missingPermissions.Join(", ", " or ") }
-                            }),
-                            color = new Color(150, 50, 50).ToInt()
-                        }
-                    ]
-                }, true);
+                await ctx.Respond(
+                    embed: new EmbedBuilder()
+                        .WithTitle("{string.title.permissions.invalid}")
+                        .WithDescription("{string.content.permissions.invalid}.".Process(ctx.Language, new Dictionary<string, string>() {
+                            { "missing_perms", missingPermissions.Join(", ", " or ") }
+                        }))
+                        .WithColor(new Color(150, 50, 50))
+                        .Build(),
+                    ephemeral: true
+                );
 
                 return false;
             }
@@ -126,7 +117,7 @@ namespace Whispbot.Tools
             return true;
         }
 
-        public static async Task<(bool, List<string>)> CheckModule(string guildId, Module modules)
+        public static async Task<(bool, List<string>)> CheckModule(ulong guildId, Module modules)
         {
             GuildConfig? config = await WhispCache.GuildConfig.Get(guildId);
             if (config is null)
@@ -137,7 +128,7 @@ namespace Whispbot.Tools
             if ((enabledModules & modules) == 0)
             {
                 List<string> missingModules = [];
-                foreach (Module module in Enum.GetValues(typeof(Module)))
+                foreach (Module module in Enum.GetValues<Module>())
                 {
                     if ((modules & module) != 0 && (enabledModules & module) == 0) missingModules.Add(module.ToString());
                 }
@@ -148,25 +139,19 @@ namespace Whispbot.Tools
 
         public static async Task<bool> CheckModuleMessage(CommandContext ctx, Module modules)
         {
-            if (ctx.GuildId is null) return false;
-
             var (enabled, missingModules) = await CheckModule(ctx.GuildId, modules);
 
             if (!enabled)
             {
-                await ctx.Reply(new MessageBuilder()
-                {
-                    embeds = [
-                        new EmbedBuilder()
-                        {
-                            title = "{string.title.module.disabled}",
-                            description = "{string.content.module.disabled}.".Process(ctx.Language, new Dictionary<string, string>() {
-                                { "missing_modules", missingModules.Join(", ", " or ") }
-                            }),
-                            color = new Color(150, 50, 50).ToInt()
-                        }
-                    ]
-                });
+                await ctx.Reply(
+                    embed: new EmbedBuilder()
+                        .WithTitle("{string.title.module.disabled}")
+                        .WithDescription("{string.content.module.disabled}.".Process(ctx.Language, new Dictionary<string, string>() {
+                            { "missing_modules", missingModules.Join(", ", " or ") }
+                        }))
+                        .WithColor(new Color(150, 50, 50))
+                        .Build()
+                );
             }
 
             return enabled;
@@ -179,7 +164,7 @@ namespace Whispbot.Tools
         public long guild_id;
         public string name = "";
         public long permissions;
-        public List<string> roles = [];
+        public List<ulong> roles = [];
         public DateTimeOffset created_at;
         public DateTimeOffset updated_at;
     }

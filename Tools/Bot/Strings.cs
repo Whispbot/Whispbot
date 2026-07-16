@@ -1,3 +1,6 @@
+using Discord;
+using Discord.Rest;
+using Discord.WebSocket;
 using Newtonsoft.Json;
 using Serilog;
 using System;
@@ -9,14 +12,12 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Whispbot.Databases;
 using Whispbot.Extensions;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Tools
 {
     public static class Strings
     {
-        public static Dictionary<string, Emoji> Emojis = [];
+        public static Dictionary<string, Emote> Emojis = [];
         public static Dictionary<Language, Dictionary<string, string>> LanguageStrings = [];
 
         private static readonly HttpClient _client = new();
@@ -38,7 +39,7 @@ namespace Whispbot.Tools
                 if (type == "emoji")
                 {
                     string emojiName = key.Replace("emoji.", "").ToLower();
-                    Emoji? emoji = Emojis.GetValueOrDefault(emojiName);
+                    Emote? emoji = Emojis.GetValueOrDefault(emojiName);
                     if (emoji is not null)
                     {
                         content = content.Replace(match.Value, emoji.ToString());
@@ -123,33 +124,26 @@ namespace Whispbot.Tools
             return text.Substring(0, pos) + replace + text.Substring(pos + search.Length);
         }
 
-        public static async Task GetEmojis(Client client)
+        public static async Task GetEmojis()
         {
-            string? token = Config.isDev ? Environment.GetEnvironmentVariable("DEV_TOKEN") : Environment.GetEnvironmentVariable("CLIENT_TOKEN");
+            string? token = Environment.GetEnvironmentVariable("CLIENT_TOKEN");
             if (token is null) return;
 
-            string? clientId = client.readyData?.user.id;
-            if (clientId is null) return;
+            var client = new DiscordRestClient();
+            await client.LoginAsync(TokenType.Bot, token);
 
-            try
-            {
-                _client.DefaultRequestHeaders.Add("Authorization", $"Bot {token}");
+            var emotes = await client.GetApplicationEmotesAsync();
 
-                HttpResponseMessage result = await _client.GetAsync($"https://discord.com/api/v10/applications/{clientId}/emojis");
-                if (result.IsSuccessStatusCode)
-                {
-                    EmojisResponse? data = JsonConvert.DeserializeObject<EmojisResponse>(await result.Content.ReadAsStringAsync());
-                    Dictionary<string, Emoji>? emojis = data?.items.ToDictionary(e => e.name?.ToLower() ?? "", e => e);
-                    if (emojis is null) return;
-                    Emojis = emojis;
-                }
-            }
-            catch { }
+            Emojis = emotes.ToDictionary(e => e.Name.ToLower(), e => e);
         }
 
-        public static Emoji GetEmoji(string name)
+        public static readonly Emoji FALLBACK_EMOJI = new("\u274c"); // ❌
+        public static IEmote GetEmoji(string name)
         {
-            return Emojis.GetValueOrDefault(name.ToLower()) ?? new Emoji { name = "❌" };
+            var emoji = Emojis.GetValueOrDefault(name.ToLower());
+
+            if (emoji is not null) return emoji;
+            else return FALLBACK_EMOJI; // ❌ if not found
         }
 
         public static void GetLanguages()

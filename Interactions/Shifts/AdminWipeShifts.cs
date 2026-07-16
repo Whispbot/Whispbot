@@ -1,3 +1,4 @@
+using Discord;
 using Microsoft.AspNetCore.DataProtection.XmlEncryption;
 using Serilog;
 using System;
@@ -7,8 +8,6 @@ using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Commands.Shifts;
 using Whispbot.Databases;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Interactions.Shifts
 {
@@ -18,38 +17,33 @@ namespace Whispbot.Interactions.Shifts
         public override InteractionType Type => InteractionType.MessageComponent;
         public override async Task ExecuteAsync(InteractionContext ctx)
         {
-            if (ctx.UserId is null || ctx.GuildId is null || ctx.args.Count < 2) return;
+            if (ctx.GuildId is null || ctx.args.Count < 2) return;
             if (await ctx.CheckAllowed()) return;
 
             string? type_id = ctx.args.Count >= 3 ? ctx.args[2] : null;
 
-            await ctx.EditMessage(new MessageBuilder
+            await ctx.EditMessage(m =>
             {
-                components = [
-                    new ContainerBuilder
-                    {
-                        components = [new TextDisplayBuilder("{string.content.shiftadmin.wipewarning}")],
-                        accent_color = (int)new Color(150, 0, 0)
-                    },
-                    new ActionRowBuilder
-                    {
-                        components = [
-                            new ButtonBuilder
-                            {
-                                label = "{string.buttons.shiftadmin.deletecancel}",
-                                style = ButtonStyle.Secondary,
-                                custom_id = $"sa_main {ctx.args[0]} {ctx.args[1]} {type_id}"
-                            },
-                            new ButtonBuilder
-                            {
-                                label = "{string.buttons.shiftadmin.deleteconfirm}",
-                                style = ButtonStyle.Danger,
-                                custom_id = $"sa_wipeconfirm {ctx.args[0]} {ctx.args[1]} {type_id}"
-                            }
-                        ]
-                    }
-                ],
-                flags = MessageFlags.IsComponentsV2
+                m.Components = new ComponentBuilderV2()
+                    .WithContainer(
+                        new ContainerBuilder()
+                            .WithTextDisplay("{string.content.shiftadmin.wipewarning}")
+                            .WithAccentColor(new Color(150, 0, 0))
+                    )
+                    .WithActionRow(
+                        new ActionRowBuilder()
+                            .WithButton(
+                                label: "{string.buttons.shiftadmin.deletecancel}",
+                                customId: $"sa_main {ctx.args[0]} {ctx.args[1]} {type_id}",
+                                style: ButtonStyle.Secondary
+                            )
+                            .WithButton(
+                                label: "{string.buttons.shiftadmin.deleteconfirm}",
+                                customId: $"sa_wipeconfirm {ctx.args[0]} {ctx.args[1]} {type_id}",
+                                style: ButtonStyle.Danger
+                            )
+                    )
+                    .Build();
             });
         }
     }

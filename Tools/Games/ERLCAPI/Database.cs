@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using Whispbot.Cache;
 using Whispbot.Commands;
 
-namespace Whispbot.Tools.Games.ERLC
+namespace Whispbot.Tools.Games.ERLCAPI
 {
     public static class ERLCDatabase
     {
@@ -24,8 +25,6 @@ namespace Whispbot.Tools.Games.ERLC
 
         public static async Task<ERLCServerConfig?> TryGetServer(CommandContext ctx)
         {
-            if (ctx.GuildId is null) return null;
-
             List<ERLCServerConfig>? servers = await WhispCache.ERLCServerConfigs.Get(ctx.GuildId);
 
             if (servers is null || servers.Count == 0)

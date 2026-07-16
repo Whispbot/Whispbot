@@ -1,3 +1,4 @@
+using Discord;
 using Microsoft.AspNetCore.DataProtection.XmlEncryption;
 using Serilog;
 using System;
@@ -8,8 +9,6 @@ using System.Threading.Tasks;
 using Whispbot.Commands.Shifts;
 using Whispbot.Databases;
 using Whispbot.Tools;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Interactions.Roblox_Moderations
 {
@@ -19,14 +18,14 @@ namespace Whispbot.Interactions.Roblox_Moderations
         public override InteractionType Type => InteractionType.ModalSubmit;
         public override async Task ExecuteAsync(InteractionContext ctx)
         {
-            if (ctx.UserId is null || ctx.GuildId is null || ctx.args.Count < 1) return;
+            if (ctx.GuildId is null || ctx.args.Count < 1 || ctx.interaction.Data is not IModalInteractionData data) return;
 
-            var defer = ctx.DeferUpdate();
+            var defer = ctx.DeferResponse();
 
-            string? newReason = ctx.interaction.GetStringField("reason");
+            string? newReason = data.Components.FirstOrDefault(c => c.CustomId == "reason")?.Value;
             if (newReason is null) return;
 
-            RobloxModeration? updatedModeration = await Procedures.ChangeRMReason(ctx.GuildId, ctx.UserId, newReason, int.Parse(ctx.args[0]));
+            RobloxModeration? updatedModeration = await Procedures.ChangeRMReason(ctx.GuildId.Value, ctx.UserId, newReason, int.Parse(ctx.args[0]));
 
             if (updatedModeration is null)
             {

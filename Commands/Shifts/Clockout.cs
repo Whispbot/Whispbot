@@ -1,11 +1,12 @@
+using Discord;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Extensions;
 using Whispbot.Tools;
-using YellowMacaroni.Discord.Core;
 
 namespace Whispbot.Commands.Shifts
 {
@@ -25,14 +26,6 @@ namespace Whispbot.Commands.Shifts
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
         {
-            if (ctx.User?.id is null) return;
-
-            if (ctx.GuildId is null) // Make sure ran in server
-            {
-                await ctx.Reply("{emoji.cross} {string.errors.general.guildonly}.");
-                return;
-            }
-
             if (!await WhispPermissions.CheckModuleMessage(ctx, Module.Shifts)) return;
             if (!await WhispPermissions.CheckPermissionsMessage(ctx, BotPermissions.UseShifts)) return;
 
@@ -58,20 +51,14 @@ namespace Whispbot.Commands.Shifts
                 return;
             }
 
-            (Shift?, string?) result = await Procedures.Clockout(long.Parse(ctx.GuildId), long.Parse(ctx.User.id), type);
+            (Shift?, string?) result = await Procedures.Clockout(ctx.GuildId, ctx.UserId, type);
 
             await ctx.Reply(
-                new MessageBuilder()
-                {
-                    embeds = [
-                        new EmbedBuilder()
-                        {
-                            color = result.Item1 is not null ? (int)(new Color(150, 0, 0)) : null,
-                            description = $"{(result.Item1 is not null ? "{emoji.clockedout}" : "{emoji.cross}")} {result.Item2 ?? (result.Item1 is null ? "{string.errors.clockout.failed}" : $"{{string.success.clockout}}".Process(ctx.Language, new Dictionary<string, string> { { "type_name", type.name }, { "duration", Time.ConvertMillisecondsToString((result.Item1.end_time - result.Item1.start_time)?.TotalMilliseconds ?? 0) } }))}.",
-                            footer = result.Item1 is not null ? new EmbedFooter() { text = $"ID: {result.Item1.id}" } : null
-                        }
-                    ]
-                }
+                embed: new EmbedBuilder()
+                    .WithDescription($"{(result.Item1 is not null ? "{emoji.clockedout}" : "{emoji.cross}")} {result.Item2 ?? (result.Item1 is null ? "{string.errors.clockout.failed}" : $"{{string.success.clockout}}".Process(ctx.Language, new Dictionary<string, string> { { "type_name", type.name }, { "duration", Time.ConvertMillisecondsToString((result.Item1.end_time - result.Item1.start_time)?.TotalMilliseconds ?? 0) } }))}.")
+                    .WithFooter(result.Item1 is not null ? new EmbedFooterBuilder().WithText($"ID: {result.Item1.id}") : null)
+                    .WithColor(result.Item1 is not null ? new Color(150, 0, 0) : Color.Default)
+                    .Build()
             );
         }
     }

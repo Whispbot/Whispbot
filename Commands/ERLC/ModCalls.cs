@@ -1,3 +1,4 @@
+using Discord;
 using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Newtonsoft.Json;
 using Serilog;
@@ -8,14 +9,13 @@ using System.Resources;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Databases;
 using Whispbot.Tools;
-using Whispbot.Tools.Games.ERLC;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
-using YellowMacaroni.Discord.Websocket.Events;
+using Whispbot.Tools.Disc;
+using Whispbot.Tools.Games.ERLCAPI;
 
-namespace Whispbot.Commands.ERLCCommands
+namespace Whispbot.Commands.ERLC
 {
     public class ERLC_ModCalls : Command
     {
@@ -33,21 +33,13 @@ namespace Whispbot.Commands.ERLCCommands
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
         {
-            if (ctx.User?.id is null) return;
-
-            if (ctx.GuildId is null) // Make sure ran in server
-            {
-                await ctx.Reply("{emoji.cross} {string.errors.general.guildonly}.");
-                return;
-            }
-
             if (!await WhispPermissions.CheckModuleMessage(ctx, Module.ERLC)) return;
             if (!await WhispPermissions.CheckPermissionsMessage(ctx, BotPermissions.UseERLC)) return;
 
             ERLCServerConfig? server = await ERLCDatabase.TryGetServer(ctx);
             if (server is null) return;
 
-            var response = await ERLC.GetERLCServer(ctx, server);
+            var response = await ERLCAPI.GetERLCServer(ctx, server);
             if (response is null) return;
             var callLogs = response?.Server?.ModCalls;
 
@@ -62,31 +54,31 @@ namespace Whispbot.Commands.ERLCCommands
                 callLogs.Sort((a, b) => b.Timestamp.CompareTo(a.Timestamp));
                 callLogs = [.. callLogs.Take(20)];
 
-                List<long> robloxIds = [.. callLogs.Select(j => long.Parse(j.Caller.Split(":")[1])), .. callLogs.Where(c => c.Moderator is not null).Select(c => long.Parse(c.Moderator!.Split(":")[1]))];
+                List<ulong> robloxIds = [.. callLogs.Select(j => ulong.Parse(j.Caller.Split(":")[1])), .. callLogs.Where(c => c.Moderator is not null).Select(c => ulong.Parse(c.Moderator!.Split(":")[1]))];
                 List<UserConfig> userConfigs = await Users.GetConfigsFromRobloxIds(robloxIds);
-                List<Member>? members = await Users.GetMembersFromConfigs(userConfigs, ctx);
+                List<IGuildUser>? members = await Users.GetMembersFromConfigs(userConfigs, ctx);
 
                 StringBuilder strings = new();
                 foreach (var log in callLogs)
                 {
                     UserConfig? callerConfig = userConfigs?.Find(u => u.roblox_id.ToString() == log.Caller.Split(":")[1]);
-                    Member? callerMember = members?.Find(m => m.user?.id == callerConfig?.id.ToString());
+                    IGuildUser? callerMember = members?.Find(m => m.Id == callerConfig?.id);
 
                     UserConfig? modConfig = userConfigs?.Find(u => u.roblox_id.ToString() == log.Moderator?.Split(":")?[1]);
-                    Member? modMember = members?.Find(m => m.user?.id == modConfig?.id.ToString());
+                    IGuildUser? modMember = members?.Find(m => m.Id == modConfig?.id);
 
                     StringBuilder callerFlags = new();
                     if (callerMember is not null)
                     {
                         callerFlags.Append("{emoji.indiscord}");
-                        if (callerMember.premium_since is not null) callerFlags.Append("{emoji.booster}");
+                        if (callerMember.PremiumSince is not null) callerFlags.Append("{emoji.booster}");
                     }
 
                     StringBuilder modFlags = new();
                     if (modMember is not null)
                     {
                         modFlags.Append("{emoji.indiscord}");
-                        if (modMember.premium_since is not null) modFlags.Append("{emoji.booster}");
+                        if (modMember.PremiumSince is not null) modFlags.Append("{emoji.booster}");
                     }
 
                     if (log.Moderator is not null && log.Moderator.Split(':')[1] != "1")
@@ -100,18 +92,12 @@ namespace Whispbot.Commands.ERLCCommands
                 }
 
                 await ctx.EditResponse(
-                    new MessageBuilder
-                    {
-                        content = "",
-                        embeds = [
-                            new EmbedBuilder
-                            {
-                                title = $"{{string.title.modcalls}}",
-                                description = strings.ToString(),
-                                footer = new EmbedFooter { text = Cache.GenerateFooter(response!) }
-                            }
-                        ]
-                    }
+                    text: "",
+                    embed: new EmbedBuilder()
+                        .WithTitle("{string.title.modcalls}")
+                        .WithDescription(strings.ToString())
+                        .WithFooter(ERLCCache.GenerateFooter(response!))
+						.Build()
                 );
             }
             else
