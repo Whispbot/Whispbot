@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using Whispbot.Commands.Shifts;
 using Whispbot.Databases;
 using Whispbot.Tools;
+using Whispbot.Tools.Disc;
 
 namespace Whispbot.Interactions.Roblox_Moderations
 {
@@ -35,7 +36,7 @@ namespace Whispbot.Interactions.Roblox_Moderations
                                                 .WithCustomId($"rm_log_delete_confirm {ctx.args[0]}")
                                                 .WithStyle(ButtonStyle.Danger)
                                                 .WithLabel("{string.button.general.confirm}")
-                                                .WithEmote(Strings.GetEmoji("tick"))
+                                                .WithEmote(Emojis.Get("tick"))
                                         )
                                 )
                                 .WithAccentColor(new Color(150, 0, 0))

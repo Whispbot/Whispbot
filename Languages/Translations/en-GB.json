@@ -1,0 +1,42 @@
+{
+  // Commands
+  // !ping
+  "ping.title": "Pong!",
+  "ping.field.ping": "Ping",
+  "ping.field.database": "Database",
+  "ping.field.database.connected": "Connected",
+  "ping.field.database.disconnected": "Disconnected",
+
+  // Time units
+  "time.short.millisecond": "ms",
+  "time.long.millisecond": "millisecond",
+  "time.long.millisecond.plural": "milliseconds",
+
+  "time.short.second": "s",
+  "time.long.second": "second",
+  "time.long.second.plural": "seconds",
+
+  "time.short.minute": "m",
+  "time.long.minute": "minute",
+  "time.long.minute.plural": "minutes",
+
+  "time.short.hour": "h",
+  "time.long.hour": "hour",
+  "time.long.hour.plural": "hours",
+
+  "time.short.day": "d",
+  "time.long.day": "day",
+  "time.long.day.plural": "days",
+
+  "time.short.week": "w",
+  "time.long.week": "week",
+  "time.long.week.plural": "weeks",
+
+  "time.short.month": "mo",
+  "time.long.month": "month",
+  "time.long.month.plural": "months",
+
+  "time.short.year": "y",
+  "time.long.year": "year",
+  "time.long.year.plural": "years"
+}

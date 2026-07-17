@@ -205,8 +205,7 @@ namespace Whispbot
                 .AddField("{string.title.dm.reason}", log.reason)
                 .WithColor(type.Item3)
                 .WithFooter($"{{string.footer.dm.case}}: {log.case_id}")
-                .Build()
-                .ProcessObj((Strings.Language)((await guildConfig)?.default_language ?? 0))!; // Process locales
+                .Build();
         }
 
         /// <summary>
@@ -262,7 +261,7 @@ namespace Whispbot
                 )
                 .WithColor(type.Item3)
                 .Build()
-                .ProcessObj((Strings.Language)(language ?? 0))!; // Process locales
+                !; // Process locales
         }
 
         /// <summary>
@@ -283,12 +282,12 @@ namespace Whispbot
             var mod = await modConfigTask;
             var user = await userTask;
 
-            var language = (Strings.Language)(mod?.language ?? config?.default_language ?? 0);
+            var language = mod?.language ?? config?.default_language ?? 0;
 
             return
                 $"{{emoji.tick}}" +
                 $"{((config?.discord_moderation?.display_case_id ?? true) ? $"{{string.content.dm.case}} {log.case_id} - " : "")}" +
-                $"{{string.content.phrase.successfully}} {$"{{string.dm.pt.{type.Item1.ToLower()}}}".Process(language, null).ToLowerInvariant()} **@{user.Username ?? "err"}**" +
+                $"{{string.content.phrase.successfully}} {$"{{string.dm.pt.{type.Item1.ToLower()}}}".Translate(language).ToLowerInvariant()} **@{user.Username ?? "err"}**" +
                 $"{(type.Item4 && log.duration_s is not null ? $" {{string.content.phrase.for}} **{Time.ConvertMillisecondsToString((double)log.duration_s * 1000, ", ", false, 1000, language)}**" : "")}" +
                 $"{((config?.discord_moderation?.display_case_reason ?? true) ? $" {{string.content.phrase.for}} **{log.reason}**{(log.reason.EndsWith('.') || !messagedUser ? "" : '.')}" : "")}" +
                 $"{(messagedUser ? "" : " - {string.content.dm.messagefailed}.")}";

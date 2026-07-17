@@ -12,6 +12,7 @@ using Whispbot.Commands.Shifts;
 using Whispbot.Databases;
 using Whispbot.Extensions;
 using Whispbot.Tools;
+using Whispbot.Tools.Disc;
 
 namespace Whispbot
 {
@@ -91,8 +92,7 @@ namespace Whispbot
                         } : [])
                     ])
                     .WithFooter($"ID: {banRequest.id}")
-                    .Build()
-                    .ProcessObj((Strings.Language)(guildConfig?.default_language ?? 0))!,
+                    .Build(),
                 new ComponentBuilder()
                     .AddRow(
                         new ActionRowBuilder()
@@ -100,19 +100,18 @@ namespace Whispbot
                                 (erlcServers?.Count ?? 0) > 0 ? "{string.button.rmbr.approve}" : "{string.button.rmbr.markbanned}",
                                 $"rm_br_confirm {banRequest.id}", 
                                 ButtonStyle.Success, 
-                                Strings.GetEmoji("tick"), 
+                                Emojis.Get("tick"), 
                                 disabled: banRequest.status == true
                             )
                             .WithButton(
                                 "{string.button.rmbr.deny}",
                                 $"rm_br_deny {banRequest.id}",
                                 ButtonStyle.Danger,
-                                Strings.GetEmoji("delete"),
+                                Emojis.Get("delete"),
                                 disabled: banRequest.status == true
                             )
                     )
                     .Build()
-                    .ProcessObj((Strings.Language)(guildConfig?.default_language ?? 0))!
             );
         }
 

@@ -74,9 +74,7 @@ namespace Whispbot.Tools
                 await ctx.Reply(
                     embed: new EmbedBuilder()
                         .WithTitle("{string.title.permissions.invalid}")
-                        .WithDescription("{string.content.permissions.invalid}.".Process(ctx.Language, new Dictionary<string, string>() {
-                            { "missing_perms", missingPermissions.Join(", ", " or ") }
-                        }))
+                        .WithDescription("{string.content.permissions.invalid}.".Translate(ctx.Language, missingPermissions.Join(", ", " or ")))
                         .WithColor(new Color(150, 50, 50))
                         .Build()
                 );
@@ -103,9 +101,7 @@ namespace Whispbot.Tools
                 await ctx.Respond(
                     embed: new EmbedBuilder()
                         .WithTitle("{string.title.permissions.invalid}")
-                        .WithDescription("{string.content.permissions.invalid}.".Process(ctx.Language, new Dictionary<string, string>() {
-                            { "missing_perms", missingPermissions.Join(", ", " or ") }
-                        }))
+                        .WithDescription("{string.content.permissions.invalid}.".Translate(ctx.Language, missingPermissions.Join(", ", " or ")))
                         .WithColor(new Color(150, 50, 50))
                         .Build(),
                     ephemeral: true
@@ -146,9 +142,7 @@ namespace Whispbot.Tools
                 await ctx.Reply(
                     embed: new EmbedBuilder()
                         .WithTitle("{string.title.module.disabled}")
-                        .WithDescription("{string.content.module.disabled}.".Process(ctx.Language, new Dictionary<string, string>() {
-                            { "missing_modules", missingModules.Join(", ", " or ") }
-                        }))
+                        .WithDescription("{string.content.module.disabled}.".Translate(ctx.Language, missingModules.Join(", ", " or ")))
                         .WithColor(new Color(150, 50, 50))
                         .Build()
                 );

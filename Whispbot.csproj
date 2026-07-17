@@ -32,4 +32,8 @@
     <PackageReference Include="YellowMacaroni.Redis.Queue" Version="1.0.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="Languages\Translations\**\*.json" />
+  </ItemGroup>
+
 </Project>

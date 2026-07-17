@@ -10,6 +10,7 @@ using Whispbot.Cache;
 using Whispbot.Databases;
 using Whispbot.Extensions;
 using Whispbot.Tools;
+using Whispbot.Tools.Disc;
 
 namespace Whispbot
 {
@@ -74,15 +75,14 @@ namespace Whispbot
                         })
                         .Join("\n"))
                     .WithFooter($"Type: {type?.name ?? "all"}")
-                    .Build()
-                    .ProcessObj()!,
+                    .Build(),
                 new ComponentBuilder()
                     .AddRow(
                         new ActionRowBuilder()
                             .WithButton(
                                 customId: $"shift_leaderboard {userId} {page - 1} {type?.id}",
                                 style: ButtonStyle.Secondary,
-                                emote: Strings.GetEmoji("left"),
+                                emote: Emojis.Get("left"),
                                 disabled: page <= 1
                             )
                             .WithButton(
@@ -94,12 +94,11 @@ namespace Whispbot
                             .WithButton(
                                 customId: $"shift_leaderboard {userId} {page + 1} {type?.id}",
                                 style: ButtonStyle.Secondary,
-                                emote: Strings.GetEmoji("right"),
+                                emote: Emojis.Get("right"),
                                 disabled: page >= maxPages
                             )
                     )
-                    .Build()
-                    .ProcessObj()!,
+                    .Build(),
                 null
             );
         }

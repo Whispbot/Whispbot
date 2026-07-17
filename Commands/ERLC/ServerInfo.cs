@@ -54,13 +54,13 @@ namespace Whispbot.Commands.ERLC
                     embed: new EmbedBuilder()
                         .WithTitle("{string.title.erlcserver}")
                         .WithThumbnailUrl(ctx.Guild.IconUrl)
-                        .WithDescription("{string.content.erlcserver}".Process(ctx.Language, new() {
-							{ "name", serverInfo.Name },
-							{ "owner", $"[@{owner?.name ?? "unknown"}](https://roblox.com/users/{serverInfo.OwnerId})" },
-							{ "joinkey", $"[{serverInfo.JoinKey}](https://policeroleplay.community/join/{serverInfo.JoinKey})" },
-							{ "current", serverInfo.CurrentPlayers.ToString() },
-							{ "max", serverInfo.MaxPlayers.ToString() }
-						}))
+                        .WithDescription("{string.content.erlcserver}".Translate(ctx.Language, 
+                            serverInfo.Name, 
+                            $"[@{owner?.name ?? "unknown"}](https://roblox.com/users/{serverInfo.OwnerId})",
+							$"[{serverInfo.JoinKey}](https://policeroleplay.community/join/{serverInfo.JoinKey})",
+							serverInfo.CurrentPlayers.ToString(),
+							serverInfo.MaxPlayers.ToString()
+						))
                         .WithFields(coOwners.Count > 0 ? [
                             new EmbedFieldBuilder() {
                                 Name = "{string.fields.erlcserver.coowners}",

@@ -36,24 +36,22 @@ namespace Whispbot
             SocketTextChannel? logChannel = thisGuild.GetTextChannel(logChannelId.Value);
             if (logChannel is null) return;
 
+            var language = config.default_language ?? 0;
+
             await logChannel.SendMessageAsync(
                 embed:
                     new EmbedBuilder()
                         .WithAuthor($"{moderator.Username} ({moderatorId})")
-                        .WithTitle("{string.title.clockout}")
-                        .WithDescription($"<@{moderatorId}> {"{string.content.clockout}".Process((Tools.Strings.Language)(config.default_language ?? 0), new Dictionary<string, string> {
-                            { "type_name", type.name },
-                            { "duration", Time.ConvertMillisecondsToString((shift.end_time - shift.start_time)?.TotalMilliseconds ?? 0) }
-                        })}.")
+                        .WithTitle("clockout.log.title".Translate(language))
+                        .WithDescription($"<@{moderatorId}> {"clockout.log.content".Translate(language, type.name, Time.ConvertMillisecondsToString((shift.end_time - shift.start_time)?.TotalMilliseconds ?? 0))}.")
                         .WithFields(adminId is null ? [] : [
                             new EmbedFieldBuilder()
-                                .WithName("{string.title.clockout.admin}")
+                                .WithName("clockout.log.admin".Translate(language))
                                 .WithValue($"<@{adminId}>")
                         ])
                         .WithColor(new Color(150, 0, 0))
                         .WithFooter($"ID: {shift.id}")
                         .Build()
-                        .ProcessObj((Strings.Language)(config.default_language ?? 0))
             );
         }
 

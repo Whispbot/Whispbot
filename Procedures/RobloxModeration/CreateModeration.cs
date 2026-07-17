@@ -11,6 +11,7 @@ using Whispbot.Commands.Shifts;
 using Whispbot.Databases;
 using Whispbot.Extensions;
 using Whispbot.Tools;
+using Whispbot.Tools.Disc;
 
 namespace Whispbot
 {
@@ -88,17 +89,15 @@ namespace Whispbot
                             .WithValue($"{{emoji.alignment}} {moderation.reason ?? "*{string.content.rmlog.noreason}.*"}")
                     )
                     .WithFooter($"{{string.content.rmlog.case}}: {moderation.@case}")
-                    .Build()
-                    .ProcessObj((Strings.Language)(guildConfig?.default_language ?? 0))!,
+                    .Build(),
                 new ComponentBuilder()
                     .AddRow(
                         new ActionRowBuilder()
-                            .WithButton("{string.button.rmlog.editreason}", $"rm_log_editreason {moderation.@case}", ButtonStyle.Secondary, Strings.GetEmoji("pen"))
-                            .WithButton("{string.button.rmlog.edittype}", $"rm_log_edittype {moderation.@case}", ButtonStyle.Secondary, Strings.GetEmoji("folder"))
-                            .WithButton("{string.button.rmlog.delete}", $"rm_log_delete {moderation.@case}", ButtonStyle.Danger, Strings.GetEmoji("delete"))
+                            .WithButton("{string.button.rmlog.editreason}", $"rm_log_editreason {moderation.@case}", ButtonStyle.Secondary, Emojis.Get("pen"))
+                            .WithButton("{string.button.rmlog.edittype}", $"rm_log_edittype {moderation.@case}", ButtonStyle.Secondary, Emojis.Get("folder"))
+                            .WithButton("{string.button.rmlog.delete}", $"rm_log_delete {moderation.@case}", ButtonStyle.Danger, Emojis.Get("delete"))
                     )
                     .Build()
-                    .ProcessObj((Strings.Language)(guildConfig?.default_language ?? 0))!
             );
         }
 

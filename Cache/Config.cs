@@ -10,6 +10,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Commands;
 using Whispbot.Databases;
+using Whispbot.Languages;
 using Whispbot.Tools;
 
 namespace Whispbot.Cache
@@ -152,7 +153,7 @@ namespace Whispbot.Cache
         public ulong enabled_modules = 0;
         public string? prefix;
 
-        public int? default_language = 0;
+        public Language? default_language = 0;
 
         public ModuleRobloxModeration? roblox_moderation;
         public ModuleShifts? shifts;
@@ -194,7 +195,7 @@ namespace Whispbot.Cache
         public ulong id = 0;
         public ulong? roblox_id = null;
         public DateTimeOffset created_at = DateTimeOffset.MinValue;
-        public int? language = 0;
+        public Language? language = 0;
         public bool ack_required = false;
 
         public List<string> feature_flags = [];

@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Databases;
 using Whispbot.Extensions;
+using Whispbot.Tools.Disc;
 using Whispbot.Tools.Infra;
 
 namespace Whispbot.Commands.Staff
@@ -40,7 +41,7 @@ namespace Whispbot.Commands.Staff
 
             if (page.Item2 is not null)
             {
-                await ctx.EditResponse(m => m.Content = "{emoji.cross} Failed to send page.".Process());
+                await ctx.EditResponse(m => m.Content = $"{Emojis.Get("cross")} Failed to send page.");
             }
             else if (page.Item1 is not null)
             {
@@ -108,7 +109,7 @@ namespace Whispbot.Commands.Staff
                 users.AppendLine($"> {{{(acked ? "emoji.tick" : finalUpdate ? "emoji.cross" : "emoji.loading")}}} {(acked ? "Acknowledged by" : finalUpdate ? "Unable to reach" : "Waiting for")} {user.name} (`{user.email}`)");
             }
 
-            return $"{{emoji.tick}} Sent page successfully.\n{users}\n-# Sent <t:{firstSent.ToUnixTimeSeconds()}:R>, updated <t:{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}:R>".Process();
+            return $"{{emoji.tick}} Sent page successfully.\n{users}\n-# Sent <t:{firstSent.ToUnixTimeSeconds()}:R>, updated <t:{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}:R>";
         }
     }
 }

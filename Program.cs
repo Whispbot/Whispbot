@@ -9,6 +9,7 @@ using Whispbot.Commands.ERLC.Commands;
 using Whispbot.Databases;
 using Whispbot.Interactions;
 using Whispbot.Tools;
+using Whispbot.Tools.Disc;
 using Whispbot.Tools.Logger;
 
 Logger.Initialize();
@@ -40,7 +41,7 @@ if (token is null)
 _ = Task.Run(Redis.Init);
 _ = Task.Run(Postgres.Init);
 _ = Task.Run(SentryConnection.Init);
-_ = Task.Run(Strings.GetLanguages);
+_ = Task.Run(Emojis.GetEmojis);
 Tracer.CreateListener();
 
 // Thread for API (communication between services / health check)

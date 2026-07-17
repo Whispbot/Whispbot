@@ -4,22 +4,16 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Languages;
 using Whispbot.Tools;
-using static Whispbot.Tools.Strings;
 
 namespace Whispbot.Extensions
 {
     public static class Tools
     {
-        public static string Process(this string content, Language language = 0, Dictionary<string, string>? arguments = null, bool hasUserInput = false)
+        public static string Translate(this string content, Language language = 0, params string[] args)
         {
-            return Strings.Process(content, language, arguments, hasUserInput);
-        }
-
-        public static T? ProcessObj<T>(this T? obj, Language language = 0) where T : class
-        {
-            if (obj is null) return null;
-            return JsonConvert.DeserializeObject<T>(JsonConvert.SerializeObject(obj).Process(language)!);
+            return Translator.Get(language, content, args);
         }
 
         public static long ToLong(this string str)

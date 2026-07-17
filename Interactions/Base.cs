@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using Whispbot.Cache;
 using Whispbot.Commands;
 using Whispbot.Extensions;
+using Whispbot.Languages;
 
 namespace Whispbot.Interactions
 {
@@ -38,12 +39,11 @@ namespace Whispbot.Interactions
         public UserConfig? UserConfig => WhispCache.UserConfig.Get(UserId).Result;
         public GuildConfig? GuildConfig => GuildId is not null ? WhispCache.GuildConfig.Get(GuildId.Value).Result : null;
 
-        public Tools.Strings.Language Language => (Tools.Strings.Language)(UserConfig?.language ?? GuildConfig?.default_language ?? 0);
+        public Language Language => (Language)(UserConfig?.language ?? GuildConfig?.default_language ?? 0);
 
-        public T? Process<T>(T? obj) where T : class
+        public string String(string key, params string[] args)
         {
-            if (obj is null) return null;
-            return JsonConvert.DeserializeObject<T>(JsonConvert.SerializeObject(obj).ProcessObj(Language)!);
+            return Translator.Get(Language, key, args);
         }
 
         public async Task Respond(
@@ -59,11 +59,6 @@ namespace Whispbot.Interactions
             MessageFlags flags = MessageFlags.None
         )
         {
-            text = text?.ProcessObj(Language);
-            embeds = Process(embeds);
-            embed = Process(embed);
-            components = Process(components);
-
             await interaction.RespondAsync(text, embeds, isTTS, ephemeral, allowedMentions, components, embed, options, poll, flags);
         }
 
@@ -95,11 +90,6 @@ namespace Whispbot.Interactions
             MessageFlags flags = MessageFlags.None
         )
         {
-            text = text?.ProcessObj(Language);
-            embeds = Process(embeds);
-            embed = Process(embed);
-            components = Process(components);
-
             return await interaction.FollowupAsync(text, embeds, isTTS, ephemeral, allowedMentions, components, embed, options, poll, flags);
         }
 
@@ -120,7 +110,6 @@ namespace Whispbot.Interactions
 
         public async Task ShowModal(Modal modal)
         {
-            modal = JsonConvert.DeserializeObject<Modal>(JsonConvert.SerializeObject(modal).ProcessObj(Language)!) ?? modal;
             await interaction.RespondWithModalAsync(modal);
         }
 

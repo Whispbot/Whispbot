@@ -37,9 +37,6 @@ namespace Whispbot
 
             _client ??= new(_webhookUrl);
 
-            text = text?.Process();
-            embeds = embeds?.ProcessObj();
-
             await _client.SendMessageAsync(
                 text: text,
                 embeds: embeds,

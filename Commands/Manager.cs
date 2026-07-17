@@ -79,7 +79,6 @@ namespace Whispbot.Commands
 
             RegisterStaffCommand(new Test());
             RegisterStaffCommand(new SQL());
-            RegisterStaffCommand(new UpdateLanguages());
             RegisterStaffCommand(new AIRequest());
             RegisterStaffCommand(new ResolveError());
             RegisterStaffCommand(new GuildFeatureFlags());
@@ -277,7 +276,7 @@ namespace Whispbot.Commands
                 {
                     if (data.Remaining == 0 && data.Reset > DateTimeOffset.UtcNow)
                     {
-                        await ctx.Reply("{string.errors.ratelimited}".Process(ctx.Language, new Dictionary<string, string>() { { "reset", Time.ConvertMillisecondsToRelativeString(data.Reset.ToUnixTimeMilliseconds(), false, ", ", false, 1000) } }));
+                        await ctx.Reply("errors.ratelimited".Translate(ctx.Language, Time.ConvertMillisecondsToRelativeString(data.Reset.ToUnixTimeMilliseconds(), false, ", ", false, 1000)));
 
                         return true;
                     }
@@ -304,8 +303,8 @@ namespace Whispbot.Commands
             var components = new ComponentBuilderV2()
                 .WithContainer(
                     new ContainerBuilder()
-                        .WithTextDisplay("## {string.title.error}")
-                        .WithTextDisplay("{string.content.error}".Process(ctx.Language, new() { { "url", "<https://whisp.bot/support>" } }))
+                        .WithTextDisplay($"## {ctx.String("errors.message.title")}")
+                        .WithTextDisplay(ctx.String("errors.message.content"))
                         .WithTextDisplay($"{{string.content.error.id}}:\n```\n{id}\n```")
                         .WithSection(
                             [

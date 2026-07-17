@@ -73,7 +73,7 @@ namespace Whispbot.Interactions
             if (functions.TryGetValue(type.Value, out var func))
             {
                 var choices = await func(autocomplete, value);
-                await autocomplete.RespondAsync(choices.Take(25).ProcessObj((Strings.Language)(config?.default_language ?? 0)));
+                await autocomplete.RespondAsync(choices.Take(25));
             }
             else
             {

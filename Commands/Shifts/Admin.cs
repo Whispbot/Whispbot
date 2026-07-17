@@ -9,6 +9,7 @@ using Whispbot.Cache;
 using Whispbot.Databases;
 using Whispbot.Extensions;
 using Whispbot.Tools;
+using Whispbot.Tools.Disc;
 
 namespace Whispbot.Commands.Shifts
 {
@@ -146,14 +147,14 @@ namespace Whispbot.Commands.Shifts
                 )
                 .WithActionRow(
                     new ActionRowBuilder()
-                        .WithButton("{string.button.shift.clockin}", $"sa_clockin {adminId} {userId} {type?.id}", ButtonStyle.Success, Strings.GetEmoji("shiftstart"), disabled: data.currentShiftStart is not null)
-                        .WithButton("{string.button.shift.clockout}", $"sa_clockout {adminId} {userId} {type?.id}", ButtonStyle.Danger, Strings.GetEmoji("shiftstop"), disabled: data.currentShiftStart is null)
-                        .WithButton("{string.button.shiftadmin.modify}", $"sa_modify {adminId} {userId}", ButtonStyle.Primary, Strings.GetEmoji("pen"), disabled: data.totalCount == 0)
+                        .WithButton("{string.button.shift.clockin}", $"sa_clockin {adminId} {userId} {type?.id}", ButtonStyle.Success, Emojis.Get("shiftstart"), disabled: data.currentShiftStart is not null)
+                        .WithButton("{string.button.shift.clockout}", $"sa_clockout {adminId} {userId} {type?.id}", ButtonStyle.Danger, Emojis.Get("shiftstop"), disabled: data.currentShiftStart is null)
+                        .WithButton("{string.button.shiftadmin.modify}", $"sa_modify {adminId} {userId}", ButtonStyle.Primary, Emojis.Get("pen"), disabled: data.totalCount == 0)
                 )
                 .WithActionRow(
                     new ActionRowBuilder()
-                        .WithButton("{string.button.shiftadmin.listshifts}", $"sa_list {adminId} {userId} {type?.id ?? 0} 1", ButtonStyle.Secondary, Strings.GetEmoji("folder"), disabled: data.totalCount == 0)
-                        .WithButton("{string.button.shiftadmin.wipeshifts}", $"sa_wipe {adminId} {userId} {type?.id}", ButtonStyle.Danger, Strings.GetEmoji("delete"), disabled: data.totalCount == 0)
+                        .WithButton("{string.button.shiftadmin.listshifts}", $"sa_list {adminId} {userId} {type?.id ?? 0} 1", ButtonStyle.Secondary, Emojis.Get("folder"), disabled: data.totalCount == 0)
+                        .WithButton("{string.button.shiftadmin.wipeshifts}", $"sa_wipe {adminId} {userId} {type?.id}", ButtonStyle.Danger, Emojis.Get("delete"), disabled: data.totalCount == 0)
                 )
                 .Build();
         }
@@ -200,10 +201,10 @@ namespace Whispbot.Commands.Shifts
                 )
                 .WithActionRow(
                     new ActionRowBuilder()
-                        .WithButton("{string.button.shiftadmin.back}", $"sa_main {adminId} {userId} {type?.id}", ButtonStyle.Secondary, Strings.GetEmoji("back"))
-                        .WithButton("{string.button.shiftadmin.previous}", $"sa_list {adminId} {userId} {type?.id ?? 0} {page - 1}", ButtonStyle.Primary, Strings.GetEmoji("left"), disabled: page <= 1)
+                        .WithButton("{string.button.shiftadmin.back}", $"sa_main {adminId} {userId} {type?.id}", ButtonStyle.Secondary, Emojis.Get("back"))
+                        .WithButton("{string.button.shiftadmin.previous}", $"sa_list {adminId} {userId} {type?.id ?? 0} {page - 1}", ButtonStyle.Primary, Emojis.Get("left"), disabled: page <= 1)
                         .WithButton($"{page}/{Math.Ceiling((double)totalCount / 5)}", "null", ButtonStyle.Primary, disabled: true)
-                        .WithButton("{string.button.shiftadmin.next}", $"sa_list {adminId} {userId} {type?.id ?? 0} {page + 1}", ButtonStyle.Primary, Strings.GetEmoji("right"), disabled: page * 5 >= totalCount)
+                        .WithButton("{string.button.shiftadmin.next}", $"sa_list {adminId} {userId} {type?.id ?? 0} {page + 1}", ButtonStyle.Primary, Emojis.Get("right"), disabled: page * 5 >= totalCount)
                 )
                 .Build();
         }
@@ -220,15 +221,15 @@ namespace Whispbot.Commands.Shifts
                 )
                 .WithActionRow(
                     new ActionRowBuilder()
-                        .WithButton($"sa_main {adminId} {shift.moderator_id} {shift.type}", "{string.button.shiftadmin.back}", ButtonStyle.Secondary, Strings.GetEmoji("back"))
-                        .WithButton($"sa_addtime {adminId} {shift.id}", "{string.button.shiftadmin.addtime}", ButtonStyle.Success, Strings.GetEmoji("clockplus"))
-                        .WithButton($"sa_removetime {adminId} {shift.id}", "{string.button.shiftadmin.removetime}", ButtonStyle.Danger, Strings.GetEmoji("clockminus"))
-                        .WithButton($"sa_settime {adminId} {shift.id}", "{string.button.shiftadmin.settime}", ButtonStyle.Primary, Strings.GetEmoji("clockedit"))
+                        .WithButton($"sa_main {adminId} {shift.moderator_id} {shift.type}", "{string.button.shiftadmin.back}", ButtonStyle.Secondary, Emojis.Get("back"))
+                        .WithButton($"sa_addtime {adminId} {shift.id}", "{string.button.shiftadmin.addtime}", ButtonStyle.Success, Emojis.Get("clockplus"))
+                        .WithButton($"sa_removetime {adminId} {shift.id}", "{string.button.shiftadmin.removetime}", ButtonStyle.Danger, Emojis.Get("clockminus"))
+                        .WithButton($"sa_settime {adminId} {shift.id}", "{string.button.shiftadmin.settime}", ButtonStyle.Primary, Emojis.Get("clockedit"))
                 )
                 .WithActionRow(
                     new ActionRowBuilder()
-                        .WithButton($"sa_changetype {adminId} {shift.id}", "{string.button.shiftadmin.changetype}", ButtonStyle.Primary, Strings.GetEmoji("pen"))
-                        .WithButton($"sa_delete {adminId} {shift.moderator_id} {shift.type} {shift.id}", "{string.button.shiftadmin.deleteshift}", ButtonStyle.Danger, Strings.GetEmoji("delete"))
+                        .WithButton($"sa_changetype {adminId} {shift.id}", "{string.button.shiftadmin.changetype}", ButtonStyle.Primary, Emojis.Get("pen"))
+                        .WithButton($"sa_delete {adminId} {shift.moderator_id} {shift.type} {shift.id}", "{string.button.shiftadmin.deleteshift}", ButtonStyle.Danger, Emojis.Get("delete"))
                 )
                 .Build();
         }

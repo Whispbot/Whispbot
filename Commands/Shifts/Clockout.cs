@@ -55,7 +55,7 @@ namespace Whispbot.Commands.Shifts
 
             await ctx.Reply(
                 embed: new EmbedBuilder()
-                    .WithDescription($"{(result.Item1 is not null ? "{emoji.clockedout}" : "{emoji.cross}")} {result.Item2 ?? (result.Item1 is null ? "{string.errors.clockout.failed}" : $"{{string.success.clockout}}".Process(ctx.Language, new Dictionary<string, string> { { "type_name", type.name }, { "duration", Time.ConvertMillisecondsToString((result.Item1.end_time - result.Item1.start_time)?.TotalMilliseconds ?? 0) } }))}.")
+                    .WithDescription($"{(result.Item1 is not null ? "{emoji.clockedout}" : "{emoji.cross}")} {result.Item2 ?? (result.Item1 is null ? "{string.errors.clockout.failed}" : $"{{string.success.clockout}}".Translate(ctx.Language, type.name, Time.ConvertMillisecondsToString((result.Item1.end_time - result.Item1.start_time)?.TotalMilliseconds ?? 0)))}.")
                     .WithFooter(result.Item1 is not null ? new EmbedFooterBuilder().WithText($"ID: {result.Item1.id}") : null)
                     .WithColor(result.Item1 is not null ? new Color(150, 0, 0) : Color.Default)
                     .Build()

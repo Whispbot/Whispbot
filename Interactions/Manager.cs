@@ -11,6 +11,7 @@ using Whispbot.Databases;
 using Whispbot.Interactions.Roblox_Connection;
 using Whispbot.Interactions.Roblox_Moderations;
 using Whispbot.Interactions.Shifts;
+using Whispbot.Languages;
 
 namespace Whispbot.Interactions
 {
@@ -94,8 +95,8 @@ namespace Whispbot.Interactions
 
             var ctx = new InteractionContext(client, interaction, args);
 
-            var localeMatches = Tools.Strings.Languages.Where(l => l.Value.Item1 == interaction.UserLocale);
-            int language = (int)(localeMatches.Any() ? localeMatches.First().Key : 0);
+            var localeMatches = Translator.LanguageInfo.Where(l => l.Value.Item1 == interaction.UserLocale);
+            var language = (localeMatches.Any() ? localeMatches.First().Key : 0);
             if (ctx.UserConfig is not null && (ctx.UserConfig?.language ?? ctx.GuildConfig?.default_language) != language)
             {
                 ctx.UserConfig!.language = language;

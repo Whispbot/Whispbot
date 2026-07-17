@@ -28,10 +28,10 @@ namespace Whispbot.Commands.General
 
             await ctx.Reply(
                 embed: new EmbedBuilder()
-                    .WithTitle("Pong!")
+                    .WithTitle(ctx.String("ping.title"))
                     .WithFields(
-                        new EmbedFieldBuilder() { Name = "Ping", Value = $"{ctx.client.Latency}ms", IsInline = true },
-                        new EmbedFieldBuilder() { Name = "Database", Value = $"{(Postgres.IsConnected() ? $"Connected ({Math.Floor(Postgres.Ping)}ms)" : "Disconnected")}", IsInline = true }
+                        new EmbedFieldBuilder() { Name = ctx.String("ping.field.ping"), Value = $"{ctx.client.Latency}ms", IsInline = true },
+                        new EmbedFieldBuilder() { Name = ctx.String("ping.field.database"), Value = $"{(Postgres.IsConnected() ? $"{ctx.String("ping.field.database.connected")} ({Math.Floor(Postgres.Ping)}ms)" : $"{ctx.String("ping.field.database.disconnected")}")}", IsInline = true }
                     )
                     .WithFooter($"Cluster {Config.cluster} • {Time.ConvertMillisecondsToString(uptime.TotalMilliseconds, Small: true, RoundTo: 60_000, language: ctx.Language)}")
                     .Build()

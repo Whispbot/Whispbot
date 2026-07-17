@@ -24,7 +24,7 @@ namespace Whispbot
 #endif
 
         public static Replica? replica = null;
-        public static int cluster = -1;
+        public static int cluster = 0;
         public static List<string> replicas = [];
         public static readonly string? replicaId = Environment.GetEnvironmentVariable("RAILWAY_REPLICA_ID");
         public static readonly string deploymentId = Environment.GetEnvironmentVariable("RAILWAY_DEPLOYMENT_ID") ?? "dev";

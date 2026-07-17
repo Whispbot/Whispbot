@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using Whispbot.Cache;
 using Whispbot.Databases;
 using Whispbot.Extensions;
+using Whispbot.Languages;
 using Whispbot.Tools;
 using Whispbot.Tools.Games.ERLCAPI;
 using Whispbot.Tools.Games.ERLCAPI.Classes;
@@ -71,12 +72,12 @@ namespace Whispbot.Commands.ERLC.Commands
         }
         public GuildConfig? GuildConfig => WhispCache.GuildConfig.Get(GuildId).Result;
 
-        public Strings.Language Language => (Strings.Language)(UserConfig?.language ?? GuildConfig?.default_language ?? 0);
+        public Language Language => (Language)(UserConfig?.language ?? GuildConfig?.default_language ?? 0);
 
         public async Task<PRCResponse?> Reply(string content)
         {
             using var _ = Tracer.Start($"Reply");
-            return await ERLCAPI.SendCommand(server, $":pm {robloxUsername} {content.ProcessObj(Language)}");
+            return await ERLCAPI.SendCommand(server, $":pm {robloxUsername} {content}");
         }
     }
 }

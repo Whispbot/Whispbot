@@ -66,29 +66,6 @@ namespace Whispbot.Databases
                             List<PermissionRole>? newRoles = await WhispPermissions.permissionRoles.Fetch(data.id);
                         }
                     }
-                    else if (e.Channel == "language_update")
-                    {
-                        var data = JsonConvert.DeserializeObject<LanguageUpdatePayload>(e.Payload);
-
-                        if (data is null) return;
-
-                        if (data.op == "DELETE")
-                        {
-                            if (!Strings.LanguageStrings.TryGetValue(data.data.language, out Dictionary<string, string>? value)) return;
-                            value.Remove(data.data.key);
-                        }
-                        else
-                        {
-                            if (!Strings.LanguageStrings.TryGetValue(data.data.language, out var lang))
-                            {
-                                Strings.LanguageStrings.Add(data.data.language, []);
-                                lang = Strings.LanguageStrings[data.data.language];
-                            }
-
-                            lang.Remove(data.data.key);
-                            lang.Add(data.data.key, data.data.content);
-                        }
-                    }
                 }
                 catch (Exception ex)
                 {
@@ -100,16 +77,12 @@ namespace Whispbot.Databases
             using var listenGuildUpdate = new NpgsqlCommand("LISTEN guild_update;", conn);
             listenGuildUpdate.ExecuteNonQuery();
 
-            using var listenLanguageUpdate = new NpgsqlCommand("LISTEN language_update", conn);
-            listenLanguageUpdate.ExecuteNonQuery();
-
             while (true) await conn.WaitAsync();
         }
 
 #pragma warning disable IDE1006
         public record GuildUpdatePayload(ulong id, string table, string op);
         public record ProofDeletePayload(string id, string guild_id, string extension);
-        public record LanguageUpdatePayload(Strings.DBLanguage data, string op);
 #pragma warning restore IDE1006
     }
 }

@@ -11,6 +11,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Cache;
 using Whispbot.Extensions;
+using Whispbot.Languages;
 using static Microsoft.Extensions.Logging.EventSource.LoggingEventSource;
 
 namespace Whispbot.Commands
@@ -134,12 +135,12 @@ namespace Whispbot.Commands
         public UserConfig? UserConfig => WhispCache.UserConfig.Get(UserId).Result;
         public GuildConfig? GuildConfig => WhispCache.GuildConfig.Get(GuildId).Result;
 
-        public Tools.Strings.Language Language => (Tools.Strings.Language)(UserConfig?.language ?? GuildConfig?.default_language ?? 0);
+        public Language Language => (Language)(UserConfig?.language ?? GuildConfig?.default_language ?? 0);
 
-        public T? Process<T>(T? obj) where T : class
+        public string String(string name, params string[] args)
         {
-            if (obj is null) return null;
-            return JsonConvert.DeserializeObject<T>(JsonConvert.SerializeObject(obj).ProcessObj(Language)!);
+            // CHANGE THIS
+            return Translator.Get(Language, name, args);
         }
 
         public async Task Reply(
@@ -158,11 +159,6 @@ namespace Whispbot.Commands
         )
         {
             using var _ = Tracer.Start("Reply");
-
-            text = text?.ProcessObj(Language);
-            embed = Process(embed);
-            embeds = Process(embeds);
-            components = Process(components);
 
             if (type == CommandType.Legacy)
             {
@@ -233,10 +229,6 @@ namespace Whispbot.Commands
         {
             if (hasResponded)
             {
-                text = text?.Process(Language);
-                embeds = (embeds ?? (embed is not null ? [embed] : null)).ProcessObj(Language);
-                components = components?.ProcessObj(Language);
-
                 await EditResponse(m =>
                 {
                     m.Content = text;
