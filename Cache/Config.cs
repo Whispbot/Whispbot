@@ -67,7 +67,8 @@ namespace Whispbot.Cache
                 FROM user_config uc
                 LEFT JOIN user_feature_flags uff ON uff.user_id = uc.id
                 LEFT JOIN feature_flags ff ON ff.id = uff.feature_flag_id
-                WHERE uc.id = @1;",
+                WHERE uc.id = @1
+                GROUP BY uc.id;",
               [key]
             );
 

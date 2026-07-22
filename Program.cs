@@ -1,6 +1,7 @@
 ﻿using Discord;
 using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
+using Newtonsoft.Json;
 using Serilog;
 using Whispbot;
 using Whispbot.API;
@@ -9,10 +10,12 @@ using Whispbot.Commands.ERLC.Commands;
 using Whispbot.Databases;
 using Whispbot.Interactions;
 using Whispbot.Tools;
+using Whispbot.Tools.Bot;
 using Whispbot.Tools.Disc;
 using Whispbot.Tools.Logger;
 
 Logger.Initialize();
+Shutdown.Init();
 
 bool dev = Config.isDev;
 
@@ -100,21 +103,18 @@ var config = new DiscordSocketConfig
 var client = new DiscordShardedClient(config);
 Config.client = client;
 
-client.ShardReady += DiscordLibLogger.ReadyAsync;
-client.Log += DiscordLibLogger.LogAsync;
+client.ShardReady += Logging.ReadyAsync;
+client.Log += Logging.LogAsync;
 
 CommandManager.Init(client);
 ERLCCommandManager.Init(client);
 InteractionManager.Init(client);
 
+Preloading.Init(client);
 DiscordPublisher.Start(client);
 DiscordModeration.RegisterClient(client);
 
 await client.LoginAsync(TokenType.Bot, token);
 await client.StartAsync();
 
-await Task.Delay(Timeout.Infinite);
-
-Log.Information("Goodbye");
-Logger.Shutdown();
-Environment.Exit(0);
+await Shutdown.WaitAsync();

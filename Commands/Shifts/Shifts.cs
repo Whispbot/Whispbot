@@ -7,7 +7,9 @@ using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Cache;
 using Whispbot.Databases;
+using Whispbot.Languages;
 using Whispbot.Tools;
+using Whispbot.Tools.Disc;
 
 namespace Whispbot.Commands.Shifts
 {
@@ -34,7 +36,7 @@ namespace Whispbot.Commands.Shifts
 
             if (types is null)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.clockin.dbfailed}."); // Database failed (does not mean no shift types)
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("shifts.errors.failed_get_types")}"); // Database failed (does not mean no shift types)
                 return;
             }
 
@@ -43,7 +45,7 @@ namespace Whispbot.Commands.Shifts
 
             if (ctx.args.Count > 0 && type is null)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.clockin.typenotfound}.");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("shifts.errors.type_not_found")}");
                 return;
             }
 
@@ -51,7 +53,7 @@ namespace Whispbot.Commands.Shifts
 
             if (data is null)
             {
-                await ctx.Reply("{emoji.warning} {string.errors.shifts.dbfailed}");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("shifts.errors.failed_get_shift_data")}");
                 return;
             }
 
@@ -75,24 +77,24 @@ namespace Whispbot.Commands.Shifts
         /// </summary>
         /// <param name="status">false for none, true for just clocked out</param>
         /// <returns></returns>
-        public MessageComponent GenerateMessage(ulong userId, ShiftType? type = null, bool status = false, Shift? shift = null) {
+        public MessageComponent GenerateMessage(ulong userId, ShiftType? type = null, bool status = false, Shift? shift = null, Language lang = 0) {
             return new ComponentBuilderV2()
                 .WithContainer(
                     new ContainerBuilder()
-                        .WithTextDisplay($"## {{string.title.shift}}")
-                        .WithTextDisplay(
-                            currentShiftStart is not null ? $"{{emoji.clockedin}} {{string.content.shift.clockedin}} <t:{currentShiftStart.Value.ToUnixTimeSeconds()}:R>." 
-                            : status && shift?.end_time is not null ? $"{{emoji.clockedout}} {{string.content.shift.clockedout}} {Time.ConvertMillisecondsToString((shift.end_time - shift.start_time).Value.TotalMilliseconds)}." : ""
-                        )
+                        .WithTextDisplay($"## {lang.Translate("shifts.me.title")}")
+                        .AddComponents([
+                            ..(currentShiftStart is not null ? new List<TextDisplayBuilder> { new($"{Emojis.Get("clockedin")} {lang.Translate("shifts.me.clockedin", $"<t:{currentShiftStart.Value.ToUnixTimeSeconds()}:R>")}") }
+                            : status && shift?.end_time is not null ? [new($"{Emojis.Get("clockedout")} {lang.Translate("shifts.me.clockedout", Time.ConvertMillisecondsToString((shift.end_time - shift.start_time).Value.TotalMilliseconds, RoundTo: 60000, language: lang))}")] : [])
+                        ])
                         .WithSeparator()
-                        .WithTextDisplay($"{{string.title.shift.alltime}}: {totalCount} ({Time.ConvertMillisecondsToString(totalDuration * 1000, ", ", true, 60000)})\n{{string.title.shift.weekly}}: {weeklyCount} ({Time.ConvertMillisecondsToString(weeklyDuration * 1000, ", ", true, 60000)})")
-                        .WithTextDisplay($"-# Type: {type?.name ?? "all"}")
+                        .WithTextDisplay($"{lang.Translate("shifts.me.all_time")}: {totalCount} ({Time.ConvertMillisecondsToString(totalDuration * 1000, ", ", true, 60000)})\n{lang.Translate("shifts.me.weekly")}: {weeklyCount} ({Time.ConvertMillisecondsToString(weeklyDuration * 1000, ", ", true, 60000)})")
+                        .WithTextDisplay($"-# {lang.Translate("phrase.type")}: {type?.name ?? lang.Translate("phrase.all")}")
                         .WithAccentColor(status ? new Color(150, 0, 0) : currentShiftStart is not null ? new Color(0, 150, 0) : null)
                 )
                 .WithActionRow(
                     new ActionRowBuilder()
-                        .WithButton("{string.button.shift.clockin}", $"clockin {userId} {type?.id}", ButtonStyle.Success, disabled: currentShiftStart is not null)
-                        .WithButton("{string.button.shift.clockout}", $"clockout {userId} {type?.id}", ButtonStyle.Danger, disabled: currentShiftStart is null)
+                        .WithButton(lang.Translate("shifts.button.clockin"), $"clockin {userId} {type?.id}", ButtonStyle.Success, disabled: currentShiftStart is not null)
+                        .WithButton(lang.Translate("shifts.button.clockout"), $"clockout {userId} {type?.id}", ButtonStyle.Danger, disabled: currentShiftStart is null)
                 )
                 .Build();
         }

@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using Whispbot.Cache;
 using Whispbot.Databases;
 using Whispbot.Extensions;
+using Whispbot.Languages;
 using Whispbot.Tools;
 using Whispbot.Tools.Games.ERLCAPI;
 
@@ -28,7 +29,7 @@ namespace Whispbot.Commands.ERLC
             new ("server", "The ERLC server to get info on. If not provided, the default will be used.", CommandArgType.ERLCServer, optional: true)
         ];
         public override List<string> Schema => ["<server:erlcserver?>"];
-        public override List<string> Aliases => ["erlcserver", "erlcinfo", "eserver", "eserverinfo", "erlc server"];
+        public override List<string> Aliases => ["erlcserver", "erlcinfo", "eserver", "eserverinfo", "erlc server", "erlc info"];
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
         {
@@ -49,13 +50,15 @@ namespace Whispbot.Commands.ERLC
                 Roblox.RobloxUser? owner = relatedUsers?.Find(u => u.id == serverInfo.OwnerId.ToString());
                 List<Roblox.RobloxUser> coOwners = relatedUsers?.FindAll(u => serverInfo.CoOwnerIds.Contains(ulong.Parse(u.id))) ?? [];
 
+                var INLINE = ctx.Emoji("alignment");
+
                 await ctx.EditResponse(
                     text: "",
                     embed: new EmbedBuilder()
-                        .WithTitle("{string.title.erlcserver}")
+                        .WithTitle(ctx.String("erlc.serverinfo.title"))
                         .WithThumbnailUrl(ctx.Guild.IconUrl)
-                        .WithDescription("{string.content.erlcserver}".Translate(ctx.Language, 
-                            serverInfo.Name, 
+                        .WithDescription(ctx.String("erlc.serverinfo.data", 
+                            serverInfo.Name,
                             $"[@{owner?.name ?? "unknown"}](https://roblox.com/users/{serverInfo.OwnerId})",
 							$"[{serverInfo.JoinKey}](https://policeroleplay.community/join/{serverInfo.JoinKey})",
 							serverInfo.CurrentPlayers.ToString(),
@@ -63,17 +66,18 @@ namespace Whispbot.Commands.ERLC
 						))
                         .WithFields(coOwners.Count > 0 ? [
                             new EmbedFieldBuilder() {
-                                Name = "{string.fields.erlcserver.coowners}",
-								Value = coOwners.Select(u => $"{{emoji.inline}} [@{u.name}](https://roblox.com/users/{u.id})").Join("\n"),
+                                Name = ctx.String("erlc.serverinfo.coowners"),
+								Value = coOwners.Select(u => $"{INLINE} [@{u.name}](https://roblox.com/users/{u.id})").Join("\n"),
 								IsInline = false
 							}
                         ] : [])
+                        .WithFooter(ERLCCache.GenerateFooter(ctx, response!))
                         .Build()
                 );
             }
             else
             {
-                await ctx.EditResponse($"{{emoji.cross}} [{response?.error}] {response?.error_message ?? "An unknown error occured"}.");
+                await ctx.EditResponse(response.GenerateErrorMessage(ctx));
             }
         }
     }

@@ -29,7 +29,7 @@ namespace Whispbot.Tools.Games.ERLCAPI
 
             if (servers is null || servers.Count == 0)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.erlcserver.notfound}.");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("erlc.errors.noservers")}");
                 return null;
             }
 
@@ -44,7 +44,7 @@ namespace Whispbot.Tools.Games.ERLCAPI
                 }
                 else
                 {
-                    await ctx.Reply("{emoji.cross} {string.errors.erlcserver.nodefault}");
+                    await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("erlc.errors.nodefault")}");
                     return null;
                 }
             }
@@ -53,13 +53,13 @@ namespace Whispbot.Tools.Games.ERLCAPI
 
             if (server is null)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.erlcserver.notfound}.");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("erlc.errors.erlcserver.notfound")}");
                 return null;
             }
 
             if (server.api_key is null)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.erlcserver.nokey}");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("erlc.errors.erlcserver.nokey")}");
                 return null;
             }
 

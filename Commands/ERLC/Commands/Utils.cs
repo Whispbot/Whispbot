@@ -1,4 +1,5 @@
 using Newtonsoft.Json;
+using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,18 +16,15 @@ namespace Whispbot.Commands.ERLC.Commands
     {
         public static async Task<string?> GetUserFromPartialName(string partialName, ERLCServerConfig serverConfig)
         {
-            if (serverConfig.api_key is null || serverConfig.api_key is null || serverConfig.internal_id is null) return null;
+            if (serverConfig.api_key is null || serverConfig.internal_id is null) return null;
             if (String.IsNullOrWhiteSpace(partialName)) return null;
 
             PRCResponse? response = await ERLCAPI.GetERLCServer(serverConfig);
 
             if (response is null) return null;
-            if (response.error == ErrorCode.Nothing && response.data is not null)
+            if (response.Server is not null)
             {
-                ERLCServer? server = ERLCRequest.ConvertResponseTo<ERLCServer>(response);
-                if (server is null) return null;
-
-                List<ERLCPlayer>? players = server.Players;
+                List<ERLCPlayer>? players = response.Server.Players;
                 if (players is null) return null;
 
                 ERLCPlayer? matchedPlayer =

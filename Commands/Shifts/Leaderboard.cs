@@ -22,7 +22,7 @@ namespace Whispbot.Commands.Shifts
             new ("type", "The shift type to view on the leaderboard. If not provided, all types will be shown.", CommandArgType.ShiftType, optional: true)
         ];
         public override List<string> Schema => ["<type:stype?>"];
-        public override List<string> Aliases => ["shift leaderboard"];
+        public override List<string> Aliases => ["shift leaderboard", "shift lb"];
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
         {
@@ -33,7 +33,7 @@ namespace Whispbot.Commands.Shifts
 
             if (types is null)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.clockin.dbfailed}."); // Database failed (does not mean no shift types)
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("shifts.errors.failed_get_types")}"); // Database failed (does not mean no shift types)
                 return;
             }
 
@@ -42,7 +42,7 @@ namespace Whispbot.Commands.Shifts
 
             if (ctx.args.Count > 0 && type is null)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.clockin.typenotfound}.");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("shifts.errors.type_not_found")}");
                 return;
             }
 
@@ -50,7 +50,7 @@ namespace Whispbot.Commands.Shifts
 
             if (errormessage is not null)
             {
-                await ctx.Reply(errormessage);
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String($"shifts.lb.errors.{errormessage}")}");
             }
             else
             {

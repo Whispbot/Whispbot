@@ -47,11 +47,11 @@ namespace Whispbot.Commands.ERLC
                             new ContainerBuilder()
                                 .WithSection(
                                     new SectionBuilder()
-                                        .WithTextDisplay($"Join **{server.name ?? "no name"}** using code '[{server.code ?? "nocode"}](<{url}>)'.")
+                                        .WithTextDisplay(ctx.String("erlc.join.content", server.name ?? ctx.Guild.Name, $"[{server.code ?? "null"}](<{url}>)"))
 										.WithAccessory(
 											new ButtonBuilder()
 												.WithStyle(ButtonStyle.Link)
-												.WithLabel("Quick Join")
+												.WithLabel(ctx.String("erlc.join.button"))
 												.WithUrl(url)
                                         )
 								)

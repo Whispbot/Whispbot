@@ -60,15 +60,13 @@ namespace Whispbot.Tools.Disc
             return userConfigs;
         }
 
-        public static async Task<List<IGuildUser>> GetMembersFromConfigs(List<UserConfig> configs, CommandContext ctx)
+        public static async Task<List<SocketGuildUser>> GetMembersFromConfigs(List<UserConfig> configs, CommandContext ctx)
         {
-            SocketGuild? guild = ctx.Guild;
-            if (guild is null) return [];
+            var guild = ctx.Guild;
 
             return [.. configs
                 .Select(c => guild.GetUser(c.id))
-                .Where(u => u is not null)
-                .Cast<IGuildUser>()];
+                .Where(u => u is not null)];
         }
 
         public static readonly List<string> usernameEscapeChars = ["\\", "*", "_", "~", "`", ">", "|"];

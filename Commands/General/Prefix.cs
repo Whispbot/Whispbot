@@ -8,6 +8,7 @@ using Whispbot.Databases;
 using Whispbot.Tools;
 using Whispbot.Tools.Disc;
 using Discord;
+using Whispbot.Languages;
 
 namespace Whispbot.Commands.General
 {
@@ -29,13 +30,13 @@ namespace Whispbot.Commands.General
         {
             if (ctx.args.Count == 0)
             {
-                await ctx.Reply($"{{string.content.prefix:prefix={ctx.GuildConfig?.prefix ?? Config.prefix}}}.");
+                await ctx.Reply(ctx.String("prefix.is", Users.FixUsername(ctx.GuildConfig?.prefix ?? Config.prefix)));
             }
             else
             {
                 if (!DiscordPermissions.HasPermissionOrAdmin(ctx.Member, GuildPermission.ManageGuild))
                 {
-                    await ctx.Reply("{emoji.cross} {string.errors.prefix.noperms}");
+                    await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("prefix.errors.noperms")}");
                     return;
                 }
 
@@ -43,19 +44,19 @@ namespace Whispbot.Commands.General
 
                 if (newPrefix.Length > 10)
                 {
-                    await ctx.Reply("{emoji.cross} {string.errors.prefix.toolong}.");
+                    await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("prefix.errors.toolong")}");
                     return;
                 }
 
                 if (Regex.IsMatch(newPrefix, "[{}]"))
                 {
-                    await ctx.Reply("{emoji.cross} {string.errors.prefix.invalid}.");
+                    await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("prefix.errors.invalid")}");
                     return;
                 }
 
                 Postgres.Execute("UPDATE guild_config SET prefix = @1 WHERE id = @2", [newPrefix, ctx.GuildId]);
 
-                await ctx.Reply($"{{emoji.tick}} {{string.success.prefix:prefix={newPrefix}}}.");
+                await ctx.Reply($"{ctx.Emoji("tick")} {ctx.String("prefix.success", Users.FixUsername(newPrefix))}.");
             }
         }
     }

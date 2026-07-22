@@ -1,4 +1,5 @@
 using Discord;
+using Discord.WebSocket;
 using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Newtonsoft.Json;
 using Serilog;
@@ -47,7 +48,7 @@ namespace Whispbot.Commands.ERLC
             {
                 if (callLogs.Count == 0)
                 {
-                    await ctx.EditResponse($"{{emoji.cross}} {{string.errors.erlccalllogs.nologs}}\n-# {{string.content.erlcserver.updated}}: {(response!.CachedAt is not null ? $"{Math.Round((decimal)(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - response.cachedAtMs) / 1000)}s ago" : "{string.content.erlcserver.justnow}")}");
+                    await ctx.EditResponse($"{ctx.Emoji("cross")} {ctx.String("erlc.modcalls.errors.none")}\n-# {ERLCCache.GenerateFooter(ctx, response!)}");
                     return;
                 }
 
@@ -56,53 +57,60 @@ namespace Whispbot.Commands.ERLC
 
                 List<ulong> robloxIds = [.. callLogs.Select(j => ulong.Parse(j.Caller.Split(":")[1])), .. callLogs.Where(c => c.Moderator is not null).Select(c => ulong.Parse(c.Moderator!.Split(":")[1]))];
                 List<UserConfig> userConfigs = await Users.GetConfigsFromRobloxIds(robloxIds);
-                List<IGuildUser>? members = await Users.GetMembersFromConfigs(userConfigs, ctx);
+                List<SocketGuildUser>? members = await Users.GetMembersFromConfigs(userConfigs, ctx);
 
-                StringBuilder strings = new();
+                var IN_DISCORD = ctx.Emoji("indiscord");
+				var BOOSTER = ctx.Emoji("booster");
+                var ANSWERED = ctx.Emoji("clockedin");
+                var UNANSWERED = ctx.Emoji("clockedout");
+                var HELPED = ctx.String("erlc.modcalls.helped");
+                var CALLED = ctx.String("erlc.modcalls.called");
+
+				StringBuilder strings = new();
                 foreach (var log in callLogs)
                 {
                     UserConfig? callerConfig = userConfigs?.Find(u => u.roblox_id.ToString() == log.Caller.Split(":")[1]);
-                    IGuildUser? callerMember = members?.Find(m => m.Id == callerConfig?.id);
+                    SocketGuildUser? callerMember = members?.Find(m => m.Id == callerConfig?.id);
 
                     UserConfig? modConfig = userConfigs?.Find(u => u.roblox_id.ToString() == log.Moderator?.Split(":")?[1]);
-                    IGuildUser? modMember = members?.Find(m => m.Id == modConfig?.id);
+                    SocketGuildUser? modMember = members?.Find(m => m.Id == modConfig?.id);
 
                     StringBuilder callerFlags = new();
                     if (callerMember is not null)
                     {
-                        callerFlags.Append("{emoji.indiscord}");
-                        if (callerMember.PremiumSince is not null) callerFlags.Append("{emoji.booster}");
+                        callerFlags.Append(IN_DISCORD);
+                        if (callerMember.PremiumSince is not null) callerFlags.Append(BOOSTER);
                     }
 
                     StringBuilder modFlags = new();
                     if (modMember is not null)
                     {
-                        modFlags.Append("{emoji.indiscord}");
-                        if (modMember.PremiumSince is not null) modFlags.Append("{emoji.booster}");
+                        modFlags.Append(IN_DISCORD);
+                        if (modMember.PremiumSince is not null) modFlags.Append(BOOSTER);
                     }
 
                     if (log.Moderator is not null && log.Moderator.Split(':')[1] != "1")
                     {
-                        strings.AppendLine($"{{emoji.clockedin}} [<t:{log.Timestamp}:T>] {modFlags}{(modFlags.Length > 0 ? " " : "")}**@{log.Moderator.Split(':')[0]}** helped {callerFlags}{(callerFlags.Length > 0 ? " " : "")}**@{log.Caller.Split(':')[0]}**");
+                        strings.AppendLine($"{ANSWERED} [<t:{log.Timestamp}:T>] {modFlags}{(modFlags.Length > 0 ? " " : "")}**@{log.Moderator.Split(':')[0]}** {HELPED} {callerFlags}{(callerFlags.Length > 0 ? " " : "")}**@{log.Caller.Split(':')[0]}**");
                     }
                     else
                     {
-                        strings.AppendLine($"{{emoji.clockedout}} [<t:{log.Timestamp}:T>] {callerFlags}{(callerFlags.Length > 0 ? " " : "")}**@{log.Caller.Split(':')[0]}** called for mod");
+                        strings.AppendLine($"{UNANSWERED} [<t:{log.Timestamp}:T>] {callerFlags}{(callerFlags.Length > 0 ? " " : "")}**@{log.Caller.Split(':')[0]}** {CALLED}");
                     }
                 }
 
                 await ctx.EditResponse(
                     text: "",
                     embed: new EmbedBuilder()
-                        .WithTitle("{string.title.modcalls}")
+                        .WithTitle(ctx.String("erlc.modcalls.title"))
                         .WithDescription(strings.ToString())
-                        .WithFooter(ERLCCache.GenerateFooter(response!))
+                        .WithFooter(ERLCCache.GenerateFooter(ctx, response!))
 						.Build()
                 );
             }
             else
             {
-                await ctx.EditResponse($"{{emoji.cross}} [{response?.error}] {response?.error_message ?? "An unknown error occured"}.");
+                await ctx.EditResponse(response.GenerateErrorMessage(ctx));
             }
         }
     }

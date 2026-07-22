@@ -1,4 +1,5 @@
 using Discord;
+using Discord.WebSocket;
 using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Newtonsoft.Json;
 using Serilog;
@@ -51,7 +52,7 @@ namespace Whispbot.Commands.ERLC
             {
                 List<ulong> playerIds = [.. players.Select(p => ulong.Parse(p.Player.Split(":")[1]))];
                 List<UserConfig> userConfigs = await Users.GetConfigsFromRobloxIds(playerIds);
-                List<IGuildUser>? members = await Users.GetMembersFromConfigs(userConfigs, ctx);
+                List<SocketGuildUser>? members = await Users.GetMembersFromConfigs(userConfigs, ctx);
 
                 Dictionary<string, StringBuilder> teams = [];
 
@@ -70,7 +71,7 @@ namespace Whispbot.Commands.ERLC
                         UserConfig? userConfig = userConfigs?.FirstOrDefault(uc => uc.roblox_id.ToString() == playerId);
                         if (userConfig is not null)
                         {
-                            IGuildUser? member = members?.FirstOrDefault(m => m.Id == userConfig.id);
+                            SocketGuildUser? member = members?.FirstOrDefault(m => m.Id == userConfig.id);
                             if (member is not null)
                             {
                                 // 2 = booster, 1 = member, 0 = not in server
@@ -81,7 +82,15 @@ namespace Whispbot.Commands.ERLC
                     })
                     .ThenBy(p => p.Player)];
 
-                foreach (var player in players)
+                var OWNER = ctx.Emoji("owner");
+                var COOWNER = ctx.Emoji("coowner");
+                var ADMIN = ctx.Emoji("administrator");
+				var MODERATOR = ctx.Emoji("moderator");
+				var HELPER = ctx.Emoji("helper");
+				var INDISCORD = ctx.Emoji("indiscord");
+				var BOOSTER = ctx.Emoji("booster");
+
+				foreach (var player in players)
                 {
                     StringBuilder? team = teams.GetValueOrDefault(player.Team);
                     if (team is null)
@@ -99,31 +108,31 @@ namespace Whispbot.Commands.ERLC
                     switch (player.Permission)
                     {
                         case "Server Owner":
-                            flags.Append("{emoji.owner}");
+                            flags.Append(OWNER);
                             break;
                         case "Server Co-Owner":
-                            flags.Append("{emoji.coowner}");
+                            flags.Append(COOWNER);
                             break;
                         case "Server Administrator":
-                            flags.Append("{emoji.administrator}");
+                            flags.Append(ADMIN);
                             break;
                         case "Server Moderator":
-                            flags.Append("{emoji.moderator}");
+                            flags.Append(MODERATOR);
                             break;
                         case "Server Helper":
-                            flags.Append("{emoji.helper}");
+                            flags.Append(HELPER);
                             break;
                     }
 
                     UserConfig? userConfig = userConfigs?.FirstOrDefault(uc => uc.roblox_id.ToString() == id);
                     if (userConfig is not null)
                     {
-                        IGuildUser? member = members?.FirstOrDefault(m => m.Id == userConfig.id);
+                        SocketGuildUser? member = members?.FirstOrDefault(m => m.Id == userConfig.id);
                         if (member is not null)
                         {
-                            flags.Append("{emoji.indiscord}");
+                            flags.Append(INDISCORD);
 
-                            if (member.PremiumSince is not null) flags.Append("{emoji.booster}");
+                            if (member.PremiumSince is not null) flags.Append(BOOSTER);
                         }
                     }
                     
@@ -133,16 +142,16 @@ namespace Whispbot.Commands.ERLC
                 await ctx.EditResponse(
                     text: "",
                     embed: new EmbedBuilder()
-                        .WithTitle($"{{string.title.erlcserver.players}} [{players.Count}/{response!.Server!.MaxPlayers}]")
-                        .WithDescription(teams.Count == 0 ? "{string.errors.erlcserver.empty}" : null)
+                        .WithTitle($"{ctx.String("erlc.players.title")} [{players.Count}/{response!.Server!.MaxPlayers}]")
+                        .WithDescription(teams.Count == 0 ? $"{ctx.String("erlc.players.errors.none")}" : null)
                         .WithFields(teams.Select((kvp) => new EmbedFieldBuilder() { Name = $"{kvp.Key} [{players.Sum(p => p.Team == kvp.Key ? 1 : 0)}]", Value = kvp.Value.ToString(), IsInline = false }))
-                        .WithFooter(ERLCCache.GenerateFooter(response!))
+                        .WithFooter(ERLCCache.GenerateFooter(ctx, response!))
                         .Build()
                 );
             }
             else
             {
-                await ctx.EditResponse($"{{emoji.cross}} [{response?.error}] {response?.error_message ?? "An unknown error occured"}.");
+                await ctx.EditResponse(response.GenerateErrorMessage(ctx));
             }
         }
     }

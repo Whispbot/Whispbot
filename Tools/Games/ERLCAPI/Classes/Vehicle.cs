@@ -8,6 +8,7 @@ namespace Whispbot.Tools.Games.ERLCAPI.Classes
     {
         public string Name { get; init; } = default!;
         public string Owner { get; init; } = default!;
+        public string Plate { get; init; } = default!;
         public string? Texture { get; init; }
         public string ColorHex { get; init; } = default!;
         public string ColorName { get; init; } = default!;

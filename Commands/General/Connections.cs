@@ -8,6 +8,9 @@ using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Cache;
 using Whispbot.Databases;
+using Whispbot.Languages;
+using Whispbot.Tools;
+using Whispbot.Tools.Disc;
 using static Whispbot.Tools.Roblox;
 
 namespace Whispbot.Commands.General
@@ -30,7 +33,7 @@ namespace Whispbot.Commands.General
 
             UserConfig? userConfig = await WhispCache.UserConfig.Get(ctx.UserId);
 
-            RobloxUser? robloxUser = userConfig?.roblox_id is not null ? Users.FromCache(userConfig.roblox_id.Value.ToString()) : null;
+            RobloxUser? robloxUser = userConfig?.roblox_id is not null ? Roblox.Users.FromCache(userConfig.roblox_id.Value.ToString()) : null;
 
             if (userConfig?.roblox_id is not null && robloxUser is null)
             {
@@ -39,39 +42,29 @@ namespace Whispbot.Commands.General
                 robloxUser = await GetUserById(userConfig.roblox_id.ToString()!);
             }
 
-            if (ctx.hasResponded)
-            {
-                await ctx.EditResponse(m =>
-                {
-                    m.Components = GetConnectionsMessage(false, ctx.UserId, robloxUser);
-                });
-            }
-            else
-            {
-                await ctx.Reply(components: GetConnectionsMessage(false, ctx.UserId, robloxUser), flags: MessageFlags.ComponentsV2);
-            }
+            await ctx.EditResponse(components: GetConnectionsMessage(false, ctx.UserId, robloxUser, ctx.Language), flags: MessageFlags.ComponentsV2);
         }
 
-        public static MessageComponent GetConnectionsMessage(bool updating, ulong userId, RobloxUser? robloxUser)
+        public static MessageComponent GetConnectionsMessage(bool updating, ulong userId, RobloxUser? robloxUser, Language language)
         {
             bool roblox = robloxUser is not null;
 
             return new ComponentBuilderV2()
                 .WithContainer(
                     new ContainerBuilder()
-                        .WithTextDisplay("**{string.title.yourconnections}**")
+                        .WithTextDisplay(language.Translate("connections.title"))
                         .WithSection(
                             new SectionBuilder()
                                 .WithAccessory(
-                                    roblox ? new ButtonBuilder("Disconnect", $"disconnect_roblox {userId}", ButtonStyle.Secondary, isDisabled: updating)
-                                           : new ButtonBuilder("Connect", null, ButtonStyle.Link, url: $"{Config.websiteUrl}/login/roblox", isDisabled: updating)
+                                    roblox ? new ButtonBuilder(language.Translate("connections.disconnect"), $"disconnect_roblox {userId}", ButtonStyle.Secondary, isDisabled: updating)
+                                           : new ButtonBuilder(language.Translate("connections.connect"), null, ButtonStyle.Link, url: $"{Config.websiteUrl}/login/roblox", isDisabled: updating)
                                 )
                                 .WithComponents(
                                     robloxUser is not null ? [
-                                        new TextDisplayBuilder($"{{emoji.roblox}} **Roblox**"),
+                                        new TextDisplayBuilder($"{Emojis.Get("roblox")} **{language.Translate("name.roblox")}**"),
                                         new TextDisplayBuilder($"> **@{robloxUser.name}** ({robloxUser.id})")
                                     ] : [
-                                        new TextDisplayBuilder("{emoji.roblox} *Not connected to Roblox.*")
+                                        new TextDisplayBuilder($"{Emojis.Get("roblox")} *{language.Translate("connections.errors.notconnected")}*")
                                     ]
                                 )
                         )

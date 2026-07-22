@@ -1,5 +1,6 @@
 using Discord;
 using Discord.WebSocket;
+using Microsoft.AspNetCore.Identity;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -9,6 +10,7 @@ using System.Threading.Tasks;
 using Whispbot.Cache;
 using Whispbot.Databases;
 using Whispbot.Extensions;
+using Whispbot.Languages;
 using Whispbot.Tools;
 using Whispbot.Tools.Disc;
 
@@ -26,7 +28,7 @@ namespace Whispbot
         /// <param name="page">The page of data to look at</param>
         /// <param name="typeId">View only a specific type, leave null for all</param>
         /// <returns>(<see cref="MessageBuilder?"/>, <see cref="string?"/>) where item1 is the message itself and item2 is the error message for when we fail to fetch the data</returns>
-        public static async Task<(Embed?, MessageComponent?, string?)> GenerateShiftLeaderboard(ulong guildId, ulong userId, int page = 1, ulong? typeId = null)
+        public static async Task<(Embed?, MessageComponent?, string?)> GenerateShiftLeaderboard(ulong guildId, ulong userId, int page = 1, ulong? typeId = null, Language lang = 0)
         {
             int max = max_persons_per_leaderboard_page;
 
@@ -58,15 +60,15 @@ namespace Whispbot
 
             int maxPages = count is not null ? (int)Math.Ceiling(count.count / (double)max) : 1;
 
-            if (leaderboard is null) return (null, null, "{string.errors.shiftleaderboard.dbfailed}");
-            if (leaderboard.Count == 0) return (null, null, "{string.errors.shiftleaderboard.nodata}");
+            if (leaderboard is null) return (null, null, "failed");
+            if (leaderboard.Count == 0) return (null, null, "none");
 
             SocketGuild? thisGuild = Config.client!.GetGuild(guildId);
             ShiftType? type = typeId is not null ? (await WhispCache.ShiftTypes.Get(guildId))?.Find(t => t.id == typeId.Value) : null;
 
             return (
                 new EmbedBuilder()
-                    .WithTitle("{string.title.shiftleaderboard}")
+                    .WithTitle("shifts.lb.title".Translate(lang))
                     .WithAuthor(thisGuild.Name, thisGuild.IconUrl)
                     .WithDescription(leaderboard
                         .Select((entry) =>

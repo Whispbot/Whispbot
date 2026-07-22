@@ -15,6 +15,7 @@ using Serilog;
 using System.ComponentModel.Design.Serialization;
 using System.Net;
 using Whispbot.Commands;
+using Whispbot.Tools.Logger;
 
 namespace Whispbot.API
 {
@@ -56,7 +57,7 @@ namespace Whispbot.API
                 }
             }
 
-            Log.Information($"API started on http://localhost:{port}.");
+            Logging.Info("API", $"API started on http://localhost:{port}.");
             app.Run();
         }
 

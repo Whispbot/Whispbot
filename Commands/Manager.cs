@@ -1,6 +1,7 @@
 ﻿using Discord;
 using Discord.WebSocket;
 using Microsoft.AspNetCore.Mvc.Formatters;
+using Microsoft.Extensions.Logging;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -17,7 +18,11 @@ using Whispbot.Commands.Roblox_Moderation;
 using Whispbot.Commands.Shifts;
 using Whispbot.Commands.Staff;
 using Whispbot.Extensions;
+using Whispbot.Languages;
 using Whispbot.Tools;
+using Whispbot.Tools.Bot;
+using Whispbot.Tools.Disc;
+using Whispbot.Tools.Logger;
 
 namespace Whispbot.Commands
 {
@@ -64,7 +69,6 @@ namespace Whispbot.Commands
             RegisterCommand(new ERLC_KillLogs());
             RegisterCommand(new ERLC_CommandLogs());
             RegisterCommand(new ERLC_ModCalls());
-            RegisterCommand(new ERLC_Banned());
             RegisterCommand(new ERLC_VSM());
 
             RegisterCommand(new Warn());
@@ -83,11 +87,12 @@ namespace Whispbot.Commands
             RegisterStaffCommand(new ResolveError());
             RegisterStaffCommand(new GuildFeatureFlags());
             RegisterStaffCommand(new ViewColor());
-
+            RegisterStaffCommand(new ViewLanguages());
+            RegisterStaffCommand(new GuildVersion());
             RegisterStaffCommand(new Page());
             #endregion
 
-            Log.Debug($"Loaded {commands.Count} commands");
+            Logging.Log($"Loaded {commands.Count} commands");
 
             client.MessageReceived += async (message) =>
             {
@@ -110,17 +115,20 @@ namespace Whispbot.Commands
         private static int? _maxLength = null;
         public static int MaxLength => _maxLength ??= commands.Max(c => c.Aliases.Max(a => a.Split(" ").Length));
 
+        private static List<string> _allowMentionCommands = ["ping"];
+
         public static async Task HandleMessage(DiscordShardedClient client, SocketMessage rawMessage)
         {
             if (rawMessage is not SocketUserMessage message) return;
-            if (message.Source != Discord.MessageSource.User) return; // ignore bots/webhooks
+            if (message.Source != MessageSource.User) return; // ignore bots/webhooks
             if (message.Channel is IGuildChannel channel)
             {
                 if (ignoreGuilds.Contains(channel.GuildId)) return;
             }
-            else return; // only reply to guild messages
+            else return; // only reply to guild messagesW
 
             using var messageTrace = Tracer.Start("Message");
+            DateTimeOffset start = DateTimeOffset.UtcNow;
 
             GuildConfig? guildConfig = null;
             using (Tracer.Start("GetGuildConfig"))
@@ -128,10 +136,11 @@ namespace Whispbot.Commands
 
             string prefix = guildConfig?.prefix ?? Config.prefix;
             string mention = $"<@{client.CurrentUser.Id}>";
+            bool mentioned = false;
 
             string staffPrefix = Config.staffPrefix;
 
-            if (message.Content.StartsWith(mention)) prefix = mention;
+            if (message.Content.StartsWith(mention)) { prefix = mention; mentioned = true; }
 
             if (message.Content.StartsWith(prefix, StringComparison.CurrentCultureIgnoreCase))
             {
@@ -142,6 +151,24 @@ namespace Whispbot.Commands
                 args.RemoveRange(0, length);
 
                 if (command is null) return;
+
+                if (guildConfig is null)
+                {
+                    await message.Channel.SendMessageAsync($"{Emojis.Get("cross")} {"errors.dbfailed".Translate(0)}.");
+                    return;
+                }
+
+                if (guildConfig.version != Config.EnvId)
+                {
+                    if (!mentioned || !_allowMentionCommands.Contains(command.Name.ToLower()))
+                    {
+                        if (mentioned)
+                        {
+                            await message.Channel.SendMessageAsync("errors.version".Translate(guildConfig.default_language ?? 0, guildConfig.version.ToString(), Config.EnvId.ToString()));
+                        }
+                        return;
+                    }
+                }
 
                 var (arguments, error) = await ArgParser.GetArguments(message, command, args);
                 if (error is not null)
@@ -154,53 +181,54 @@ namespace Whispbot.Commands
 
                 var ctx = new CommandContext(client, message, arguments!);
 
-                if (ctx.GuildConfig is null)
-                {
-                    await ctx.Reply("{emoji.cross} {string.errors.dbfailed}.");
-                    return;
-                }
-
-                if (ctx.GuildConfig.version != Config.EnvId) return;
-
                 if (await IsRatelimited(ctx, command)) return;
 
                 try
                 {
                     using (Tracer.Start("ExecuteCommand")) await command.ExecuteAsync(ctx);
+
+                    DateTimeOffset end = DateTimeOffset.UtcNow;
+                    LogCommand(ctx, command, end - start);
                 }
                 catch (Exception ex)
                 {
                     using var _ = Tracer.Start("LoggingError");
                     var id = SentrySdk.CaptureException(ex);
                     using var __ = Tracer.Start($"SendingErrorMessage: {id}");
-                    Log.Error($"An error occured while executing '{command.Name}'\nUser: @{ctx.User.Username} ({ctx.UserId})\nGuild: {ctx.Guild.Name} ({ctx.GuildId})\n\n", ex);
+                    Log.Error(ex, $"An error occured while executing '{command.Name}'\nUser: @{ctx.User.Username} ({ctx.UserId})\nGuild: {ctx.Guild.Name} ({ctx.GuildId})");
                     await SendErrorMessage(ctx, id);
                 }
             }
-            //else if 
-            //(
-            //    message.Content.StartsWith(staffPrefix, StringComparison.CurrentCultureIgnoreCase)
-            //    //                          |   Support Server  |           ->         |     Member    |             ->           |  Has Staff Role?  |
-            //    && (client.Guilds.Get("1096509172784300174").Result?.members.Get(message.author.id).Result?.roles?.Contains("1256333207599841435") ?? false)
-            //)
-            //{
-            //    List<string> args = [.. message.content[staffPrefix.Length..].Split(' ', StringSplitOptions.RemoveEmptyEntries)];
-            //    string content = args.Join(" ");
+            else if
+            (
+                message.Content.StartsWith(staffPrefix, StringComparison.CurrentCultureIgnoreCase)
+                //                          |   Support Server  |           ->         |     Member    |             ->           |  Has Staff Role?  |
+                && (client.GetGuild(1096509172784300174)?.GetUser(message.Author.Id)?.Roles?.Any(r => r.Id == 1256333207599841435) ?? false)
+            )
+            {
+                List<string> args = [.. message.Content[staffPrefix.Length..].Split(' ', StringSplitOptions.RemoveEmptyEntries)];
+                string content = args.Join(" ");
 
-            //    Command? command = GetCommandByName(content, staffCommands, out int length);
-            //    args.RemoveRange(0, length);
+                Command? command = GetCommandByName(content, staffCommands, out int length);
+                args.RemoveRange(0, length);
 
-            //    if (command is null) return;
+                if (command is null) return;
 
-            //    var (arguments, error) = await ArgParser.GetArguments(message, command, args);
-            //    if (error is not null)
-            //    {
-            //        await ArgParser.SendArgError(message, error);
-            //        return;
-            //    }
+                var (arguments, error) = await ArgParser.GetArguments(message, command, args);
+                if (error is not null)
+                {
+                    await ArgParser.SendArgError(message, error);
+                    return;
+                }
 
-            //    command?.ExecuteAsync(new CommandContext(client, message, arguments!));
-            //}
+                command?.ExecuteAsync(new CommandContext(client, message, arguments!));
+            }
+        }
+
+        public static void LogCommand(CommandContext ctx, Command command, TimeSpan duration)
+        {
+            Logging.Log(LogSeverity.Debug, "Commands", $"Executed '{command.Name}' in {Time.ConvertMillisecondsToString(duration.TotalMilliseconds, Small: true, RoundTo: 1)} for '@{ctx.User.Username}' ({ctx.UserId}) in '{ctx.Guild.Name}' ({ctx.GuildId})");
+            Stats.LogCommand(ctx, command, duration);
         }
 
         public static Command? GetCommandByName(string name, List<Command> cmds, out int length)
@@ -305,13 +333,13 @@ namespace Whispbot.Commands
                     new ContainerBuilder()
                         .WithTextDisplay($"## {ctx.String("errors.message.title")}")
                         .WithTextDisplay(ctx.String("errors.message.content"))
-                        .WithTextDisplay($"{{string.content.error.id}}:\n```\n{id}\n```")
+                        .WithTextDisplay($"{ctx.String("errors.message.id")}:\n```\n{id}\n```")
                         .WithSection(
                             [
-                                new TextDisplayBuilder("{string.content.error.feedback}")
+                                new TextDisplayBuilder(ctx.String("errors.message.feedback"))
                             ],
                             new ButtonBuilder(
-                                "{string.content.error.feedback_button}",
+                                ctx.String("errors.message.feedback.button"),
                                 $"error_feedback {ctx.UserId} {id}",
                                 style: ButtonStyle.Secondary
                             )

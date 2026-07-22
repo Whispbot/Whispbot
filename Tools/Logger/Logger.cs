@@ -22,11 +22,19 @@ namespace Whispbot
                 .MinimumLevel.Is(LogEventLevel.Verbose)
                 .Enrich.With(new LogEnricher())
                 .WriteTo.Console(
-                outputTemplate:
-                    Config.isDev ?
-                    "[{Timestamp:HH:mm:ss.fff}][{Level:u4}][Cluster {ClusterId}] {Message:lj} {Data}{NewLine}{Exception}" :
-                    "{{\"message\": \"[Cluster {ClusterId}] {Message:lj}\", \"level\": \"{Level:u4}\", \"data\": {Data}, \"error\": \"{Exception}\"}}{NewLine}",
-                theme: SystemConsoleTheme.Colored)
+                    outputTemplate:
+                        Config.isDev ?
+                        "[{Timestamp:HH:mm:ss.fff}][{Level:u4}][Cluster {ClusterId}] {Message:lj} {Data}{NewLine}{Exception}" :
+                        "{{\"message\": \"[Cluster {ClusterId}] {Message:lj}\", \"level\": \"{Level:u4}\", \"data\": {Data}, \"error\": \"{Exception}\"}}{NewLine}",
+                    theme: SystemConsoleTheme.Colored
+                )
+                .WriteTo.File(
+                    "Logs/log-.txt",
+                    rollingInterval: RollingInterval.Day,
+                    fileSizeLimitBytes: 10 * 1024 * 1024, 
+                    rollOnFileSizeLimit: true,
+                    retainedFileCountLimit: 28
+                )
                 .CreateLogger();
         }
 

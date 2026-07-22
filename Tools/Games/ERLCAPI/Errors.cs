@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using Whispbot.Commands;
 using Whispbot.Tools.Games.ERLCAPI.Classes;
 
 namespace Whispbot.Tools.Games.ERLCAPI
@@ -10,7 +11,7 @@ namespace Whispbot.Tools.Games.ERLCAPI
     {
         private static string? _appId = Environment.GetEnvironmentVariable("PRC_CLIENT_ID");
 
-        public static bool ResponseHasError(PRCResponse response, out MessageComponent? errorMessage)
+        public static bool ResponseHasError(CommandContext ctx, PRCResponse response, out MessageComponent? errorMessage)
         {
             if (response.success)
             {
@@ -22,9 +23,9 @@ namespace Whispbot.Tools.Games.ERLCAPI
                 var builder = new ComponentBuilderV2()
                     .WithContainer(
                         new ContainerBuilder()
-                            .WithTextDisplay($"## {{string.title.erlcapierror}}\n> {{string.errors.erlcapi.{response.error.ToString()?.ToLower() ?? "generic"}}}.")
+                            .WithTextDisplay($"## {ctx.String("erlc.errors.msg.title")}\n> {ctx.String($"erlc.errors.api.{response.error.ToString()?.ToLower() ?? "unknown"}")}")
                             .WithSeparator()
-                            .WithTextDisplay($"{{string.content.erlcapierror}}.\n```\n[{(int)response.error}] {response.Error?.message ?? response.error_message}{(response.Error?.docs is not null ? $"\n\n{response.Error.docs}" : "")}\n```")
+                            .WithTextDisplay($"{ctx.String("erlc.errors.msg.error")}\n```\n[{(int)response.error}] {response.Error?.message ?? response.error_message}{(response.Error?.docs is not null ? $"\n\n{response.Error.docs}" : "")}\n```")
                             .WithAccentColor(new Color(150, 0, 0))
                     );
 
@@ -32,7 +33,7 @@ namespace Whispbot.Tools.Games.ERLCAPI
                 {
                     builder.WithActionRow(
                         new ActionRowBuilder()
-                            .WithButton("Authorize Whisp", style: ButtonStyle.Link, url: $"https://api.erlc.gg/server-owners/server/{response.serverId}/authorize/{_appId}")
+                            .WithButton(ctx.String("erlc.errors.msg.button"), style: ButtonStyle.Link, url: $"https://api.erlc.gg/server-owners/server/{response.serverId}/authorize/{_appId}")
                     );
                 }
 

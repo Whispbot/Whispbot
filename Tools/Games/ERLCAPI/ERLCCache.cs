@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using Whispbot.Commands;
 using Whispbot.Commands.ERLC;
 using Whispbot.Databases;
 using Whispbot.Tools.Games.ERLCAPI.Classes;
@@ -46,6 +47,9 @@ namespace Whispbot.Tools.Games.ERLCAPI
             return cachedResponse;
         }
 
-        public static string GenerateFooter(PRCResponse response, ERLCServer? server = null) => $"{{string.content.erlcserver.updated}}: {(response.CachedAt < DateTimeOffset.UtcNow.AddSeconds(-2) ? $"{Math.Round((decimal)(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - response.cachedAtMs) / 1000)}s ago" : "{string.content.erlcserver.justnow}")} | {{string.content.erlcserver.server}}: {server?.JoinKey ?? response.Server?.JoinKey ?? "..."}";
+        public static string GenerateFooter(CommandContext ctx, PRCResponse response) => ctx.String("erlc.footer",
+            Time.ConvertMillisecondsToRelativeString(response.cachedAtMs, true, small: true, roundto: 1000, lang: ctx.Language),
+            response.Server?.JoinKey ?? "..."
+        );
     }
 }

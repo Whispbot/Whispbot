@@ -33,7 +33,7 @@ namespace Whispbot.Commands.Shifts
 
             if (types is null)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.clockin.dbfailed}."); // Database failed (does not mean no shift types)
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("shifts.errors.failed_get_types")}"); // Database failed (does not mean no shift types)
                 return;
             }
 
@@ -42,7 +42,7 @@ namespace Whispbot.Commands.Shifts
 
             if (type is null)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.clockin.typenotfound}.");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("shifts.errors.type_not_found")}");
                 return;
             }
 
@@ -50,7 +50,12 @@ namespace Whispbot.Commands.Shifts
 
             await ctx.Reply(
                 embed: new EmbedBuilder()
-                    .WithDescription($"{(result.Item1 is not null ? "{emoji.clockedin}" : "{emoji.cross}")} {result.Item2 ?? (result.Item1 is null ? "{string.errors.clockin.failed}" : $"{{string.success.clockin}} '{type.name}'")}.")
+                    .WithDescription(
+                        $"{ctx.Emoji(result.Item1 is not null ? "clockedin" : "cross")} " +
+                        $"{(result.Item1 is null ?
+                            ctx.String(result.Item2 is not null ? $"shifts.clockin.errors.{result.Item2}" : "shifts.clockin.errors.failed") :
+                            ctx.String("shifts.clockin.success", type.name))}"
+                    )
                     .WithFooter(result.Item1 is not null ? new EmbedFooterBuilder().WithText($"ID: {result.Item1.id}") : null)
                     .WithColor(result.Item1 is not null ? new Color(0, 150, 0) : Color.Default)
                     .Build()

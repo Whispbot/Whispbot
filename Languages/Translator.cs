@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using Whispbot.Extensions;
+using Whispbot.Tools.Logger;
 
 namespace Whispbot.Languages
 {
@@ -37,7 +38,7 @@ namespace Whispbot.Languages
             if (!WarnedAboutStrings.Contains(key))
             {
                 WarnedAboutStrings.Add(key);
-                Log.Warning($"Missing translation for '{name}' ({args.Join(", ")}) in {language}");
+                Logging.Warning("Bot", $"Missing translation for '{name}' ({args.Join(", ")}) in {language}");
             }
         }
         public static string Get(Language language, string name, params string[] args)
@@ -56,6 +57,15 @@ namespace Whispbot.Languages
             }
 
             return value;
+        }
+
+        public static string Translate(this string name, Language lang, params string[] args)
+        {
+            return Get(lang, name, args);
+        }
+        public static string Translate(this Language lang, string name, params string[] args)
+        {
+            return Get(lang, name, args);
         }
 
         public static readonly Dictionary<Language, (string, string, string)> LanguageInfo = new()

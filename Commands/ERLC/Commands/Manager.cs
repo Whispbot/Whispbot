@@ -14,6 +14,7 @@ using Whispbot.Databases;
 using Whispbot.Extensions;
 using Whispbot.Tools;
 using Discord;
+using Whispbot.Tools.Logger;
 
 namespace Whispbot.Commands.ERLC.Commands
 {
@@ -41,7 +42,7 @@ namespace Whispbot.Commands.ERLC.Commands
 
             #endregion
 
-            Log.Debug($"Loaded {commands.Count} ERLC commands");
+            Logging.Log($"Loaded {commands.Count} ERLC commands");
 
             client.MessageReceived += async (message) =>
             {

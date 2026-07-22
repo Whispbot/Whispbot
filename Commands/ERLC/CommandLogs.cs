@@ -1,4 +1,5 @@
 using Discord;
+using Discord.WebSocket;
 using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Newtonsoft.Json;
 using Serilog;
@@ -47,7 +48,7 @@ namespace Whispbot.Commands.ERLC
             {
                 if (commandLogs.Count == 0)
                 {
-                    await ctx.EditResponse($"{{emoji.cross}} {{string.errors.erlccommandlogs.nocommands}}\n-# {{string.content.erlcserver.updated}}: {(response!.CachedAt is not null ? $"{Math.Round((decimal)(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - response.cachedAtMs) / 1000)}s ago" : "{string.content.erlcserver.justnow}")}");
+                    await ctx.EditResponse($"{ctx.Emoji("cross")} {ctx.String("erlc.commandlogs.errors.none")}\n-# {ERLCCache.GenerateFooter(ctx, response!)}");
                     return;
                 }
 
@@ -58,32 +59,38 @@ namespace Whispbot.Commands.ERLC
                 robloxIds = [..robloxIds.Distinct()];
 
                 List<UserConfig> userConfigs = await Users.GetConfigsFromRobloxIds(robloxIds);
-                List<IGuildUser>? members = await Users.GetMembersFromConfigs(userConfigs, ctx);
+                List<SocketGuildUser>? members = await Users.GetMembersFromConfigs(userConfigs, ctx);
 
-                StringBuilder strings = new();
+                var IN_DISCORD = ctx.Emoji("indiscord");
+                var BOOSTER = ctx.Emoji("booster");
+                var USED = ctx.String("erlc.commandlogs.used");
+                var KICKED = ctx.String("erlc.commandlogs.kicked");
+                var BANNED = ctx.String("erlc.commandlogs.banned");
+
+				StringBuilder strings = new();
                 foreach (var log in commandLogs)
                 {
                     UserConfig? config = log.Player == "Remote Server" ? null : userConfigs?.Find(u => u.roblox_id.ToString() == log.Player.Split(":")[1]);
-                    IGuildUser? member = members?.Find(m => m.Id == config?.id);
+                    SocketGuildUser? member = members?.Find(m => m.Id == config?.id);
 
                     StringBuilder flags = new();
                     if (member is not null)
                     {
-                        flags.Append("{emoji.indiscord}");
-                        if (member.PremiumSince is not null) flags.Append("{emoji.booster}");
+                        flags.Append(IN_DISCORD);
+                        if (member.PremiumSince is not null) flags.Append(BOOSTER);
                     }
 
-                    string action = "used";
+                    string action = USED;
                     string command = log.Command;
 
                     if (command.StartsWith(":ban"))
                     {
-                        action = "banned";
+                        action = BANNED;
                         command = command.Replace(":ban", "").Trim();
                     }
                     else if (command.StartsWith(":kick"))
                     {
-                        action = "kicked";
+                        action = KICKED;
                         command = command.Replace(":kick", "").Trim();
                     }
 
@@ -93,15 +100,15 @@ namespace Whispbot.Commands.ERLC
                 await ctx.EditResponse(
                     "",
                     embed: new EmbedBuilder()
-                        .WithTitle($"{{string.title.commandlogs}}")
+                        .WithTitle($"{ctx.String("erlc.commandlogs.title")}")
                         .WithDescription(strings.ToString())
-                        .WithFooter(ERLCCache.GenerateFooter(response!))
+                        .WithFooter(ERLCCache.GenerateFooter(ctx, response!))
                         .Build()
                 );
             }
             else
             {
-                await ctx.EditResponse($"{{emoji.cross}} [{response?.error}] {response?.error_message ?? "An unknown error occured"}.");
+                await ctx.EditResponse(response.GenerateErrorMessage(ctx));
             }
         }
     }

@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Tools.Logger;
 
 namespace Whispbot.Databases
 {
@@ -96,7 +97,7 @@ namespace Whispbot.Databases
                 await publisher.PublishAsync("discord:role:update", JsonConvert.SerializeObject(new { newRole.Guild.Id, role = ConvertRoleToObject(newRole) }));
             };
 
-            Log.Information($"Started discord publisher");
+            Logging.Log($"Started discord publisher");
         }
     }
 }

@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Cache;
 using Whispbot.Extensions;
+using Whispbot.Languages;
 using Whispbot.Tools;
 
 namespace Whispbot.Commands.Shifts
@@ -33,13 +34,13 @@ namespace Whispbot.Commands.Shifts
 
             if (types is null)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.clockin.dbfailed}."); // Database failed (does not mean no shift types)
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("shifts.errors.failed_get_types")}"); // Database failed (does not mean no shift types)
                 return;
             }
 
             if (types.Count == 0) // Not clocked in as no shift types exist
             {
-                await ctx.Reply("{emoji.cross} {string.errors.clockout.notalready}.");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("shifts.clockout.errors.not_on_shift")}."); // User is not clocked in
             }
 
             string? typeArg = ctx.args.Get("type")?.GetString();
@@ -47,7 +48,7 @@ namespace Whispbot.Commands.Shifts
 
             if (type is null)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.clockin.typenotfound}.");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("shifts.errors.type_not_found")}");
                 return;
             }
 
@@ -55,7 +56,16 @@ namespace Whispbot.Commands.Shifts
 
             await ctx.Reply(
                 embed: new EmbedBuilder()
-                    .WithDescription($"{(result.Item1 is not null ? "{emoji.clockedout}" : "{emoji.cross}")} {result.Item2 ?? (result.Item1 is null ? "{string.errors.clockout.failed}" : $"{{string.success.clockout}}".Translate(ctx.Language, type.name, Time.ConvertMillisecondsToString((result.Item1.end_time - result.Item1.start_time)?.TotalMilliseconds ?? 0)))}.")
+                    .WithDescription(
+                        $"{ctx.Emoji(result.Item1 is not null ? "clockedout" : "cross")} " +
+                        $"{(result.Item1 is null ? 
+                            ctx.String(result.Item2 is not null ? $"shifts.clockout.errors.{result.Item2}" : "shifts.clockout.errors.failed") : 
+                            ctx.String("shifts.clockout.success", type.name, Time.ConvertMillisecondsToString(
+                                (result.Item1.end_time - result.Item1.start_time)?.TotalMilliseconds ?? 0,
+                                RoundTo: 60_000,
+                                language: ctx.Language
+                        )))}"
+                    )
                     .WithFooter(result.Item1 is not null ? new EmbedFooterBuilder().WithText($"ID: {result.Item1.id}") : null)
                     .WithColor(result.Item1 is not null ? new Color(150, 0, 0) : Color.Default)
                     .Build()

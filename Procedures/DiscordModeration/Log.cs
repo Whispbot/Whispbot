@@ -9,8 +9,10 @@ using Whispbot.Cache;
 using Whispbot.Commands;
 using Whispbot.Databases;
 using Whispbot.Extensions;
+using Whispbot.Languages;
 using Whispbot.Tools;
 using Whispbot.Tools.Disc;
+using Whispbot.Tools.Logger;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 using static Whispbot.DiscordModeration;
 
@@ -44,17 +46,17 @@ namespace Whispbot
                 context.Guild!,
                 context.Moderator!,
                 context.TargetUser, 
-                (DiscordModerationType)context.Type!
+                context.Type!.Value
             );
             if (!permissionCheck.Item1)
             {
-                await ctx.Reply($"{{emoji.cross}} {permissionCheck.Item2}", true);
+                await ctx.Reply($"{Emojis.Get("cross")} {ctx.String($"dmod.errors.{permissionCheck.Item2}")}", ephemeral: true);
                 return;
             }
 
             if (context.Error is not null)
             {
-                await ctx.Reply($"{{emoji.cross}} {{string.errors.dm.{context.Error}}}.", true);
+                await ctx.Reply($"{Emojis.Get("cross")} {ctx.String($"dmod.errors.{context.Error}")}", ephemeral: true);
                 return;
             }
 
@@ -64,7 +66,7 @@ namespace Whispbot
 
             if (guild is null || moderator is null || target is null)
             {
-                await ctx.Reply($"{{emoji.cross}} {{string.errors.dm.invalid_ctx}}.", true);
+                await ctx.Reply($"{Emojis.Get("cross")} {ctx.String("dmod.errors.invalid_ctx")}", ephemeral: true);
                 return;
             }
 
@@ -73,7 +75,7 @@ namespace Whispbot
             if (newCase is null)
             {
                 transaction?.Rollback();
-                await ctx.Reply($"{{emoji.cross}} {{string.errors.dm.failed_create_case}}.", true);
+                await ctx.Reply($"{Emojis.Get("cross")} {ctx.String("dmod.errors.failed_create_case")}", ephemeral: true);
                 return;
             }
 
@@ -87,26 +89,27 @@ namespace Whispbot
                     if (errorMessage is not null)
                     {
                         transaction?.Rollback();
-                        await ctx.Reply($"{{emoji.cross}} {errorMessage}", true);
+                        await ctx.Reply($"{Emojis.Get("cross")} {errorMessage}", ephemeral: true);
                         return;
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
                     transaction?.Rollback();
-                    await ctx.Reply($"{{emoji.cross}} {{string.errors.dm.action_failed}}.", true);
+                    await ctx.Reply($"{Emojis.Get("cross")} {ctx.String("dmod.errors.action_failed")}", ephemeral: true);
+                    Logging.Error("Commands", $"{typeData.Item1} failed", ex);
                     return;
                 }
             }
 
             transaction?.Commit();
 
-            var userMessage = await SendUserMessage(newCase);
+            var userMessage = await SendUserMessage(newCase, ctx.Language);
             _ = Task.Run(() => Log(newCase));
 
             var config = await WhispCache.GuildConfig.Get(guild.Id);
 
-            await ctx.Reply(await GenerateConfirmationMessage(newCase, userMessage is not null), config?.discord_moderation?.delete_trigger_message ?? true);
+            await ctx.Reply(await GenerateConfirmationMessage(newCase, userMessage is not null, ctx.Language), config?.discord_moderation?.delete_trigger_message ?? true);
 
             if (config?.discord_moderation?.delete_trigger_message ?? true)
             {
@@ -213,7 +216,7 @@ namespace Whispbot
         /// </summary>
         /// <param name="log">The <see cref="DiscordModerationCase"/> to send a message for.</param>
         /// <returns>Returns the <see cref="Message"/> sent to the target user.</returns>
-        public static async Task<IUserMessage?> SendUserMessage(DiscordModerationCase log)
+        public static async Task<IUserMessage?> SendUserMessage(DiscordModerationCase log, Language lang)
         {
             var user = await Config.client!.GetUserAsync(log.target_id, CacheMode.AllowDownload, RequestOptions.Default);
             if (user is null) return null;
@@ -221,7 +224,7 @@ namespace Whispbot
             var channel = await user.CreateDMChannelAsync();
             if (channel is null) return null;
 
-            var message = await channel.SendMessageAsync(embed: await GenerateUserEmbed(log));
+            var message = await channel.SendMessageAsync(embed: await GenerateUserEmbed(log, lang));
 
             if (message is not null)
             {
@@ -239,7 +242,7 @@ namespace Whispbot
         /// </summary>
         /// <param name="log">The <see cref="DiscordModerationCase"/> to generate a message for.</param>
         /// <returns>Returns the <see cref="Message"/> sent to the target user.</returns>
-        public static async Task<Embed> GenerateUserEmbed(DiscordModerationCase log)
+        public static async Task<Embed> GenerateUserEmbed(DiscordModerationCase log, Language lang)
         {
             var type = TypeData[(DiscordModerationType)log.type];
 
@@ -250,15 +253,13 @@ namespace Whispbot
             var language = (await userConfig)?.language ?? (await guildConfig)?.default_language;
 
             return new EmbedBuilder()
-                .WithDescription(
-                    $"{{string.dm.content.{(type.Item4 ? "actionduration" : "action")}:" +
-                    $"type={{string.dm.prefix.{type.Item1.ToLower()}}}," +
-                    $"suffix={{string.dm.suffix.{type.Item2.ToLower()}}}," +
-                    $"server={guild.Name}," +
-                    $"reason={log.reason}," +
-                    $"duration={Time.ConvertMillisecondsToString((log.duration_s ?? 0) * 1000d)}" +
-                    $"}}"
-                )
+                .WithDescription(lang.Translate($"dmod.dm.{(type.Item4 ? "duration" : "default")}",
+                    lang.Translate($"dmod.punishment.{type.Item1.ToLower()}"),
+                    lang.Translate($"dmod.suffix.{type.Item2.ToLower()}"),
+                    guild.Name,
+                    Users.FixUsername(log.reason),
+                    Time.ConvertMillisecondsToString((log.duration_s ?? 0) * 1000d)
+                ))
                 .WithColor(type.Item3)
                 .Build()
                 !; // Process locales
@@ -270,7 +271,7 @@ namespace Whispbot
         /// <param name="log">TThe <see cref="DiscorDModerationCase"/> to generate a message for.</param>
         /// <param name="messagedUser">A <seealso cref="bool"/> indicating whether or not the user recieved a DM regarding their moderation.</param>
         /// <returns>Returns a <seealso cref="string"/> to send back to the moderator.</returns>
-        public static async Task<string> GenerateConfirmationMessage(DiscordModerationCase log, bool messagedUser)
+        public static async Task<string> GenerateConfirmationMessage(DiscordModerationCase log, bool messagedUser, Language lang)
         {
             var type = TypeData[(DiscordModerationType)log.type];
 
@@ -279,18 +280,20 @@ namespace Whispbot
             var userTask = Config.client!.GetUserAsync(log.target_id, CacheMode.AllowDownload, RequestOptions.Default);
 
             var config = await configTask;
-            var mod = await modConfigTask;
             var user = await userTask;
 
-            var language = mod?.language ?? config?.default_language ?? 0;
+            var caseId = "";
+            if (config?.discord_moderation?.display_case_id ?? true) caseId = lang.Translate("dmod.success.case_id", log.case_id.ToString());
+            var duration = "";
+            if (type.Item4 && log.duration_s is not null) duration = $" {"phrase.for".Translate(lang)} **{Time.ConvertMillisecondsToString((double)log.duration_s * 1000, ", ", false, 1000, lang)}**";
+            var reason = "";
+            if (config?.discord_moderation?.display_case_reason ?? true) reason = $" {"phrase.for".Translate(lang)} **{Users.FixUsername(log.reason)}**{(log.reason.EndsWith('.') || !messagedUser ? "" : '.')}";
+            var failedDM = "";
+            if (!messagedUser) failedDM = $" - {"dmod.success.messagefailed".Translate(lang)}.";
 
-            return
-                $"{{emoji.tick}}" +
-                $"{((config?.discord_moderation?.display_case_id ?? true) ? $"{{string.content.dm.case}} {log.case_id} - " : "")}" +
-                $"{{string.content.phrase.successfully}} {$"{{string.dm.pt.{type.Item1.ToLower()}}}".Translate(language).ToLowerInvariant()} **@{user.Username ?? "err"}**" +
-                $"{(type.Item4 && log.duration_s is not null ? $" {{string.content.phrase.for}} **{Time.ConvertMillisecondsToString((double)log.duration_s * 1000, ", ", false, 1000, language)}**" : "")}" +
-                $"{((config?.discord_moderation?.display_case_reason ?? true) ? $" {{string.content.phrase.for}} **{log.reason}**{(log.reason.EndsWith('.') || !messagedUser ? "" : '.')}" : "")}" +
-                $"{(messagedUser ? "" : " - {string.content.dm.messagefailed}.")}";
+            return $"{Emojis.Get("tick")} {caseId} - {"phrase.successfully".Translate(lang)} " +
+                $"{$"dmod.punishment.{type.Item1.ToLower()}".Translate(lang)} " +
+                $"**@{Users.FixUsername(user.Username)}**{duration}{reason}{failedDM}";
         }
 
         /// <summary>
@@ -357,21 +360,21 @@ namespace Whispbot
         /// <returns>A tuple (<seealso cref="bool"/>, <seealso cref="string"/>?) representing whether the moderator has permissions and an error message which is only <seealso cref="null"/> when item1 is <seealso cref="true"/>.</returns>
         public static async Task<(bool, string?)> HasPermission(IGuild guild, IUser moderator, IUser? target, DiscordModerationType type)
         {
-            if (!(await WhispPermissions.CheckModule(guild.Id, Module.DiscordModeration)).Item1) return (false, "{string.errors.dm.moduledisabled}.");
+            if (!(await WhispPermissions.CheckModule(guild.Id, Module.DiscordModeration)).Item1) return (false, "module_disabled");
 
             var typeData = TypeData[type];
 
             var ownsServer = guild.OwnerId == moderator.Id;
-            if (!ownsServer && !(await DiscordPermissions.HasPermissionOrAdmin(guild, moderator.Id, typeData.Item5))) return (false, "{string.errors.dm.nopermissions}.");
+            if (!ownsServer && !(await DiscordPermissions.HasPermissionOrAdmin(guild, moderator.Id, typeData.Item5))) return (false, "no_permissions");
 
-            if (target is null) return (false, "{string.errors.dm.no_user}");
+            if (target is null) return (false, "no_user");
             var targetMember = await guild.GetUserAsync(target.Id);
-            if (targetMember.Id == guild.OwnerId) return (false, "{string.errors.dm.ownercantdie}.");
+            if (targetMember.Id == guild.OwnerId) return (false, "owner_cant_die");
 
             var moderatorMember = await guild.GetUserAsync(moderator.Id);
             var moderatorRoles = guild.Roles.Where((r, id) => moderatorMember?.RoleIds?.Contains(r.Id) ?? false);
             var moderatorHighestRole = moderatorRoles.OrderByDescending(r => r.Position).FirstOrDefault();
-            if (guild.Roles.Where((r, _) => targetMember?.RoleIds?.Contains(r.Id) ?? false).Any((r) => r.Position > moderatorHighestRole?.Position)) return (false, "{string.errors.dm.targetbetter}.");
+            if (guild.Roles.Where((r, _) => targetMember?.RoleIds?.Contains(r.Id) ?? false).Any((r) => r.Position > moderatorHighestRole?.Position)) return (false, "target_better");
 
             return (true, null);
         }

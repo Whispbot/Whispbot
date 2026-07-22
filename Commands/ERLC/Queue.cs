@@ -1,4 +1,5 @@
 using Discord;
+using Discord.WebSocket;
 using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Newtonsoft.Json;
 using Serilog;
@@ -53,7 +54,7 @@ namespace Whispbot.Commands.ERLC
             {
                 if (queue.Count == 0)
                 {
-                    await ctx.EditResponse($"{{emoji.cross}} {{string.errors.erlcqueue.noplayers}}.\n-# {{string.content.erlcserver.updated}}: {(response!.CachedAt is not null ? $"{Math.Round((decimal)(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - response.cachedAtMs)/1000)}s ago" : "{string.content.erlcserver.justnow}")}");
+                    await ctx.EditResponse($"{ctx.Emoji("cross")} {ctx.String("erlc.queue.errors.none")}\n-# {ERLCCache.GenerateFooter(ctx, response!)}");
                     return;
                 }
 
@@ -63,22 +64,25 @@ namespace Whispbot.Commands.ERLC
                 List<string> userIds = [..queue.Select(u => u.ToString())];
                 List<Roblox.RobloxUser> relatedUsers = await Roblox.GetUserById(userIds) ?? [];
                 List<UserConfig> userConfigs = await Users.GetConfigsFromRobloxIds([.. relatedUsers.Select(u => ulong.Parse(u.id))]);
-                List<IGuildUser>? members = await Users.GetMembersFromConfigs(userConfigs, ctx);
+                List<SocketGuildUser>? members = await Users.GetMembersFromConfigs(userConfigs, ctx);
 
                 StringBuilder sb = new();
 
-                foreach (ulong id in queue)
+                var IN_DISCORD = ctx.Emoji("indiscord");
+                var BOOSTER = ctx.Emoji("booster");
+
+				foreach (ulong id in queue)
                 {
                     Roblox.RobloxUser? user = relatedUsers.Find(u => u.id == id.ToString());
                     UserConfig? config = userConfigs.Find(u => u.roblox_id == id);
-                    IGuildUser? member = members.Find(m => m.Id == config?.id);
+                    SocketGuildUser? member = members.Find(m => m.Id == config?.id);
 
                     List<string> flags = [];
 
                     if (member is not null)
                     {
-                        flags.Add("{emoji.indiscord}");
-                        if (member.PremiumSince is not null) flags.Add("{emoji.booster}");
+                        flags.Add($"{IN_DISCORD}");
+                        if (member.PremiumSince is not null) flags.Add($"{BOOSTER}");
                     }
 
                     sb.AppendLine($"{flags.Join("")}{(flags.Count > 0 ? " " : "")}**@{user?.name ?? "error"}** ({id})");
@@ -86,21 +90,21 @@ namespace Whispbot.Commands.ERLC
 
                 if (queueLength > 20)
                 {
-                    sb.AppendLine($"...and {queueLength - 20} more.");
+                    sb.AppendLine(ctx.String("erlc.queue.more", (queueLength - 20).ToString()));
                 }
 
                 await ctx.EditResponse(
                     text: "",
                     embed: new EmbedBuilder()
-                        .WithTitle($"{{string.title.erlcqueue}} ({queueLength})")
+                        .WithTitle($"{ctx.String("erlc.queue.title")} ({queueLength})")
                         .WithDescription(sb.ToString())
-                        .WithFooter(ERLCCache.GenerateFooter(response!))
+                        .WithFooter(ERLCCache.GenerateFooter(ctx, response!))
 						.Build()
                 );
             }
             else
             {
-                await ctx.EditResponse($"{{emoji.cross}} [{response?.error}] {response?.error_message ?? "An unknown error occured"}.");
+                await ctx.EditResponse(response.GenerateErrorMessage(ctx));
             }
         }
     }

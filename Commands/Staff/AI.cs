@@ -33,12 +33,12 @@ namespace Whispbot.Commands.Staff
 
             try
             {
-                List<string> updates = ["{emoji.loading} Processing..."];
+                List<string> updates = [$"{ctx.Emoji("loading")} Processing..."];
                 async Task onUpdate()
                 {
                     await ctx.EditResponse(
                         components: new ComponentBuilderV2()
-                            .WithTextDisplay(updates.Join("\n"))
+                            .WithContainer(new TextDisplayBuilder(updates.Join("\n")))
                             .Build(),
                         flags: MessageFlags.ComponentsV2
                     );
@@ -63,7 +63,7 @@ namespace Whispbot.Commands.Staff
 
                 await ctx.EditResponse(
                     components: new ComponentBuilderV2()
-                        .WithTextDisplay(response ?? "No response from AI.")
+                        .WithContainer(new TextDisplayBuilder(response ?? "No response from AI."))
                         .Build(),
                     flags: MessageFlags.ComponentsV2
                 );

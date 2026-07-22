@@ -32,7 +32,7 @@ namespace Whispbot.Commands.Shifts
 
             if (types is null)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.clockin.dbfailed}."); // Database failed (does not mean no shift types)
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("shifts.errors.failed_get_types")}"); // Database failed (does not mean no shift types)
                 return;
             }
 
@@ -43,21 +43,21 @@ namespace Whispbot.Commands.Shifts
 
             if (activeShifts is null)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.clockin.dbfailed}."); // Database failed
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("shifts.active.errors.failed")}"); // Database failed
                 return;
             }
 
             await ctx.Reply(
                 embed: new EmbedBuilder()
-                    .WithTitle($"{{string.title.shiftactive}} ({activeShifts.Count})")
-                    .WithDescription(activeShifts.Count == 0 ? "{string.errors.shiftactive.nousersonshift}." : null)
+                    .WithTitle($"{ctx.String("shifts.active.title")} ({activeShifts.Count})")
+                    .WithDescription(activeShifts.Count == 0 ? $"{ctx.String("shifts.active.errors.none")}." : null)
                     .WithFields(
                         activeShifts.GroupBy(s => s.type).Select(g =>
                         {
                             StringBuilder sb = new();
                             foreach (var shift in g)
                             {
-                                sb.AppendLine($"> <@{shift.moderator_id}> - {Time.ConvertMillisecondsToString((DateTimeOffset.UtcNow - shift.start_time).TotalMilliseconds, ", ", true, 60000)}");
+                                sb.AppendLine($"> <@{shift.moderator_id}> - {Time.ConvertMillisecondsToString((DateTimeOffset.UtcNow - shift.start_time).TotalMilliseconds, ", ", true, 60000, ctx.Language)}");
                             }
                             return new EmbedFieldBuilder
                             {

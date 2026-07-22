@@ -1,10 +1,12 @@
-﻿using Serilog;
+﻿using Discord;
+using Serilog;
 using StackExchange.Redis;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Tools.Logger;
 
 namespace Whispbot.Databases
 {
@@ -80,7 +82,7 @@ namespace Whispbot.Databases
             if (_connecting) return false;
             _connecting = true;
             double start = DateTimeOffset.UtcNow.UtcTicks;
-            Log.Information("Connecting to Redis...");
+            Logging.Log(LogSeverity.Info, "Database", "Connecting to Redis...");
             _lastConnectionAttempt = DateTime.UtcNow;
 
             try
@@ -153,25 +155,39 @@ namespace Whispbot.Databases
 
                 _db.Ping();
 
-                Log.Information($"Connected to Redis in {(DateTimeOffset.UtcNow.UtcTicks - start) / 10000}ms");
+                Logging.Log(LogSeverity.Info, "Database", $"Connected to Redis in {(DateTimeOffset.UtcNow.UtcTicks - start) / 10000}ms");
                 _connected = true;
                 _connecting = false;
                 return true;
             }
             catch (RedisConnectionException ex)
             {
-               Log.Error($"Redis connection error: {ex.Message}");
+               Logging.Log(LogSeverity.Error, "Database", $"Redis connection error:", ex);
                 _connected = false;
                 _connecting = false;
                 return false;
             }
             catch (Exception ex)
             {
-                Log.Error($"Unexpected error during Redis connection: {ex.Message}");
+                Logging.Log(LogSeverity.Error, "Database", $"Unexpected error during Redis connection", ex);
                 _connected = false;
                 _connecting = false;
                 return false;
             }
+        }
+
+        public static void Dispose()
+        {
+            if (_redis != null)
+            {
+                try
+                {
+                    _redis.Close();
+                    _redis.Dispose();
+                }
+                catch { }
+            }
+            _connected = false;
         }
 
         public static bool IsConnected => _connected;

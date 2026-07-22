@@ -1,4 +1,5 @@
 using Discord;
+using Discord.WebSocket;
 using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Newtonsoft.Json;
 using Serilog;
@@ -28,14 +29,14 @@ namespace Whispbot.Commands.ERLC
             new ("user", "The Roblox user to look up.", CommandArgType.RobloxUser),
             new ("server", "The ERLC server to check. If not provided, the default will be used.", CommandArgType.ERLCServer, optional: true)
         ];
-        public override List<string> Schema => ["<user:ruser>", "<server:erlcserver?>"];
+        public override List<string> Schema => ["<user:string>", "<server:erlcserver?>"];
         public override List<string> Aliases => ["player", "erlc player"];
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
         {
             if (ctx.args.Count < 1)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.erlcplayer.nouser}");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("erlc.player.errors.nouser")}");
                 return;
             }
 
@@ -46,7 +47,7 @@ namespace Whispbot.Commands.ERLC
 
             if (servers is null || servers.Count == 0)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.erlcserver.notfound}");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("erlc.errors.noservers")}");
                 return;
             }
 
@@ -54,15 +55,15 @@ namespace Whispbot.Commands.ERLC
 
             if (server is null)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.erlcserver.notfound}");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("erlc.errors.notfound")}");
                 return;
             }
 
-            string? playerData = await Commands.ERLCCommandUtils.GetUserFromPartialName(ctx.args.Get("ruser")?.GetString() ?? "", server);
+            string? playerData = await Commands.ERLCCommandUtils.GetUserFromPartialName(ctx.args.Get("user")?.GetString() ?? "", server);
 
             if (playerData is null)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.erlcplayer.notfound}");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("erlc.player.errors.notfound")}");
                 return;
             }
 
@@ -89,32 +90,32 @@ namespace Whispbot.Commands.ERLC
                 WhispCache.UserConfig.Insert(userConfig.id, userConfig);
             }
 
-            IGuildUser? discordMember = userConfig is not null && ctx.Guild is not null ? ctx.Guild.GetUser(userConfig.id) : null;
+            SocketGuildUser? discordMember = userConfig is not null && ctx.Guild is not null ? ctx.Guild.GetUser(userConfig.id) : null;
 
             StringBuilder badges = new();
             switch (player.Permission)
             {
                 case "Server Owner":
-                    badges.Append("{emoji.owner}");
+                    badges.Append(ctx.Emoji("owner"));
                     break;
                 case "Server Co-Owner":
-                    badges.Append("{emoji.coowner}");
+                    badges.Append(ctx.Emoji("coowner"));
                     break;
                 case "Server Administrator":
-                    badges.Append("{emoji.administrator}");
+                    badges.Append(ctx.Emoji("administrator"));
                     break;
                 case "Server Moderator":
-                    badges.Append("{emoji.moderator}");
+                    badges.Append(ctx.Emoji("moderator"));
                     break;
                 case "Server Helper":
-                    badges.Append("{emoji.helper}");
+                    badges.Append(ctx.Emoji("helper"));
                     break;
             }
 
             await ctx.EditResponse(
                 text: "",
                 embed: new EmbedBuilder()
-                    .WithTitle("{string.title.erlcplayer}")
+                    .WithTitle(ctx.String("erlc.player.title"))
                     .WithThumbnailUrl(await Roblox.GetUserAvatar(playerData.Split(':')[1]))
                     .WithDescription(
                         $"{(badges.Length > 0 ? badges.ToString() + " " : "")}" + // Emojis representing badges
@@ -125,31 +126,39 @@ namespace Whispbot.Commands.ERLC
                             ..(discordMember is not null ? 
                                 new List<EmbedFieldBuilder>() { 
                                     new EmbedFieldBuilder()
-                                        .WithName("{string.title.erlcplayer.discord}")
+                                        .WithName(ctx.String("erlc.player.fields.discord"))
                                         .WithValue(
-											$"{{emoji.indiscord}}" +
-											$"{(discordMember.PremiumSince is not null ? "{emoji.booster}" : "")} " +
+											$"{ctx.Emoji("indiscord")}" +
+											$"{(discordMember.PremiumSince is not null ? ctx.Emoji("booster") : "")} " +
 											$"<@{discordMember.Id}> ({discordMember.Id})"
 										)
                                } : []),
 
                             new EmbedFieldBuilder()
-                                .WithName("{string.title.erlcplayer.location}")
-                                .WithValue($"{{string.content.erlcplayer.location:postal={player.Location.PostalCode},street={player.Location.StreetName}}}"),
+                                .WithName(ctx.String("erlc.player.fields.location"))
+                                .WithValue(ctx.String(
+                                    "erlc.player.location",
+                                    player.Location.BuildingNumber,
+                                    player.Location.StreetName,
+                                    player.Location.PostalCode
+                                )),
 
 							..(vehicle is not null ?
                                 new List<EmbedFieldBuilder>() {
 									new EmbedFieldBuilder()
-										.WithName("{string.title.erlcplayer.vehicle}")
-										.WithValue(
-											$"**{{string.title.erlcplayer.vehiclename}}**: {vehicle.Name}\n" +
-											$"**{{string.title.erlcplayer.vehicletexture}}**: {vehicle.Texture ?? "{string.general.none}"}\n" +
-											$"**{{string.title.erlcplayer.vehiclecolor}}**: {vehicle.ColorName} ({vehicle.ColorHex.ToUpper()})"
-										)
+										.WithName(ctx.String("erlc.player.fields.vehicle"))
+										.WithValue(ctx.String(
+											"erlc.player.vehicle",
+                                            vehicle.Name,
+                                            vehicle.Plate,
+                                            vehicle.Texture ?? ctx.String("erlc.player.vehicle.no_texture"),
+                                            vehicle.ColorName,
+                                            vehicle.ColorHex
+										))
 							   } : [])
 						]
                     )
-                    .WithFooter(ERLCCache.GenerateFooter(data))
+                    .WithFooter(ERLCCache.GenerateFooter(ctx, data))
                     .Build()
             );
         }

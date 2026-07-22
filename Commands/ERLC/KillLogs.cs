@@ -1,4 +1,5 @@
 using Discord;
+using Discord.WebSocket;
 using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Newtonsoft.Json;
 using Serilog;
@@ -47,7 +48,7 @@ namespace Whispbot.Commands.ERLC
             {
                 if (killLogs.Count == 0)
                 {
-                    await ctx.EditResponse($"{{emoji.cross}} {{string.errors.erlckilllogs.nokills}}\n-# {{string.content.erlcserver.updated}}: {(response!.CachedAt is not null ? $"{Math.Round((decimal)(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - response.cachedAtMs) / 1000)}s ago" : "{string.content.erlcserver.justnow}")}");
+                    await ctx.EditResponse($"{ctx.Emoji("cross")} {ctx.String("erlc.killlogs.errors.none")}\n-# {ERLCCache.GenerateFooter(ctx, response!)}");
                     return;
                 }
 
@@ -57,46 +58,50 @@ namespace Whispbot.Commands.ERLC
                 List<ulong> robloxIds = [.. killLogs.Select(j => ulong.Parse(j.Killed.Split(":")[1])), .. killLogs.Select(k => ulong.Parse(k.Killer.Split(":")[1]))];
                 robloxIds = [..robloxIds.Distinct()];
                 List<UserConfig> userConfigs = await Users.GetConfigsFromRobloxIds(robloxIds);
-                List<IGuildUser>? members = await Users.GetMembersFromConfigs(userConfigs, ctx);
+                List<SocketGuildUser>? members = await Users.GetMembersFromConfigs(userConfigs, ctx);
 
-                StringBuilder strings = new();
+                var IN_DISCORD = ctx.Emoji("indiscord");
+                var BOOSTER = ctx.Emoji("booster");
+                var KILLED = ctx.String("erlc.killlogs.killed");
+
+				StringBuilder strings = new();
                 foreach (var log in killLogs)
                 {
                     UserConfig? killedConfig = userConfigs?.Find(u => u.roblox_id.ToString() == log.Killed.Split(":")[1]);
-                    IGuildUser? killedMember = members?.Find(m => m.Id == killedConfig?.id);
+                    SocketGuildUser? killedMember = members?.Find(m => m.Id == killedConfig?.id);
 
                     UserConfig? killerConfig = userConfigs?.Find(u => u.roblox_id.ToString() == log.Killer.Split(":")[1]);
-                    IGuildUser? killerMember = members?.Find(m => m.Id == killerConfig?.id);
+                    SocketGuildUser? killerMember = members?.Find(m => m.Id == killerConfig?.id);
 
                     StringBuilder killedFlags = new();
                     if (killedMember is not null)
                     {
-                        killedFlags.Append("{emoji.indiscord}");
-                        if (killedMember.PremiumSince is not null) killedFlags.Append("{emoji.booster}");
+                        killedFlags.Append(IN_DISCORD);
+                        if (killedMember.PremiumSince is not null) killedFlags.Append(BOOSTER);
                     }
 
                     StringBuilder killerFlags = new();
                     if (killerMember is not null)
                     {
-                        killerFlags.Append("{emoji.indiscord}");
-                        if (killerMember.PremiumSince is not null) killerFlags.Append("{emoji.booster}");
+                        killerFlags.Append(IN_DISCORD);
+                        if (killerMember.PremiumSince is not null) killerFlags.Append(BOOSTER);
                     }
 
-                    strings.AppendLine($"{killerFlags}{(killerFlags.Length > 0 ? " " : "")}**@{log.Killer.Split(":")[0]}** killed {killedFlags}{(killedFlags.Length > 0 ? " " : "")}**@{log.Killed.Split(":")[0]}**");
+                    strings.AppendLine($"[<t:{log.Timestamp}:T>] {killerFlags}{(killerFlags.Length > 0 ? " " : "")}**@{log.Killer.Split(":")[0]}** {KILLED} {killedFlags}{(killedFlags.Length > 0 ? " " : "")}**@{log.Killed.Split(":")[0]}**");
                 }
 
                 await ctx.EditResponse(
                     text: "",
                     embed: new EmbedBuilder()
-                        .WithTitle($"{{string.title.killlogs}}")
+                        .WithTitle($"{ctx.String("erlc.killlogs.title")}")
                         .WithDescription(strings.ToString())
-                        .WithFooter(ERLCCache.GenerateFooter(response!))
+                        .WithFooter(ERLCCache.GenerateFooter(ctx, response!))
 						.Build()
                 );
             }
             else
             {
-                await ctx.EditResponse($"{{emoji.cross}} [{response?.error}] {response?.error_message ?? "An unknown error occured"}.");
+                await ctx.EditResponse(response.GenerateErrorMessage(ctx));
             }
         }
     }

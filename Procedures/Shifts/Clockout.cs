@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using Whispbot.Cache;
 using Whispbot.Databases;
 using Whispbot.Extensions;
+using Whispbot.Languages;
 using Whispbot.Tools;
 
 namespace Whispbot
@@ -41,27 +42,25 @@ namespace Whispbot
             await logChannel.SendMessageAsync(
                 embed:
                     new EmbedBuilder()
-                        .WithAuthor($"{moderator.Username} ({moderatorId})")
-                        .WithTitle("clockout.log.title".Translate(language))
-                        .WithDescription($"<@{moderatorId}> {"clockout.log.content".Translate(language, type.name, Time.ConvertMillisecondsToString((shift.end_time - shift.start_time)?.TotalMilliseconds ?? 0))}.")
+                        .WithAuthor($"{moderator.Username} ({moderatorId})", moderator.GetDisplayAvatarUrl())
+                        .WithTitle("shifts.clockout.log.title".Translate(language))
+                        .WithDescription("shifts.clockout.log.content".Translate(language, $"<@{moderatorId}>", type.name, Time.ConvertMillisecondsToString((shift.end_time - shift.start_time)?.TotalMilliseconds ?? 0, language: language)))
                         .WithFields(adminId is null ? [] : [
                             new EmbedFieldBuilder()
-                                .WithName("clockout.log.admin".Translate(language))
+                                .WithName("shifts.clockout.log.admin".Translate(language))
                                 .WithValue($"<@{adminId}>")
                         ])
                         .WithColor(new Color(150, 0, 0))
-                        .WithFooter($"ID: {shift.id}")
+                        .WithFooter($"ID: {shift.id} • {"phrase.type".Translate(language)}: {type.id}")
                         .Build()
             );
         }
 
         public static async Task<(Shift?, string?)> Clockout(ulong guildId, ulong moderatorId, ShiftType type, ulong? adminId = null)
         {
-            if (!(await WhispPermissions.CheckModule(guildId, Commands.Module.Shifts)).Item1) return (null, "{string.errors.clockin.moduledisabled}");
-
             if (adminId is not null && !await WhispPermissions.HasPermission(guildId, (adminId ?? 0), BotPermissions.ManageShifts))
             {
-                return (null, "{string.errors.clockin.adminnoperms}");
+                return (null, "admin_no_perms");
             }
 
             Shift? thisShift;
@@ -79,7 +78,7 @@ namespace Whispbot
 
             if (thisShift is null)
             {
-                return (null, adminId is null ? "{string.errors.clockout.notclockedin}" : "{string.errors.clockout.usernotclockedin}");
+                return (null, adminId is null ? "not_on_shift" : "user_not_on_shift");
             }
 
             _ = PostClockout(guildId, moderatorId, type, thisShift, adminId);

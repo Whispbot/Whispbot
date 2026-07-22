@@ -12,6 +12,7 @@ using Whispbot.Commands;
 using Whispbot.Databases;
 using Whispbot.Extensions;
 using Whispbot.Interactions;
+using Whispbot.Languages;
 
 namespace Whispbot.Tools
 {

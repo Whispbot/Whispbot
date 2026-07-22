@@ -9,13 +9,14 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Whispbot.Databases;
+using Whispbot.Tools.Disc;
 
 namespace Whispbot.AI
 {
     public static class AIModel
     {
         private static readonly Dictionary<string, List<ChatMessage>> _messageHistory = [];
-        private static readonly ChatClient _staffClient = new(model: "gpt-5.2", apiKey: Environment.GetEnvironmentVariable("OPENAI_API_TOKEN_STAFF"));
+        private static readonly ChatClient _staffClient = new(model: "gpt-5.6-terra", apiKey: Environment.GetEnvironmentVariable("OPENAI_API_TOKEN_STAFF"));
 
         private static List<ChatMessage> GetChatHistory(string key)
         {
@@ -166,17 +167,61 @@ namespace Whispbot.AI
             }
         ];
 
+#pragma warning disable OPENAI001
         public static string? SendMessage(string message, string chatKey, string context = "", AIType type = AIType.Staff, Action<string>? onUpdate = null)
         {
+            ChatClient client = type switch
+            {
+                AIType.Staff => _staffClient,
+                _ => throw new ArgumentOutOfRangeException(nameof(type), type, null)
+            };
+
             List<ChatMessage> messages = GetChatHistory(chatKey);
             if (messages.Count == 0)
             {
                 messages.Add(new SystemChatMessage($"""
-                        You are a helpful assistant that answers questions and provides information based on the input provided for staff members of the Discord bot 'Whisp'.
-                        This response will be sent to a Discord channel, so make sure that your response is formatted as such (can contain markdown and code blocks) and is kept snappy and concise, but informative.
-                        You do not have to be professional, you should be friendly and approachable but you should never use emojis.
-                        NEVER guess anything, if you do not know the answer to something, do not mention it or just say that you do not know. You may ask questions to clarify the request, but do not make assumptions.
-                        You should use tool calls to perform actions, such as fetching data from the database, searching the internet or whisp website or performing other tasks. If you do not get the information that you wanted on the first try, give another query a go to get more accurate data. Using single keyword queries with the whisp search tool normally helps.
+                        ## Task
+                        You are a helpful assistant for staff members of a Discord bot called Whisp.
+                        You have access to a set of tools that can fetch information about users,
+                        guilds, etc. and search the internet. You will be asked questions or given
+                        a task to complete, not always about Whisp, but you should use your tools
+                        whenever they can help you answer the question or complete the task.
+
+                        ## Output shape
+                        1. Lead with the next action. First line = a command, path, snippet, or the
+                           direct answer. No preamble ("Great question", "Sure!", "Let me..."), no
+                           warmup.
+                        2. Number multi-step tasks. One bounded action per step. No step with two
+                           "and then"s.
+                        3. Suppress tangents. Finish the current thing, then offer any second issue
+                           as a separate question.
+                        4. Give specific time estimates in concrete units (minutes/hours), never
+                           "a bit" or "some work".
+                        5. Make wins visible ("Login works now. Try `npm run dev`."), don't bury
+                           them in a recap.
+                        6. State errors matter-of-factly: cause + fix. No "uh oh".
+                        7. Cap lists at 5 items. Past five, split into "do now" vs "later".
+                        8. No recap, no closers ("Hope this helps", "Let me know if...").
+                        9. Structure for a Discord message using markdown and keep it under 2000 
+                            characters.
+
+                        ## Tool use
+                        - Use your tools whenever they get a better, more current, or more accurate
+                          answer than your own knowledge.
+                        - If you do not know something, are unsure, or the info may have changed:
+                          use a tool instead of guessing. Never fabricate.
+                        - Prefer acting with tools over describing what could be done.
+                        - Confirm before destructive actions (deletes, force pushes, migrations).
+
+                        ## Override brevity when
+                        - User asks to "explain" or "walk me through": explain fully, still no
+                          preamble/closer, add headers for skimming.
+                        - Real ambiguity: ask ONE short clarifying question instead of guessing.
+
+                        ## Pre-send check
+                        Delete: opening that announces what you're about to do, closing "anything
+                        else?", any "by the way" sidebar, hedging adverbs. Then confirm the first
+                        and last lines alone tell the reader what to do next and what just happened.
                         {(String.IsNullOrEmpty(context) ? "" : $"\n\nContext:{context}")}
 
                         System Information:
@@ -185,6 +230,7 @@ namespace Whispbot.AI
                         Support: https://whisp.bot/support
                         Documentation: https://docs.whisp.bot
                         Main Server ID: 1096509172784300174
+                        Powered By: {client.Model}
                     """));
             }
             messages.Add(new UserChatMessage(message));
@@ -208,12 +254,7 @@ namespace Whispbot.AI
             }
             options.Metadata.Add("chat-key", chatKey);
             options.StoredOutputEnabled = true;
-
-            ChatClient client = type switch
-            {
-                AIType.Staff => _staffClient,
-                _ => throw new ArgumentOutOfRangeException(nameof(type), type, null)
-            };
+            options.ReasoningEffortLevel = ChatReasoningEffortLevel.None;
 
             bool requiresAction = false;
 
@@ -236,7 +277,7 @@ namespace Whispbot.AI
                             Tool? tool = Tools.FirstOrDefault(t => t.name == toolCall.FunctionName);
                             if (tool is not null)
                             {
-                                onUpdate?.Invoke($"{{emoji.break}} Using tool {tool.Value.name}.");
+                                onUpdate?.Invoke($"{Emojis.Get("break")} Using tool {tool.Value.name}.");
 
                                 JsonDocument arguments = JsonDocument.Parse(toolCall.FunctionArguments);
                                 string result = tool.Value.function(arguments);
@@ -264,6 +305,7 @@ namespace Whispbot.AI
 
             return messages.Last().Content[0].Text;
         }
+#pragma warning restore OPENAI001
 
         public enum AIType
         {

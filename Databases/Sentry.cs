@@ -1,10 +1,12 @@
-﻿using Newtonsoft.Json;
+﻿using Discord;
+using Newtonsoft.Json;
 using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Tools.Logger;
 
 namespace Whispbot.Databases
 {
@@ -16,7 +18,7 @@ namespace Whispbot.Databases
 
             if (sentry_dsn is null)
             {
-                Log.Error("Could not connect to sentry, no SENTRY_DSN environment variable.");
+                Logging.Log(LogSeverity.Error, "Database", "Could not connect to sentry, no SENTRY_DSN environment variable.");
                 return;
             }
 
@@ -30,12 +32,12 @@ namespace Whispbot.Databases
 
                     options.AutoSessionTracking = true;
                 });
-                Log.Information("Initialized sentry");
+                Logging.Log(LogSeverity.Info, "Database", "Initialized sentry");
             }
             catch (Exception ex)
             {
-                Log.Warning("Failed to initialize sentry, not fatal");
-                Log.Warning(ex.Message);
+                Logging.Log(LogSeverity.Warning, "Database", "Failed to initialize sentry, not fatal");
+                Logging.Log(LogSeverity.Warning, "Database", ex.Message);
             }
         }
     }

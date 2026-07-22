@@ -32,7 +32,7 @@ namespace Whispbot.Interactions.Roblox_Connection
             }
             else
             {
-                await ctx.EditMessage(m => { m.Components = GetConnectionsMessage(false, ctx.UserId, null); });
+                await ctx.EditMessage(m => { m.Components = GetConnectionsMessage(false, ctx.UserId, null, ctx.Language); });
             }
         }
     }

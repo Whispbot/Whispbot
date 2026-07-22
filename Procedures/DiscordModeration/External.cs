@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Commands;
 using static Sentry.MeasurementUnit;
 
@@ -28,6 +29,10 @@ namespace Whispbot
 
                 // Bot already logs its own actions so ignore from events to avoid duplicates
                 if (log.User.Id == client.CurrentUser.Id) return;
+
+                var guildConfig = await WhispCache.GuildConfig.Get(guild.Id);
+                if (guildConfig is null || guildConfig.version != Config.EnvId) return;
+
                 var duration = -1L;
                 SocketUser? target = null;
                 if (mType == DiscordModerationType.Mute && log.Data is SocketMemberUpdateAuditLogData data)

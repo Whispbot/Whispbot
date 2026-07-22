@@ -31,7 +31,7 @@ namespace Whispbot.Commands.General
                         new ContainerBuilder()
                             .WithSection(
                                 new SectionBuilder()
-                                    .WithTextDisplay($"# About Whispbot{(Config.isDev ? " [DEV MODE]" : "")}")
+                                    .WithTextDisplay($"# About Whispbot{(Config.isDev ? " [DEV]" : "")}")
                                     .WithTextDisplay("Whispbot is a multipurpose Discord bot built to be a reliable solution for your perfect Discord server.")
                                     .WithAccessory(new ThumbnailBuilder(Config.client!.CurrentUser.GetDisplayAvatarUrl()))
                             )
@@ -42,16 +42,14 @@ namespace Whispbot.Commands.General
                                     .WithAccessory(new ButtonBuilder("Our Host", style: ButtonStyle.Link, url: "https://railway.com?referralCode=whisp"))
                             )
                             .WithTextDisplay(
-                                $"\n**OS:** {System.Runtime.InteropServices.RuntimeInformation.OSDescription}" +
-                                $"\n**CPU:** {System.Runtime.InteropServices.RuntimeInformation.OSArchitecture} ({Environment.ProcessorCount} cores)" +
-                                $"\n**Uptime:** {uptime.Days}d {uptime.Hours}h {uptime.Minutes}m"
+                                $"**Uptime:** {uptime.Days}d {uptime.Hours}h {uptime.Minutes}m"
                             )
                             .WithSeparator()
                             .WithTextDisplay(
                                 $"## Versions" +
-                                $"\n**Whisp Version:** V{Config.versionText}" +
-                                $"\n**Discord API Version:** 10" +
-                                $"\n**Discord Lib Version:** {Assembly.Load("YellowMacaroni.Discord").GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0]}" +
+                                $"\n**Whisp Version:** {Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0]}" +
+                                $"\n**Discord API Version:** {DiscordConfig.APIVersion}" +
+                                $"\n**Discord Lib Version:** {Assembly.Load("Discord.Net.Core").GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion.Split('+')[0]}" +
                                 $"\n**C# Version:** {Environment.Version}"
                             )
                             .WithSection([new TextDisplayBuilder("View our website and configure your server:")], new ButtonBuilder("Our Website", style: ButtonStyle.Link, url: "https://whisp.bot"))

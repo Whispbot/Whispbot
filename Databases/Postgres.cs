@@ -1,4 +1,5 @@
-﻿using Npgsql;
+﻿using Discord;
+using Npgsql;
 using NpgsqlTypes;
 using Serilog;
 using System;
@@ -8,6 +9,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Extensions;
+using Whispbot.Tools.Logger;
 
 namespace Whispbot.Databases
 {
@@ -106,7 +108,7 @@ namespace Whispbot.Databases
             if (_initializing) return false;
             _initializing = true;
             double start = DateTimeOffset.UtcNow.UtcTicks;
-            Log.Information("Initializing postgres connection pool...");
+            Logging.Log(LogSeverity.Info, "Database", "Initializing postgres connection pool...");
             _lastConnectionAttempt = DateTime.UtcNow;
 
             try
@@ -162,12 +164,12 @@ namespace Whispbot.Databases
 
                 if (missingVars.Count > 0)
                 {
-                    Log.Fatal("ERROR: Missing required environment variables:");
+                    Logging.Log(LogSeverity.Critical, "Database", "ERROR: Missing required environment variables:");
                     foreach (var var in missingVars)
                     {
-                        Log.Fatal($"  - {var}");
+                        Logging.Log(LogSeverity.Critical, "Database", $"  - {var}");
                     }
-                    Log.Fatal("\nPlease set these environment variables and restart the application.");
+                    Logging.Log(LogSeverity.Critical, "Database", "\nPlease set these environment variables and restart the application.");
                     Logger.Shutdown();
 
                     Environment.Exit(1);
@@ -202,21 +204,21 @@ namespace Whispbot.Databases
                     command.ExecuteNonQuery();
                 }
 
-                Log.Information($"Postgres connection pool initialized in {(DateTimeOffset.UtcNow.UtcTicks - start) / 10000}ms");
+                Logging.Log(LogSeverity.Info, "Database", $"Postgres connection pool initialized in {(DateTimeOffset.UtcNow.UtcTicks - start) / 10000}ms");
                 _initialized = true;
                 _initializing = false;
                 return true;
             }
             catch (NpgsqlException ex)
             {
-                Log.Error($"Database connection pool initialization error: {ex.Message}");
+                Logging.Log(LogSeverity.Error, "Database", $"Database connection pool initialization error", ex);
                 _initialized = false;
                 _initializing = false;
                 return false;
             }
             catch (Exception ex)
             {
-                Log.Error($"Unexpected error during database connection pool initialization: {ex.Message}");
+                Logging.Log(LogSeverity.Error, "Database", $"Unexpected error during database connection pool initialization", ex);
                 _initialized = false;
                 _initializing = false;
                 return false;
@@ -268,13 +270,30 @@ namespace Whispbot.Databases
                 if (arg is ulong ulongValue)
                 {
                     value = (long)ulongValue;
+                    command.Parameters.AddWithValue($"@{i}", value);
                 }
                 else if (arg is uint uintValue)
                 {
                     value = (int)uintValue;
+                    command.Parameters.AddWithValue($"@{i}", value);
+                }
+                else if (arg is IEnumerable<ulong> ulongEnumerable && arg is not string)
+                {
+                    var arr = ulongEnumerable.Select(u => (long)u).ToArray();
+                    var p = new NpgsqlParameter($"@{i}", NpgsqlDbType.Array | NpgsqlDbType.Bigint) { Value = arr };
+                    command.Parameters.Add(p);
+                }
+                else if (arg is IEnumerable<uint> uintEnumerable && arg is not string)
+                {
+                    var arr = uintEnumerable.Select(u => (int)u).ToArray();
+                    var p = new NpgsqlParameter($"@{i}", NpgsqlDbType.Array | NpgsqlDbType.Integer) { Value = arr };
+                    command.Parameters.Add(p);
+                }
+                else
+                {
+                    command.Parameters.AddWithValue($"@{i}", value);
                 }
 
-                command.Parameters.AddWithValue($"@{i}", value);
                 i++;
             }
             return command;
@@ -307,6 +326,11 @@ namespace Whispbot.Databases
                 using var reader = command.ExecuteReader();
                 return reader.ToList<T>();
             }
+            catch (Exception err)
+            {
+                Logging.Log(LogSeverity.Error, "Database", $"Error in Select", err);
+                return default;
+            }
             finally
             {
                 if (connectionOwned)
@@ -335,6 +359,11 @@ namespace Whispbot.Databases
                 using var reader = command.ExecuteReader();
                 return reader.ToDynamicList();
             }
+            catch (Exception err)
+            {
+                Logging.Log(LogSeverity.Error, "Database", $"Error in Select", err);
+                return default;
+            }
             finally
             {
                 if (connectionOwned)
@@ -362,6 +391,11 @@ namespace Whispbot.Databases
                 command.AddArgs(args ?? []);
                 using var reader = command.ExecuteReader();
                 return reader.FirstOrDefault<T>();
+            }
+            catch (Exception err)
+            {
+                Logging.Log(LogSeverity.Error, "Database", $"Error in SelectFirst", err);
+                return default;
             }
             finally
             {
@@ -409,11 +443,11 @@ namespace Whispbot.Databases
                 _dataSource?.Dispose();
                 _dataSource = null;
                 _initialized = false;
-                Log.Information("Postgres connection pool disposed");
+                Logging.Log(LogSeverity.Info, "Database", "Postgres connection pool disposed");
             }
             catch (Exception ex)
             {
-                Log.Error($"Error disposing postgres connection pool: {ex.Message}");
+                Logging.Log(LogSeverity.Error, "Database", $"Error disposing postgres connection pool: {ex.Message}", ex);
             }
         }
     }

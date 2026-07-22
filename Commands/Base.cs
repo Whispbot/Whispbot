@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using Whispbot.Cache;
 using Whispbot.Extensions;
 using Whispbot.Languages;
+using Whispbot.Tools.Disc;
 using static Microsoft.Extensions.Logging.EventSource.LoggingEventSource;
 
 namespace Whispbot.Commands
@@ -142,11 +143,15 @@ namespace Whispbot.Commands
             // CHANGE THIS
             return Translator.Get(Language, name, args);
         }
+        public IEmote Emoji(string name)
+        {
+            return Emojis.Get(name);
+        }
 
         public async Task Reply(
             string? text = null,
-            bool isTTS = false,
             bool ephemeral = false,
+            bool isTTS = false,
             Embed? embed = null,
             RequestOptions? options = null,
             AllowedMentions? allowedMentions = null,
@@ -214,8 +219,8 @@ namespace Whispbot.Commands
 
         public async Task EditResponse(
             string? text = null,
-            bool isTTS = false,
             bool ephemeral = false,
+            bool isTTS = false,
             Embed? embed = null,
             RequestOptions? options = null,
             AllowedMentions? allowedMentions = null,
@@ -231,11 +236,12 @@ namespace Whispbot.Commands
             {
                 await EditResponse(m =>
                 {
-                    m.Content = text;
-                    m.Embeds = embeds;
-                    m.AllowedMentions = allowedMentions;
-                    m.Components = components;
-                    m.Flags = m.Flags.GetValueOrDefault(MessageFlags.None) | flags;
+                    if (text is not null ) m.Content = text;
+                    if (embed is not null) m.Embed = embed;
+                    if (embeds is not null) m.Embeds = embeds;
+                    if (allowedMentions is not null) m.AllowedMentions = allowedMentions;
+                    if (components is not null) m.Components = components;
+                    if (flags != MessageFlags.None) m.Flags = m.Flags.GetValueOrDefault(MessageFlags.None) | flags;
                 });
             }
             else

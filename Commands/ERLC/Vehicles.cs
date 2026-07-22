@@ -1,4 +1,5 @@
 using Discord;
+using Discord.WebSocket;
 using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Newtonsoft.Json;
 using Serilog;
@@ -47,45 +48,54 @@ namespace Whispbot.Commands.ERLC
             {
                 if (vehicles.Count == 0)
                 {
-                    await ctx.EditResponse($"{{emoji.cross}} {{string.errors.erlcvehicles.novehicles}}\n-# {{string.content.erlcserver.updated}}: {(response!.CachedAt is not null ? $"{Math.Round((decimal)(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - response.cachedAtMs)/1000)}s ago" : "{string.content.erlcserver.justnow}")}");
+                    await ctx.EditResponse($"{ctx.Emoji("cross")} {ctx.String("erlc.vehicles.errors.none")}\n-# {ERLCCache.GenerateFooter(ctx, response!)}");
                     return;
                 }
 
                 List<Roblox.RobloxUser>? users = await Roblox.GetUserByUsername([.. vehicles.Select(v => v.Owner)]);
                 List<ulong> robloxIds = [.. users?.Select(u => ulong.Parse(u.id)) ?? []];
                 List<UserConfig> userConfigs = await Users.GetConfigsFromRobloxIds(robloxIds);
-                List<IGuildUser>? members = await Users.GetMembersFromConfigs(userConfigs, ctx);
+                List<SocketGuildUser>? members = await Users.GetMembersFromConfigs(userConfigs, ctx);
+
+                var IN_DISCORD = ctx.Emoji("indiscord");
+                var BOOSTER = ctx.Emoji("booster");
 
                 StringBuilder strings = new();
                 foreach (var vehicle in vehicles)
                 {
                     Roblox.RobloxUser? owner = users?.Find(u => u.name.Equals(vehicle.Owner, StringComparison.OrdinalIgnoreCase));
                     UserConfig? config = userConfigs?.Find(u => u.roblox_id.ToString() == owner?.id);
-                    IGuildUser? member = members?.Find(m => m.Id == config?.id);
+                    SocketGuildUser? member = members?.Find(m => m.Id == config?.id);
 
                     StringBuilder flags = new();
                     if (member is not null)
                     {
-                        flags.Append("{emoji.indiscord}");
+                        flags.Append(IN_DISCORD);
 
-                        if (member.PremiumSince is not null) flags.Append("{emoji.booster}");
+                        if (member.PremiumSince is not null) flags.Append(BOOSTER);
                     }
 
-                    strings.Append($"**{flags}{(flags.Length > 0 ? " " : "")}@{vehicle.Owner}**\n> **{{string.title.erlcvehicles.model}}:** {vehicle.Name}\n> **{{string.title.erlcvehicles.texture}}:** {(vehicle.Texture == "Standard" ? $"{vehicle.ColorName}" : vehicle.Texture)}\n\n");
+                    strings.Append($"**{flags}{(flags.Length > 0 ? " " : "")}@{vehicle.Owner}**\n{ctx.String("erlc.vehicles.vehicle",
+                        vehicle.Name,
+                        vehicle.Plate,
+                        vehicle.Texture ?? ctx.String("erlc.player.vehicle.no_texture"),
+                        vehicle.ColorName,
+                        vehicle.ColorHex
+                    )}\n\n");
                 }
 
                 await ctx.EditResponse(
                     text: "",
                     embed: new EmbedBuilder()
-					    .WithTitle($"{{string.title.erlcvehicles}} ({vehicles.Count})")
+					    .WithTitle($"{ctx.String("erlc.vehicles.title")} ({vehicles.Count})")
                         .WithDescription(strings.ToString())
-                        .WithFooter(ERLCCache.GenerateFooter(response!))
+                        .WithFooter(ERLCCache.GenerateFooter(ctx, response!))
                         .Build()
                 );
             }
             else
             {
-                await ctx.EditResponse($"{{emoji.cross}} [{response!.error}] {response.error_message ?? "An unknown error occured"}.");
+                await ctx.EditResponse(response.GenerateErrorMessage(ctx));
             }
         }
     }

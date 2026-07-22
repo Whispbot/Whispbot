@@ -19,7 +19,11 @@ namespace Whispbot.Tools.Disc
         /// <returns>A <seealso cref="bool"/> representing whether the user has the  GuildPermission.</returns>
         public static bool HasPermission(IGuildUser member, GuildPermission permissions)
         {
-            return member.GuildPermissions.Has(permissions);
+            var memberPermissions = member.GuildPermissions.ToList();
+            GuildPermission totalPermissions = 0;
+            foreach (var perm in memberPermissions) totalPermissions |= perm;
+
+            return (totalPermissions & permissions) != 0;
         }
 
         /// <summary>
@@ -30,7 +34,7 @@ namespace Whispbot.Tools.Disc
         /// <returns>A <seealso cref="bool"/> representing wherther the user has the  GuildPermission.</returns>
         public static bool HasPermissionOrAdmin(IGuildUser member, GuildPermission permissions)
         {
-            return member.GuildPermissions.Has(permissions | GuildPermission.Administrator);
+            return HasPermission(member, permissions | GuildPermission.Administrator);
         }
 
         /// <summary>

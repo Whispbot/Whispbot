@@ -12,6 +12,7 @@ using Whispbot.Interactions.Roblox_Connection;
 using Whispbot.Interactions.Roblox_Moderations;
 using Whispbot.Interactions.Shifts;
 using Whispbot.Languages;
+using Whispbot.Tools.Logger;
 
 namespace Whispbot.Interactions
 {
@@ -63,7 +64,7 @@ namespace Whispbot.Interactions
             RegisterInteraction(new BanRequestApproveModal());
             RegisterInteraction(new BanRequestDeny());
 
-            Log.Debug($"Loaded {_interactions.Count} interactions");
+            Logging.Log($"Loaded {_interactions.Count} interactions");
 
             client.InteractionCreated += async (interaction) =>
             {

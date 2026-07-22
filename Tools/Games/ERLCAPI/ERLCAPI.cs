@@ -10,7 +10,7 @@ namespace Whispbot.Tools.Games.ERLCAPI
 {
     public static class ERLCAPI
     {
-        public static async Task<PRCResponse?> GetERLCServer(CommandContext ctx, ERLCServerConfig server)
+        public static async Task<PRCResponse?> GetERLCServer(ERLCServerConfig server, CommandContext? ctx = null)
         {
             using var _ = Tracer.Start($"ERLC.GetServerV2");
 
@@ -23,26 +23,41 @@ namespace Whispbot.Tools.Games.ERLCAPI
 
             if (response is null)
             {
-                await ctx.Reply("{emoji.loading} {string.content.erlc.fetching}...");
-                response = await GetERLCServer(server);
+                if (ctx is not null)
+                {
+                    await ctx.Reply(ctx.GenerateLoadingMessage());
+                }
+
+                response = await FetchERLCServer(server);
 
                 if (response is null)
                 {
-                    await ctx.EditResponse(m => m.Content = "{emoji.cross} {string.errors.erlcserver.apierror}");
+                    if (ctx is not null)
+                    {
+                        await ctx.EditResponse(m => m.Content = "{emoji.cross} {string.errors.erlcserver.apierror}");
+                    }
                     return null;
                 }
             }
 
-            if (Errors.ResponseHasError(response, out var errorMessage))
+            if (ctx is not null && Errors.ResponseHasError(ctx, response, out var errorMessage))
             {
                 await ctx.EditResponse(m => { m.Components = errorMessage!; m.Flags = MessageFlags.ComponentsV2; });
+            }
+            else if (!response.success)
+            {
                 return null;
             }
 
             return response;
         }
 
-        public static async Task<PRCResponse?> GetERLCServer(ERLCServerConfig server)
+        public static async Task<PRCResponse?> GetERLCServer(CommandContext ctx, ERLCServerConfig server)
+        {
+            return await GetERLCServer(server, ctx);
+        }
+
+        public static async Task<PRCResponse?> FetchERLCServer(ERLCServerConfig server)
         {
             return await ERLCRequest.Request(
                 "GET",
@@ -61,6 +76,16 @@ namespace Whispbot.Tools.Games.ERLCAPI
                 server.api_key,
                 new { command }
             );
+        }
+
+        public static string GenerateLoadingMessage(this CommandContext ctx)
+        {
+            return $"{ctx.Emoji("loading")} {ctx.String("erlc.loading")}";
+        }
+
+        public static string GenerateErrorMessage(this PRCResponse? response, CommandContext ctx)
+        {
+            return $"{ctx.Emoji("cross")} [{response?.error ?? 0}] {ctx.String($"erlc.errors.api.{response?.error.ToString().ToLower() ?? "unknown"}")}.";
         }
     }
 }

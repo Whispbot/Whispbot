@@ -9,6 +9,7 @@ using Whispbot.Databases;
 using Whispbot.Extensions;
 using Whispbot.Tools;
 using Discord;
+using Whispbot.Languages;
 
 namespace Whispbot
 {
@@ -35,35 +36,37 @@ namespace Whispbot
             var logChannel = thisGuild.GetTextChannel(logChannelId.Value);
             if (logChannel is null) return;
 
+            var language = config.default_language ?? 0;
+
             await logChannel.SendMessageAsync(
                 embed: new EmbedBuilder()
                     .WithAuthor($"@{moderator.Username} ({moderatorId})", moderator.GetDisplayAvatarUrl())
-                    .WithTitle("{string.title.clockin}")
-                    .WithDescription($"<@{moderatorId}> {{string.content.clockin}} '{type.name}'.")
-                    .WithFields(adminId is null ? [] : [new EmbedFieldBuilder().WithName("{string.title.clockin.admin}").WithValue($"<@{adminId}>")])
+                    .WithTitle("shifts.clockin.log.title".Translate(language))
+                    .WithDescription("shifts.clockin.log.content".Translate(language, $"<@{moderatorId}>", type.name))
+                    .WithFields(adminId is null ? [] : [new EmbedFieldBuilder().WithName("shifts.clockin.log.admin".Translate(language)).WithValue($"<@{adminId}>")])
                     .WithColor(new Color(0, 150, 0))
-                    .WithFooter($"ID: {shift.id}")
+                    .WithFooter($"ID: {shift.id} • {"phrase.type".Translate(language)}: {type.id}")
                     .Build()
             );
         }
 
         public static async Task<(Shift?, string?)> Clockin(ulong guildId, ulong moderatorId, ShiftType type, ulong? adminId = null)
         {
-            if (!(await WhispPermissions.CheckModule(guildId, Commands.Module.Shifts)).Item1) return (null, "{string.errors.clockin.moduledisabled}");
+            if (!(await WhispPermissions.CheckModule(guildId, Commands.Module.Shifts)).Item1) return (null, "module_disabled");
 
             if (type.is_deleted)
             {
-                return (null, "{string.errors.clockin.invalidtype}");
+                return (null, "invalid_type");
             }
 
             if (adminId is not null && !await WhispPermissions.HasPermission(guildId, (adminId ?? 0), BotPermissions.ManageShifts))
             {
-                return (null, "{string.errors.clockin.adminnoperms}");
+                return (null, "admin_no_perms");
             }
 
             if (!await WhispPermissions.HasPermission(guildId, moderatorId, BotPermissions.UseShifts))
             {
-                return (null, adminId is null ? "{string.errors.clockin.noperms}" : "{string.errors.clockin.usernoperms}");
+                return (null, adminId is null ? "no_perms" : "user_no_perms");
             }
 
             if ((type.required_roles ?? []).Count > 0)
@@ -71,9 +74,9 @@ namespace Whispbot
                 IGuild? guild = Config.client!.GetGuild(guildId);
 
                 IGuildUser? moderator = await guild.GetUserAsync(moderatorId);
-                if (moderator is null) return (null, "{string.errors.clockin.nomember}");
+                if (moderator is null) return (null, "not_member");
 
-                if (!(moderator.RoleIds ?? []).Any(r => type.required_roles!.Contains(r))) return (null, adminId is null ? "{string.errors.clockin.missingrole}" : "{string.errors.clockin.usermissingrole}");
+                if (!(moderator.RoleIds ?? []).Any(r => type.required_roles!.Contains(r))) return (null, adminId is null ? "missing_role" : "user_missing_role");
             }
 
             Shift? thisShift = null;
@@ -88,13 +91,13 @@ namespace Whispbot
             {
                 if (ex.Data["SqlState"]?.ToString() == "23505")
                 {
-                    return (null, adminId is null ? "{string.errors.clockin.already}" : "{string.errors.clockin.useralready}");
+                    return (null, adminId is null ? "already_clocked_in" : "user_already_clocked_in");
                 }
             }
 
             if (thisShift is null)
             {
-                return (null, "{string.errors.clockin.dbfailed}");
+                return (null, null);
             }
 
             _ = PostClockin(guildId, moderatorId, type, thisShift, adminId);
