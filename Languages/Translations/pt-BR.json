@@ -1,7 +1,4 @@
 {
-  "name.roblox": "Roblox",
-  "phrase.successfully": "Successfully",
-  "phrase.for": "for",
   "phrase.type": "Type",
   "phrase.all": "all",
   "phrase.unknown": "unknown",
@@ -29,6 +26,10 @@
   "prefix.errors.invalid": "This prefix is not valid.",
   "dmod.success.case_id": "Case {0}",
   "dmod.success.messagefailed": "failed to message the user",
+  "dmod.success.message.nn": "Successfully {0} **{1}**",
+  "dmod.success.message.yn": "Successfully {0} **{1}** for **{2}**",
+  "dmod.success.message.yy": "Successfully {0} **{1}** for {3} for **{2}**",
+  "dmod.success.message.ny": "Successfully {0} **{1}** for {3}",
   "dmod.punishment.warn": "warned",
   "dmod.punishment.mute": "muted",
   "dmod.punishment.unmute": "unmuted",
