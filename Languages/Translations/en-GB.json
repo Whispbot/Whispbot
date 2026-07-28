@@ -1,5 +1,4 @@
 {
-  // General
   "name.roblox": "Roblox",
 
   "phrase.successfully": "Successfully",
@@ -8,7 +7,6 @@
   "phrase.all": "all",
   "phrase.unknown": "unknown",
 
-  // General Errors
   "errors.version": "Whisp {1} is not the version selected for this server, use Whisp {0} instead.",
   "errors.dbfailed": "Failed to fetch data from the database, please try again later.",
 
@@ -18,28 +16,25 @@
   "errors.message.feedback": "Tell us about this error:",
   "errors.message.feedback.button": "Submit Feedback",
 
-  // Commands
-  // !ping
+  "args.errors.missing": "Missing required argument '**{0}**', please try again using the format '**{1}**'.",
+
   "ping.title": "Pong!",
   "ping.field.ping": "Ping",
   "ping.field.database": "Database",
   "ping.field.database.connected": "Connected",
   "ping.field.database.disconnected": "Disconnected",
 
-  // !connect
   "connections.title": "Connections",
   "connections.connect": "Connect",
   "connections.disconnect": "Disconnect",
   "connections.errors.notconnected": "Your Roblox account is not connected.",
 
-  // !prefix
   "prefix.is": "The prefix for this server is currently `{0}`.",
   "prefix.success": "Successfully changed the prefix to `{0}`!",
   "prefix.errors.noperms": "You do not have permissions to change the prefix for this server.",
   "prefix.errors.toolong": "The prefix must be 10 characters or less.",
   "prefix.errors.invalid": "This prefix is not valid.",
 
-  // Discord Moderation
   "dmod.success.case_id": "Case {0}",
   "dmod.success.messagefailed": "failed to message the user",
 
@@ -54,7 +49,6 @@
   "dmod.suffix.in": "in",
   "dmod.suffix.from": "from",
 
-  // You have been {punishment} {in/from} {server} for {reason}
   "dmod.dm.default": "You have been {0} {1} **{2}** for **{3}**.",
   "dmod.dm.duration": "You have been {0} {1} **{2}** for {4} for **{3}**.",
 
@@ -71,8 +65,21 @@
   "dmod.errors.failed_create_case": "Failed to create the moderation case, try again later.",
   "dmod.errors.action_failed": "Failed to moderate the user, try again later.",
 
-  // Shifts
-  // General
+  "rmod.log.title": "New Moderation",
+  "rmod.log.field.user": "User",
+  "rmod.log.field.type": "Type",
+  "rmod.log.field.reason": "Reason",
+  "rmod.log.button.reason": "Edit Reason",
+  "rmod.log.button.type": "Edit Type",
+  "rmod.log.button.delete": "Delete",
+  "rmod.log.footer": "Case",
+
+  "rmod.log.errors.unknown_type": "*Unknown Type*",
+  "rmod.log.errors.no_reason": "*No reason provided.*",
+
+  "rmod.create.title": "Logged Moderation",
+  "rmod.create.description": "Successfully logged case `{0}`.",
+
   "shifts.button.clockin": "Clockin",
   "shifts.button.clockout": "Clockout",
 
@@ -80,14 +87,12 @@
   "shifts.errors.type_not_found": "Could not find the specified shift type.",
   "shifts.errors.failed_get_shift_data": "Failed to retrieve the shift data, please try again later.",
 
-  // !shift
   "shifts.me.title": "My Shifts",
   "shifts.me.clockedin": "You've been clocked in since {0}.",
   "shifts.me.clockedout": "Successfully clocked out after {0} on shift.",
   "shifts.me.all_time": "All Time",
   "shifts.me.weekly": "This Week",
 
-  // !clockin
   "shifts.clockin.success": "Successfully clocked into **{0}**.",
 
   "shifts.clockin.errors.failed": "Failed to clock you in, please try again later.",
@@ -106,7 +111,6 @@
   "shifts.clockin.log.content": "{0} clocked into **{1}**.",
   "shifts.clockin.log.admin": "Clocked in by",
 
-  // !clockout
   "shifts.clockout.success": "Successfully clocked you out of **{0}** after {1}.",
 
   "shifts.clockout.errors.not_on_shift": "You are not currently on a shift.",
@@ -118,7 +122,6 @@
   "shifts.clockout.log.content": "{0} clocked out of **{1}** after {2}.",
   "shifts.clockout.log.admin": "Clocked out by",
 
-  // !shift admin
   "shifts.admin.title": "Shift Admin",
   "shifts.admin.recent_shifts": "Recent Shifts:",
   "shifts.admin.trend": "Trend",
@@ -130,19 +133,25 @@
   "shifts.admin.button.list": "List Shifts",
   "shifts.admin.button.wipe": "Wipe Shifts",
 
-  // !shift active
   "shifts.active.title": "Active Shifts",
 
   "shifts.active.errors.failed": "Failed to fetch the active shifts, please try again later.",
   "shifts.active.errors.none": "Nobody is currently clocked in.",
 
-  // !shift leaderboard
   "shifts.lb.title": "Shift Leaderboard",
 
   "shifts.lb.errors.failed": "Failed to fetch the leaderboard data, please try again later.",
   "shifts.lb.errors.none": "Nobody has clocked in yet, please try again after someone has finished a shift.",
 
-  // ERLC
+  "shifts.activity.title": "Shift Activity",
+  "shifts.activity.content": "**Shifts:** {0}\n**Duration:** {1}",
+  "shifts.activity.footer": "Duration: {0} • Requirement: {1} • Type: {2}",
+  "shifts.activity.nobody": "*Nobody.*",
+
+  "shifts.activity.errors.failed": "Failed to fetch the shift activity, please try again later.",
+  "shifts.activity.errors.none": "No shift activity within the given time period.",
+  "shifts.activity.errors.failed_type": "Failed to fetch the shift types, please try again later.",
+
   "erlc.loading": "Fetching server info...",
   "erlc.footer": "Updated: {0} • Server: {1}",
 
@@ -174,21 +183,17 @@
 
   "erlc.errors.api.circuitbreakeropen": "The ERLC API is currently experiencing issues, please try again later.",
 
-  // !erlc server
   "erlc.serverinfo.title": "Server Info",
   "erlc.serverinfo.data": "**Name:** {0}\n**Owner:** {1}\n**Join Code:** {2}\n**Players:** {3}/{4}",
   "erlc.serverinfo.coowners": "Co-Owners",
 
-  // !erlc players
   "erlc.players.title": "In-game Players",
   "erlc.players.errors.none": "No players currently in-game.",
 
-  // !erlc queue
   "erlc.queue.title": "Queue",
   "erlc.queue.errors.none": "No players currently waiting to join.",
   "erlc.queue.more": "...and {0} more.",
 
-  // !erlc player
   "erlc.player.title": "Player Info",
   "erlc.player.fields.discord": "Discord User",
   "erlc.player.fields.location": "Location",
@@ -198,40 +203,33 @@
   "erlc.player.vehicle.no_texture": "default",
   "erlc.player.errors.notfound": "Could not find a player with that name in server.",
 
-  // !erlc vehicles
   "erlc.vehicles.title": "Vehicles",
   "erlc.vehicles.errors.none": "No vehicles currently spawned in-game.",
   "erlc.vehicles.vehicle": "> **Name**: {0}\n> **Plate**: {1}\n> **Texture**: {2}\n> **Colour**: {3} ({4})",
 
-  // !erlc commandlogs
   "erlc.commandlogs.title": "Command Logs",
   "erlc.commandlogs.errors.none": "No recent commands found.",
   "erlc.commandlogs.used": "used",
   "erlc.commandlogs.kicked": "kicked",
   "erlc.commandlogs.banned": "banned",
 
-  // !erlc joinlogs
   "erlc.joinlogs.title": "Join Logs",
   "erlc.joinlogs.errors.none": "No recent join logs found.",
   "erlc.joinlogs.joined": "joined",
   "erlc.joinlogs.left": "left",
 
-  // !erlc killlogs
   "erlc.killlogs.title": "Kill Logs",
   "erlc.killlogs.errors.none": "No recent kill logs found.",
   "erlc.killlogs.killed": "killed",
 
-  // !erlc modcalls
   "erlc.modcalls.title": "Mod Calls",
   "erlc.modcalls.errors.none": "No recent mod calls found.",
   "erlc.modcalls.helped": "helped",
   "erlc.modcalls.called": "called for mod",
 
-  // !erlc join
   "erlc.join.content": "Join **{0}** using code '{1}'.",
   "erlc.join.button": "Quick Join",
 
-  // !erlc vsm
   "erlc.vsm.success": "Successfully executed command.",
   "erlc.vsm.title": "VSM Commands",
   "erlc.vsm.mod": "Mod Commands",
@@ -242,7 +240,6 @@
   "erlc.vsm.errors.missingargs": "Missing arguments for command, requires {0} arguments in the format `:{1} {2}`.",
   "erlc.vsm.errors.unknowncommand": "Unknown command `:{1}`. Use this command without arguments to view available commands.",
 
-  // Time units
   "time.long.forever": "forever",
   "time.long.ago": "ago",
   "time.long.justnow": "just now",
