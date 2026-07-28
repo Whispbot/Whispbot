@@ -5,7 +5,7 @@
   "errors.version": "Whisp {1} ei ole valittu versio tälle palvelimelle, käytä sen sijaan Whisp {0}.",
   "errors.dbfailed": "Tietojen noutaminen tietokannasta epäonnistui, yritä myöhemmin uudelleen.",
   "errors.message.title": "Tapahtui Virhe",
-  "errors.message.content": "Odottamaton virhe tapahtui, yritä myöhemmin uudelleen. Jos ongelma jatkuu, ota yhteyttä [support](https://whisp.bot/support).",
+  "errors.message.content": "Odottamaton virhe tapahtui, yritä myöhemmin uudelleen. Jos ongelma jatkuu, ota yhteyttä [tukeen](https://whisp.bot/support).",
   "errors.message.id": "Virhe ID",
   "errors.message.feedback": "Kerro meille tästä virheestä:",
   "errors.message.feedback.button": "Lähetä Palautetta",
