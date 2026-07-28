@@ -1,0 +1,3 @@
+files:
+  - source: /Languages/Translations/en-GB.json
+    translation: /Languages/Translations/%osx_locale%.json
