@@ -33,7 +33,7 @@ namespace Whispbot.Commands.Roblox_Moderation
 
             if (String.IsNullOrEmpty(caseId))
             {
-                await ctx.Reply("{emoji.cross} {string.errors.rmcase.missingargs}.");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("rmod.case.errors.missing_arguments")}.");
                 return;
             }
 
@@ -41,7 +41,7 @@ namespace Whispbot.Commands.Roblox_Moderation
 
             if (String.IsNullOrEmpty(reason))
             {
-                await ctx.Reply("{emoji.cross} {string.errors.rmcase.missingargs}.");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("rmod.case.errors.missing_arguments")}.");
                 return;
             }
 
@@ -60,7 +60,7 @@ namespace Whispbot.Commands.Roblox_Moderation
 
                 if (!isNum || intCaseId <= 0 || intCaseId >= 100_000)
                 {
-                    await ctx.Reply("{emoji.cross} {string.errors.rmcase.invalidid}");
+                    await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("rmod.case.errors.invalid_id")}");
                     return;
                 }
 
@@ -69,11 +69,11 @@ namespace Whispbot.Commands.Roblox_Moderation
 
             if (updatedModeration is null)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.rmcase.notfound}");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("rmod.case.errors.not_found")}");
                 return;
             }
 
-            await ctx.Reply($"{{emoji.tick}} {{string.success.rmedit.updated:case={updatedModeration.@case}}}.");
+            await ctx.Reply($"{ctx.Emoji("tick")} {ctx.String("rmod.edit.success.updated", updatedModeration.@case.ToString())}.");
         }
     }
 }

@@ -136,7 +136,7 @@ namespace Whispbot.Commands
         public UserConfig? UserConfig => WhispCache.UserConfig.Get(UserId).Result;
         public GuildConfig? GuildConfig => WhispCache.GuildConfig.Get(GuildId).Result;
 
-        public Language Language => (Language)(UserConfig?.language ?? GuildConfig?.default_language ?? 0);
+        public Language Language => UserConfig?.language ?? GuildConfig?.default_language ?? 0;
 
         public string String(string name, params string[] args)
         {
@@ -185,18 +185,33 @@ namespace Whispbot.Commands
             }
             else
             {
-                await interaction!.RespondAsync(
-                    text,
-                    embeds,
-                    isTTS,
-                    ephemeral,
-                    allowedMentions,
-                    components,
-                    embed,
-                    options,
-                    poll,
-                    flags
-                );
+                if (interaction!.HasResponded)
+                {
+                    await interaction.ModifyOriginalResponseAsync(m =>
+                    {
+                        m.Content = text;
+                        m.Embeds = embeds;
+                        m.Embed = embed;
+                        m.AllowedMentions = allowedMentions;
+                        m.Components = components;
+                        m.Flags = flags;
+                    });
+                }
+                else
+                {
+                    await interaction.RespondAsync(
+                        text,
+                        embeds,
+                        isTTS,
+                        ephemeral,
+                        allowedMentions,
+                        components,
+                        embed,
+                        options,
+                        poll,
+                        flags
+                    );
+                }
             }
 
             hasResponded = true;

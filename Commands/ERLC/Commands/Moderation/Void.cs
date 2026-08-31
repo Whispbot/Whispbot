@@ -18,7 +18,7 @@ namespace Whispbot.Commands.ERLC.Commands.Moderation
         {
             if (ctx.args.Count < 1)
             {
-                await ctx.Reply("{string.errors.erlccommand.rmv.missingcase}.");
+                await ctx.Reply($"{ctx.String("erlc.errors.void_missing_case")}.");
                 return;
             }
 
@@ -39,13 +39,13 @@ namespace Whispbot.Commands.ERLC.Commands.Moderation
 
                 if (!isNum)
                 {
-                    await ctx.Reply("{string.errors.rmcase.invalidid}.");
+                    await ctx.Reply($"{ctx.String("rmod.case.errors.invalid_id")}.");
                     return;
                 }
 
                 if (caseId <= 0 || caseId >= 100_000)
                 {
-                    await ctx.Reply("{string.errors.rmcase.invalidid}.");
+                    await ctx.Reply($"{ctx.String("rmod.case.errors.invalid_id")}.");
                     return;
                 }
 
@@ -55,11 +55,11 @@ namespace Whispbot.Commands.ERLC.Commands.Moderation
 
             if (updatedModeration is null)
             {
-                await ctx.Reply("{string.errors.rmcase.notfound}.");
+                await ctx.Reply($"{ctx.String("rmod.case.errors.not_found")}.");
                 return;
             }
 
-            await ctx.Reply("{string.success.erlccommand.rmv.success}.");
+            await ctx.Reply($"{ctx.String("erlc.success.voided")}.");
         }
     }
 }

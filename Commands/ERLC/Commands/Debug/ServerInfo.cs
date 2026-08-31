@@ -18,7 +18,7 @@ namespace Whispbot.Commands.ERLC.Commands.Debug
         public override async Task ExecuteAsync(ERLCCommandContext ctx)
         {
             ERLCServerConfig server = ctx.server;
-            await ctx.Reply($"{{string.content.erlccommand.serverinfo:name={server.name},code={server.code},players={server.ingame_players-1}}}");
+            await ctx.Reply(ctx.String("erlc.server.summary", server.name, server.code, (server.ingame_players - 1).ToString()));
         }
     }
 }

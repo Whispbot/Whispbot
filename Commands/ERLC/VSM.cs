@@ -141,7 +141,7 @@ namespace Whispbot.Commands.ERLC
                     return;
                 }
 
-                await ctx.Reply($"{ctx.Emoji("loading")} {ctx.String("erlc.content.erlcvsm.sending")}...");
+                await ctx.Reply($"{ctx.Emoji("loading")} {ctx.String("erlc.vsm.sending")}...");
 
                 var response = await ERLCAPI.SendCommand(server, $":{commandName} {args.Join(" ")}");
 

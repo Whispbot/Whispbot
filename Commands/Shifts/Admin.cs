@@ -38,7 +38,7 @@ namespace Whispbot.Commands.Shifts
             IUser? user = userArg is not null ? userArg : ctx.User;
             if (user is null)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.general.invaliduser}");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("errors.invalid_user")}");
                 return;
             }
 
@@ -52,7 +52,7 @@ namespace Whispbot.Commands.Shifts
             string? typeArg = ctx.args.Get("type")?.GetString();
             ShiftType? type = typeArg is not null ? shiftTypes.Find(t => t.triggers.Contains(typeArg) || t.id.ToString() == typeArg) : null;
 
-            var message = await ShiftAdminMessages.GetMainMessage(ctx.GuildId, user.Id, ctx.UserId, type);
+            var message = await ShiftAdminMessages.GetMainMessage(ctx.GuildId, user.Id, ctx.UserId, type, ctx.Language);
             await ctx.Reply(components: message, flags: MessageFlags.ComponentsV2);
         }
     }
@@ -121,7 +121,7 @@ namespace Whispbot.Commands.Shifts
             if (data is null)
             {
                 return new ComponentBuilderV2()
-                    .WithTextDisplay("{emoji.warning} {string.errors.shiftadmin.failedgetdata}")
+                    .WithTextDisplay($"{Emojis.Get("warning")} {"shifts.errors.failed_get_shift_data".Translate(lang)}")
                     .Build();
             }
 
@@ -151,7 +151,7 @@ namespace Whispbot.Commands.Shifts
                             $"**{"shifts.admin.recent_shifts".Translate(lang)}**:\n{recentShifts.ConvertAll(s => 
                                 $"{types?.Find(t => t.id == s.type)?.name ?? $"*{"phrase.unknown".Translate(lang)}*"} @ <t:{s.start_time.ToUnixTimeSeconds()}:R> {(s.end_time is not null ? $"{"phrase.for".Translate(lang)} {Time.ConvertMillisecondsToString((s.end_time - s.start_time).Value.TotalMilliseconds, ", ", true, 60000
                             )}" :
-                            "{string.content.shiftadmin.untilnow}")}").Join("\n")}" : "{string.errors.shiftadmin.norecentshifts}.")
+                            $"{"shifts.admin..untilnow".Translate(lang)}")}").Join("\n")}" : $"{"errors.shiftadmin.norecentshifts".Translate(lang)}.")
                         .WithTextDisplay($"-# Type: {type?.name ?? "all"}")
                         .WithAccentColor(data.currentShiftStart is not null ? new Color(0, 150, 0) : null)
                 )
@@ -169,7 +169,7 @@ namespace Whispbot.Commands.Shifts
                 .Build();
         }
 
-        public static async Task<MessageComponent> GetListMessage(ulong guildId, ulong userId, ulong adminId, ShiftType? type = null, int page = 1)
+        public static async Task<MessageComponent> GetListMessage(ulong guildId, ulong userId, ulong adminId, ShiftType? type = null, int page = 1, Language lang = 0)
         {
             var userTask = Config.client!.GetUserAsync(userId, CacheMode.AllowDownload, RequestOptions.Default);
             var typeTask = WhispCache.ShiftTypes.Get(guildId);
@@ -193,7 +193,7 @@ namespace Whispbot.Commands.Shifts
             if (shifts is null || shifts.Count == 0)
             {
                 return new ComponentBuilderV2()
-                    .WithTextDisplay("{emoji.warning} {string.errors.shiftadmin.failedgetdata}")
+                    .WithTextDisplay($"{Emojis.Get("warning")} {"shifts.errors.failed_get_shift_data".Translate(lang)}")
                     .Build();
             }
 
@@ -203,43 +203,43 @@ namespace Whispbot.Commands.Shifts
             return new ComponentBuilderV2()
                 .WithContainer(
                     new ContainerBuilder()
-                        .WithTextDisplay($"## {{string.title.shiftadmin.list}}\n-# @{user?.Username ?? "unknown"}")
+                        .WithTextDisplay($"## {"title.shiftadmin.list".Translate(lang)}\n-# @{user?.Username ?? "unknown"}")
                         .WithComponents(shifts.SelectMany<Shift, TextDisplayBuilder>(s => [
-                            new TextDisplayBuilder($"`{s.id}`\n**{{string.content.shiftadminlist.started}}**: <t:{s.start_time.ToUnixTimeSeconds()}:f>\n**{{string.content.shiftadminlist.ended}}**: {(s.end_time is not null ? $"<t:{s.end_time.Value.ToUnixTimeSeconds()}:f>" : "{string.content.shiftadmin.notfinished}")}\n**{{string.content.shiftadminlist.duration}}:** {Time.ConvertMillisecondsToString(((s.end_time ?? DateTimeOffset.UtcNow) - s.start_time).TotalMilliseconds, ", ", true, 60000)}\n**{{string.content.shiftadminlist.type}}:** {types?.Find(t => t.id == s.type)?.name ?? "unknown"}")
+                            new TextDisplayBuilder($"`{s.id}`\n**{"shifts.admin.list.started".Translate(lang)}**: <t:{s.start_time.ToUnixTimeSeconds()}:f>\n**{"shifts.admin.list.ended".Translate(lang)}**: {(s.end_time is not null ? $"<t:{s.end_time.Value.ToUnixTimeSeconds()}:f>" : $"{"shifts.admin..notfinished".Translate(lang)}")}\n**{"shifts.admin.list.duration".Translate(lang)}:** {Time.ConvertMillisecondsToString(((s.end_time ?? DateTimeOffset.UtcNow) - s.start_time).TotalMilliseconds, ", ", true, 60000, lang)}\n**{"shifts.admin.list.type".Translate(lang)}:** {types?.Find(t => t.id == s.type)?.name ?? "unknown"}")
                         ]))
                         .WithTextDisplay($"-# Type: {type?.name ?? "all"}")
                 )
                 .WithActionRow(
                     new ActionRowBuilder()
-                        .WithButton("{string.button.shiftadmin.back}", $"sa_main {adminId} {userId} {type?.id}", ButtonStyle.Secondary, Emojis.Get("back"))
-                        .WithButton("{string.button.shiftadmin.previous}", $"sa_list {adminId} {userId} {type?.id ?? 0} {page - 1}", ButtonStyle.Primary, Emojis.Get("left"), disabled: page <= 1)
+                        .WithButton($"{"shifts.admin.button.back".Translate(lang)}", $"sa_main {adminId} {userId} {type?.id}", ButtonStyle.Secondary, Emojis.Get("back"))
+                        .WithButton($"{"shifts.admin.button.previous".Translate(lang)}", $"sa_list {adminId} {userId} {type?.id ?? 0} {page - 1}", ButtonStyle.Primary, Emojis.Get("left"), disabled: page <= 1)
                         .WithButton($"{page}/{Math.Ceiling((double)totalCount / 5)}", "null", ButtonStyle.Primary, disabled: true)
-                        .WithButton("{string.button.shiftadmin.next}", $"sa_list {adminId} {userId} {type?.id ?? 0} {page + 1}", ButtonStyle.Primary, Emojis.Get("right"), disabled: page * 5 >= totalCount)
+                        .WithButton($"{"shifts.admin.button.next".Translate(lang)}", $"sa_list {adminId} {userId} {type?.id ?? 0} {page + 1}", ButtonStyle.Primary, Emojis.Get("right"), disabled: page * 5 >= totalCount)
                 )
                 .Build();
         }
         
-        public static async Task<MessageComponent> GetModifyMessage(Shift shift, string adminId)
+        public static async Task<MessageComponent> GetModifyMessage(Shift shift, string adminId, Language lang = 0)
         {
             List<ShiftType>? types = await WhispCache.ShiftTypes.Get(shift.guild_id);
 
             return new ComponentBuilderV2()
                 .WithContainer(
                     new ContainerBuilder()
-                        .WithTextDisplay($"## {{string.title.shiftadmin.modify}}\n-# {shift.id}")
-                        .WithTextDisplay($"**{{string.content.shiftadminmodify.started}}:** <t:{shift.start_time.ToUnixTimeSeconds()}:f>\n**{{string.content.shiftadminmodify.ended}}:** <t:{shift.end_time?.ToUnixTimeSeconds()}:f>\n**{{string.content.shiftadminmodify.duration}}:** {Time.ConvertMillisecondsToString(((shift.end_time ?? DateTimeOffset.UtcNow) - shift.start_time).TotalMilliseconds, ", ", true, 60000)}\n**{{string.content.shiftadminmodify.type}}:** {types?.Find(t => t.id == shift.type)?.name ?? "unknown"}")
+                        .WithTextDisplay($"## {"title.shiftadmin.modify".Translate(lang)}\n-# {shift.id}")
+                        .WithTextDisplay($"**{"shifts.admin.modify.started".Translate(lang)}:** <t:{shift.start_time.ToUnixTimeSeconds()}:f>\n**{"shifts.admin.modify.ended".Translate(lang)}:** <t:{shift.end_time?.ToUnixTimeSeconds()}:f>\n**{"shifts.admin.modify.duration".Translate(lang)}:** {Time.ConvertMillisecondsToString(((shift.end_time ?? DateTimeOffset.UtcNow) - shift.start_time).TotalMilliseconds, ", ", true, 60000)}\n**{"shifts.admin.modify.type".Translate(lang)}:** {types?.Find(t => t.id == shift.type)?.name ?? "unknown"}")
                 )
                 .WithActionRow(
                     new ActionRowBuilder()
-                        .WithButton($"sa_main {adminId} {shift.moderator_id} {shift.type}", "{string.button.shiftadmin.back}", ButtonStyle.Secondary, Emojis.Get("back"))
-                        .WithButton($"sa_addtime {adminId} {shift.id}", "{string.button.shiftadmin.addtime}", ButtonStyle.Success, Emojis.Get("clockplus"))
-                        .WithButton($"sa_removetime {adminId} {shift.id}", "{string.button.shiftadmin.removetime}", ButtonStyle.Danger, Emojis.Get("clockminus"))
-                        .WithButton($"sa_settime {adminId} {shift.id}", "{string.button.shiftadmin.settime}", ButtonStyle.Primary, Emojis.Get("clockedit"))
+                        .WithButton("shifts.admin.button.back".Translate(lang), $"sa_main {adminId} {shift.moderator_id} {shift.type}", ButtonStyle.Secondary, Emojis.Get("back"))
+                        .WithButton("shifts.admin.button.add_time".Translate(lang), $"sa_addtime {adminId} {shift.id}", ButtonStyle.Success, Emojis.Get("clockplus"))
+                        .WithButton("shifts.admin.button.remove_time".Translate(lang), $"sa_removetime {adminId} {shift.id}", ButtonStyle.Danger, Emojis.Get("clockminus"))
+                        .WithButton("shifts.admin.button.set_time".Translate(lang), $"sa_settime {adminId} {shift.id}", ButtonStyle.Primary, Emojis.Get("clockedit"))
                 )
                 .WithActionRow(
                     new ActionRowBuilder()
-                        .WithButton($"sa_changetype {adminId} {shift.id}", "{string.button.shiftadmin.changetype}", ButtonStyle.Primary, Emojis.Get("pen"))
-                        .WithButton($"sa_delete {adminId} {shift.moderator_id} {shift.type} {shift.id}", "{string.button.shiftadmin.deleteshift}", ButtonStyle.Danger, Emojis.Get("delete"))
+                        .WithButton("shifts.admin.button.change_type".Translate(lang), $"sa_changetype {adminId} {shift.id}", ButtonStyle.Primary, Emojis.Get("pen"))
+                        .WithButton("shifts.admin.button.deleteshift".Translate(lang), $"sa_delete {adminId} {shift.moderator_id} {shift.type} {shift.id}", ButtonStyle.Danger, Emojis.Get("delete"))
                 )
                 .Build();
         }

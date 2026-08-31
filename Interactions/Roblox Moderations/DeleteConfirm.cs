@@ -20,9 +20,16 @@ namespace Whispbot.Interactions.Roblox_Moderations
         {
             if (ctx.GuildId is null || ctx.args.Count < 1) return;
 
-            _ = ctx.DeferResponse();
+            await ctx.DeferResponse();
 
-            await Procedures.DeleteRM(ctx.GuildId.Value, ctx.UserId, int.Parse(ctx.args[0]));
+            var moderation = await Procedures.DeleteRM(ctx.GuildId.Value, ctx.UserId, int.Parse(ctx.args[0]));
+            if (moderation is null)
+            {
+                await ctx.Respond($"{ctx.Emoji("cross")} {ctx.String("rmod.log.errors.no_edit_permissions")}");
+                return;
+            }
+
+            await ctx.DeleteResponse();
         }
     }
 }

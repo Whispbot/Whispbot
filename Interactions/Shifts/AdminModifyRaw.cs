@@ -24,14 +24,14 @@ namespace Whispbot.Interactions.Shifts
             List<ShiftType>? types = await WhispCache.ShiftTypes.Get(ctx.GuildId.Value);
             if (types is null)
             {
-                await ctx.Respond("{emoji.cross} {string.errors.clockin.dbfailed}");
+                await ctx.Respond($"{ctx.Emoji("cross")} {ctx.String("shifts.errors.failed_get_shift_data")}");
                 return;
             }
 
             ShiftType? type = types.Find(t => ctx.args.Count >= 3 && t.id.ToString() == ctx.args[2]);
             if (type is null && ctx.args.Count > 2)
             {
-                await ctx.Respond("{emoji.cross} {string.errors.clockin.typenotfound}");
+                await ctx.Respond($"{ctx.Emoji("cross")} {ctx.String("shifts.errors.type_not_found")}");
                 return;
             }
 
@@ -41,13 +41,13 @@ namespace Whispbot.Interactions.Shifts
 
             if (shift_id is null)
             {
-                await ctx.Respond("{emoji.cross} {string.errors.adminmodify.noshift}");
+                await ctx.Respond($"{ctx.Emoji("cross")} {ctx.String("shifts.admin.errors.no_shift")}");
                 return;
             }
 
             if (!long.TryParse(shift_id, out _))
             {
-                await ctx.Respond("{emoji.cross} {string.errors.adminmodify.invalidshiftid}");
+                await ctx.Respond($"{ctx.Emoji("cross")} {ctx.String("shifts.admin.errors.invalid_shift_id")}");
                 return;
             }
 
@@ -60,7 +60,7 @@ namespace Whispbot.Interactions.Shifts
 
             if (shift is null)
             {
-                await ctx.Respond("{emoji.cross} {string.errors.adminmodify.shiftnotfound}");
+                await ctx.Respond($"{ctx.Emoji("cross")} {ctx.String("shifts.admin.errors.shift_not_found")}");
                 return;
             }
 

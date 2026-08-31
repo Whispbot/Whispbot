@@ -28,14 +28,14 @@ namespace Whispbot.Commands.Staff
             string? title = ctx.args.Get("content")?.GetString()?.Split("::")?[0]; // >page title::description
             if (string.IsNullOrEmpty(title))
             {
-                await ctx.Reply("{emoji.cross} Please provide a reason.");
+                await ctx.Reply($"{ctx.Emoji("cross")} Please provide a reason.");
                 return;
             }
 
             string? description = ctx.args.Get("content")!.GetString()!.Split("::").Skip(1).Join(" ");
             description += $"\n\nSent by @{ctx.User.Username} ({ctx.UserId})"; // Sign page to avoid annoying fucks abusing
 
-            await ctx.Reply("{emoji.loading} Sending page...");
+            await ctx.Reply($"{ctx.Emoji("loading")} Sending page...");
 
             var page = await Incident.TriggerEscalation(title, description); // Trigger page
 
@@ -109,7 +109,7 @@ namespace Whispbot.Commands.Staff
                 users.AppendLine($"> {{{(acked ? "emoji.tick" : finalUpdate ? "emoji.cross" : "emoji.loading")}}} {(acked ? "Acknowledged by" : finalUpdate ? "Unable to reach" : "Waiting for")} {user.name} (`{user.email}`)");
             }
 
-            return $"{{emoji.tick}} Sent page successfully.\n{users}\n-# Sent <t:{firstSent.ToUnixTimeSeconds()}:R>, updated <t:{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}:R>";
+            return $"{Emojis.Get("tick")} Sent page successfully.\n{users}\n-# Sent <t:{firstSent.ToUnixTimeSeconds()}:R>, updated <t:{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}:R>";
         }
     }
 }

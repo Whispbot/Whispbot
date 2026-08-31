@@ -74,8 +74,8 @@ namespace Whispbot.Tools
 
                 await ctx.Reply(
                     embed: new EmbedBuilder()
-                        .WithTitle("{string.title.permissions.invalid}")
-                        .WithDescription("{string.content.permissions.invalid}.".Translate(ctx.Language, missingPermissions.Join(", ", " or ")))
+                        .WithTitle($"{ctx.String("permissions.errors.title")}")
+                        .WithDescription($"{ctx.String("permissions.errors.title")}.".Translate(ctx.Language, missingPermissions.Join(", ", " or ")))
                         .WithColor(new Color(150, 50, 50))
                         .Build()
                 );
@@ -101,8 +101,8 @@ namespace Whispbot.Tools
 
                 await ctx.Respond(
                     embed: new EmbedBuilder()
-                        .WithTitle("{string.title.permissions.invalid}")
-                        .WithDescription("{string.content.permissions.invalid}.".Translate(ctx.Language, missingPermissions.Join(", ", " or ")))
+                        .WithTitle($"{ctx.String("permissions.errors.title")}")
+                        .WithDescription($"{ctx.String("permissions.errors.title")}.".Translate(ctx.Language, missingPermissions.Join(", ", " or ")))
                         .WithColor(new Color(150, 50, 50))
                         .Build(),
                     ephemeral: true
@@ -142,8 +142,8 @@ namespace Whispbot.Tools
             {
                 await ctx.Reply(
                     embed: new EmbedBuilder()
-                        .WithTitle("{string.title.module.disabled}")
-                        .WithDescription("{string.content.module.disabled}.".Translate(ctx.Language, missingModules.Join(", ", " or ")))
+                        .WithTitle($"{ctx.String("permissions.module.title")}")
+                        .WithDescription($"{ctx.String("permissions.module.errors.disabled")}.".Translate(ctx.Language, missingModules.Join(", ", " or ")))
                         .WithColor(new Color(150, 50, 50))
                         .Build()
                 );

@@ -33,7 +33,7 @@ namespace Whispbot.Commands.Roblox_Moderation
 
             if (ctx.args.Count < 1)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.rmbr.missingargs}.");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("rmod.requests.errors.missing_arguments")}.");
                 return;
             }
 
@@ -41,7 +41,7 @@ namespace Whispbot.Commands.Roblox_Moderation
 
             if (types is null)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.rmlog.dbfailed}.");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("rmod.log.errors.database")}.");
                 return;
             }
 
@@ -49,7 +49,7 @@ namespace Whispbot.Commands.Roblox_Moderation
 
             if (!hasBanType)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.rmbr.nobantype}");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("rmod.requests.errors.no_ban_type")}");
                 return;
             }
 
@@ -57,7 +57,7 @@ namespace Whispbot.Commands.Roblox_Moderation
 
             if (ctx.GuildConfig?.roblox_moderation?.require_reason == true && string.IsNullOrWhiteSpace(reason))
             {
-                await ctx.Reply("{emoji.cross} {string.errors.rmlog.reasonrequired}");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("rmod.log.errors.reason_required")}");
                 return;
             }
 
@@ -65,7 +65,7 @@ namespace Whispbot.Commands.Roblox_Moderation
 
             if (user is null)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.rmlog.invaliduser}.");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("rmod.log.errors.invalid_user")}.");
                 return;
             }
 
@@ -80,20 +80,20 @@ namespace Whispbot.Commands.Roblox_Moderation
             {
                 await ctx.Reply(
                     embed: new EmbedBuilder()
-                        .WithTitle("{string.title.rmbr.logged}")
-                        .WithDescription("{emoji.tick} {string.success.rmbr}")
+                        .WithTitle($"{ctx.String("rmod.requests.title.logged")}")
+                        .WithDescription($"{ctx.Emoji("tick")} {ctx.String("rmod.requests.success")}")
                         .WithAuthor(ctx.User.GlobalName ?? $"@{ctx.User.Username}", ctx.User.GetDisplayAvatarUrl())
                         .WithThumbnailUrl(await Roblox.GetUserAvatar(user.id))
                         .WithFields(
-                            new EmbedFieldBuilder() { Name = "{string.title.rmlog.user}", Value = $"{{emoji.user}} **@{user.name}** ({user.id})" },
-                            new EmbedFieldBuilder() { Name = "{string.title.rmlog.reason}", Value = $"{{emoji.alignment}} {reason}" }
+                            new EmbedFieldBuilder() { Name = $"{ctx.String("rmod.log.field.user")}", Value = $"{ctx.Emoji("user")} **@{user.name}** ({user.id})" },
+                            new EmbedFieldBuilder() { Name = $"{ctx.String("rmod.log.field.reason")}", Value = $"{ctx.Emoji("alignment")} {reason}" }
                         )
                         .Build()
                 );
             }
             else
             {
-                await ctx.Reply("{emoji.cross} {string.errors}.");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("errors.general.unknown")}.");
             }
         }
     }

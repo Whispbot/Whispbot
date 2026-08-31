@@ -1,4 +1,5 @@
 using Discord;
+using Discord.WebSocket;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -7,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Cache;
 using Whispbot.Databases;
+using Whispbot.Extensions;
 using Whispbot.Tools;
 
 namespace Whispbot.Commands.Shifts
@@ -90,12 +92,12 @@ namespace Whispbot.Commands.Shifts
 
             if (userActivities is null)
             {
-                await ctx.Reply("{emoji.warning} {string.errors.shiftactivity.dbfailed}");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("shifts.activity.errors.failed")}");
                 return;
             }
             if (userActivities.Count == 0)
             {
-                await ctx.Reply("{emoji.warning} {string.errors.shiftactivity.nodata}");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("shifts.activity.errors.none")}");
                 return;
             }
 
@@ -111,7 +113,7 @@ namespace Whispbot.Commands.Shifts
 
                 if (permissionRoles is null)
                 {
-                    await ctx.Reply("{emoji.warning} {string.errors.shiftactivity.dbfailed}");
+                    await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("shifts.activity.errors.failed_type")}");
                     return;
                 }
 
@@ -122,10 +124,10 @@ namespace Whispbot.Commands.Shifts
                 ];
             }
 
-            List<IGuildUser> members = [.. userActivities.Select(ua => ctx.Guild.GetUser(ua.moderator_id))];
+            List<SocketGuildUser> members = [.. userActivities.Select(ua => ctx.Guild.GetUser(ua.moderator_id))];
 
-            List<IGuildUser> eligibleMembers = [..members
-                .Where(m => roles.Any(r => m.RoleIds.Contains(r)))
+            List<SocketGuildUser> eligibleMembers = [..members
+                .Where(m => m is not null && m.Roles.Any(r => roles.Contains(r.Id)))
             ];
 
             List<string> metRequirement = [];
@@ -136,15 +138,18 @@ namespace Whispbot.Commands.Shifts
             List<Embed> embeds = [
                 new EmbedBuilder
                 {
-                    Title = "{string.title.shiftactivity}",
-                    Description = $"**{{string.title.shiftactivity.totalshifts}}**: {
-                        activities.Sum(u => u.shifts)
-                    }\n**{{string.title.shiftactivity.totalduration}}**: {
-                        Time.ConvertMillisecondsToString(activities.Sum(u => u.duration), ", ", false, 60000)
-                    }",
+                    Title = ctx.String("shifts.activity.title"),
+                    Description = ctx.String("shifts.activity.content",
+                        activities.Sum(a => a.shifts).ToString(),
+                        Time.ConvertMillisecondsToString(activities.Sum(u => u.duration), ", ", false, 60000, ctx.Language)
+                    ),
                     Footer = new EmbedFooterBuilder
                     {
-                        Text = $"{{string.title.shiftactivity.duration}}: {Time.ConvertMillisecondsToString(duration.TotalMilliseconds, ", ", true)} | {{string.title.shiftactivity.requirement}}: {Time.ConvertMillisecondsToString(requirement.TotalMilliseconds, ", ", true)} | {{string.title.shiftactivity.type}}: {type?.name ?? "all"}"
+                        Text = ctx.String("shifts.activity.footer",
+                            Time.ConvertMillisecondsToString(duration.TotalMilliseconds, ", ", true, language: ctx.Language),
+                            Time.ConvertMillisecondsToString(requirement.TotalMilliseconds, ", ", true, language: ctx.Language),
+                            type?.name ?? ctx.String("phrase.all")
+                        )
                     }
                 }.Build()
             ];
@@ -181,8 +186,8 @@ namespace Whispbot.Commands.Shifts
                 }
             }
 
-            if (metRequirement.Count == 0) metRequirement.Add("*{string.content.shiftactivity.nobody}.*");
-            if (notMetRequirement.Count == 0) notMetRequirement.Add("*{string.content.shiftactivity.nobody}.*");
+            if (metRequirement.Count == 0) metRequirement.Add(ctx.String("shifts.activity.nobody"));
+            if (notMetRequirement.Count == 0) notMetRequirement.Add(ctx.String("shifts.activity.nobody"));
 
 
             await ctx.Reply(

@@ -35,14 +35,14 @@ namespace Whispbot.Commands.Discord_Moderation
                  GuildPermission.ModerateMembers
             ))
             {
-                await ctx.Reply("{emoji.cross} {string.errors.dm.no_permission}.");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("dmod.errors.no_permissions")}.");
                 return;
             }
 
             string? caseIdArg = ctx.args.Get("case")?.GetString();
             if (caseIdArg is null)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.dm.no_case_provided}.");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("dmod.errors.no_case_provided")}.");
                 return;
             }
 
@@ -62,7 +62,7 @@ namespace Whispbot.Commands.Discord_Moderation
 
             if (caseId == 0)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.dm.invalid_case_id}.");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("dmod.errors.invalid_case_id")}.");
                 return;
             }
 
@@ -70,11 +70,11 @@ namespace Whispbot.Commands.Discord_Moderation
 
             if (updatedCase is null)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.dm.failed_void_case}.");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("dmod.errors.failed_void_case")}.");
             }
             else
             {
-                await ctx.Reply($"{{emoji.tick}} {{string.success.dm.voided_case:id={updatedCase.case_id}}}!");
+                await ctx.Reply($"{ctx.Emoji("tick")} {ctx.String("dmod.success.voided_case", updatedCase.case_id.ToString())}!");
             }
         }
     }

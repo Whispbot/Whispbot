@@ -28,7 +28,7 @@ namespace Whispbot.Interactions.Shifts
 
             if (thisType is null)
             {
-                await ctx.Respond("{emoji.cross} {string.errors.clockin.typenotfound}");
+                await ctx.Respond($"{ctx.Emoji("cross")} {ctx.String("shifts.errors.type_not_found")}");
                 return;
             }
 
@@ -36,7 +36,7 @@ namespace Whispbot.Interactions.Shifts
 
             if (shift is null)
             {
-                await ctx.Respond($"{{emoji.cross}} {errormessage ?? "{string.errors.clockin.failed}"}");
+                await ctx.Respond($"{ctx.Emoji("cross")} {errormessage ?? ctx.String("shifts.clockin.errors.failed")}");
             } 
             else
             {

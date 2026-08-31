@@ -24,15 +24,15 @@ namespace Whispbot.Interactions.Roblox_Moderations
             List<RobloxModerationType>? types = (await WhispCache.RobloxModerationTypes.Get(ctx.GuildId.Value))?.Where(t => !t.is_deleted)?.ToList();
             if (types is null || types.Count == 0)
             {
-                await ctx.Respond("{emoji.cross} {string.errors.rmlog.dbfailed}", ephemeral: true);
+                await ctx.Respond($"{ctx.Emoji("cross")} {ctx.String("rmod.log.errors.database")}", ephemeral: true);
                 return;
             }
 
             var modal = new ModalBuilder()
                 .WithCustomId($"rm_modal_edittype {ctx.args[0]}")
-                .WithTitle("{string.button.rmlog.edittype}")
+                .WithTitle($"{ctx.String("rmod.log.button.edit_type")}")
                 .AddSelectMenu(
-                    label: "{string.title.rmlog.type}",
+                    label: $"{ctx.String("rmod.log.field.type")}",
                     customId: "type",
                     options: [.. types.Select(t => new SelectMenuOptionBuilder().WithLabel(t.name).WithValue(t.id.ToString()).WithDescription(t.triggers.Count > 0 ? t.triggers.Join(", ") : null))],
                     required: true

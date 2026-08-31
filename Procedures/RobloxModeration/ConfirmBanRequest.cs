@@ -101,7 +101,7 @@ namespace Whispbot
 
             var result = await ERLCAPI.SendCommand(erlcServer, $":ban {banRequest.target_id}");
 
-            if (result?.error == ErrorCode.Unknown)
+            if (result?.error == ErrorCode.Nothing)
             {
                 await initialMessageUpdate;
                 await MarkAsBanned(banRequest.id, banRequest.guild_id, banRequest.moderator_id);
@@ -114,7 +114,7 @@ namespace Whispbot
                     SET status = FALSE, status_message = @1
                     WHERE id = @2
                     RETURNING *",
-                    [result?.error_message ?? "{string.errors.rmbr.unknownerror}", banRequest.id]
+                    [result?.error_message ?? Languages.Translator.Get(Whispbot.Languages.Language.EnglishUK, $"erlc.errors.api.{(result?.error ?? 0).ToString().ToLower()}"), banRequest.id]
                 );
                 await initialMessageUpdate;
 
@@ -133,7 +133,7 @@ namespace Whispbot
         {
             if (!await WhispPermissions.HasPermission(guildId, moderatorId, BotPermissions.ManageBanRequests))
             {
-                return (null, "{string.errors.rmlog.noperms}");
+                return (null, Whispbot.Languages.Translator.Get(Whispbot.Languages.Language.EnglishUK, "rmod.log.errors.no_permissions"));
             }
 
             BanRequest? banRequest = Postgres.SelectFirst<BanRequest>(
@@ -146,10 +146,9 @@ namespace Whispbot
 
             if (banRequest is not null)
             {
-                _ = Task.Run(() => PostRemoveBanRequest(banRequest));
                 return (banRequest, null);
             }
-            return (null, "{string.errors.rmlog.logfailed}");
+            return (null, Whispbot.Languages.Translator.Get(Whispbot.Languages.Language.EnglishUK, "rmod.log.errors.failed"));
         }
 
         /// <summary>
@@ -162,12 +161,12 @@ namespace Whispbot
         public static async Task<(BanRequest?, string?)> MarkAsBanned(ulong id, ulong guildId, ulong moderatorId)
         {
             // Makes sure the module is actually enabled
-            if (!(await WhispPermissions.CheckModule(guildId, Commands.Module.RobloxModeration)).Item1) return (null, "{string.errors.rmlog.moduledisabled}");
+            if (!(await WhispPermissions.CheckModule(guildId, Commands.Module.RobloxModeration)).Item1) return (null, Whispbot.Languages.Translator.Get(Whispbot.Languages.Language.EnglishUK, "rmod.errors.module_disabled"));
 
             // Makes sure the moderator has permission to do this
             if (!await WhispPermissions.HasPermission(guildId, moderatorId, BotPermissions.ManageBanRequests))
             {
-                return (null, "{string.errors.rmlog.noperms}");
+                return (null, Whispbot.Languages.Translator.Get(Whispbot.Languages.Language.EnglishUK, "rmod.log.errors.no_permissions"));
             }
 
             // Get the ban type for the server 
@@ -175,12 +174,12 @@ namespace Whispbot
             RobloxModerationType? banType = types?.FirstOrDefault(t => t.is_ban_type && !t.is_deleted);
             if (banType is null)
             {
-                return (null, "{string.errors.rmbr.nobantype}");
+                return (null, Whispbot.Languages.Translator.Get(Whispbot.Languages.Language.EnglishUK, "rmod.requests.errors.no_ban_type"));
             }
 
             // Transaction to make sure that both operations complete successfully
             using var transaction = Postgres.BeginTransaction();
-            if (transaction is null) return (null, "{string.errors.general.dbfailed}");
+            if (transaction is null) return (null, Whispbot.Languages.Translator.Get(Whispbot.Languages.Language.EnglishUK, "errors.dbfailed"));
 
             BanRequest? banRequest = Postgres.SelectFirst<BanRequest>(
                 @"
@@ -207,7 +206,7 @@ namespace Whispbot
 
                 return (banRequest, null);
             }
-            return (null, "{string.errors.rmlog.logfailed}");
+            return (null, Whispbot.Languages.Translator.Get(Whispbot.Languages.Language.EnglishUK, "rmod.log.errors.failed"));
         }
 
         /// <summary>
@@ -221,13 +220,13 @@ namespace Whispbot
         public static async Task<(BanRequest?, string?)> ApproveBanRequest(ulong id, ulong guildId, ulong moderatorId, ERLCServerConfig erlcServer)
         {
             // Checks if the module is actually enabled
-            if (!(await WhispPermissions.CheckModule(guildId, Commands.Module.RobloxModeration | Commands.Module.ERLC)).Item1) return (null, "{string.errors.rmlog.moduledisabled}");
+            if (!(await WhispPermissions.CheckModule(guildId, Commands.Module.RobloxModeration | Commands.Module.ERLC)).Item1) return (null, Whispbot.Languages.Translator.Get(Whispbot.Languages.Language.EnglishUK, "rmod.errors.module_disabled"));
 
-            if (erlcServer.api_key is null) return (null, "{string.errors.rmbr.noapikey}");
+            if (erlcServer.api_key is null) return (null, Whispbot.Languages.Translator.Get(Whispbot.Languages.Language.EnglishUK, "rmod.requests.errors.no_api_key"));
 
             if (!await WhispPermissions.HasPermission(guildId, moderatorId, BotPermissions.ManageBanRequests))
             {
-                return (null, "{string.errors.rmlog.noperms}");
+                return (null, Whispbot.Languages.Translator.Get(Whispbot.Languages.Language.EnglishUK, "rmod.log.errors.no_permissions"));
             }
 
             // Get the ban type for the server
@@ -235,12 +234,12 @@ namespace Whispbot
             RobloxModerationType? banType = types?.FirstOrDefault(t => t.is_ban_type && !t.is_deleted);
             if (banType is null)
             {
-                return (null, "{string.errors.rmbr.nobantype}");
+                return (null, Whispbot.Languages.Translator.Get(Whispbot.Languages.Language.EnglishUK, "rmod.requests.errors.no_ban_type"));
             }
 
             if (erlcServer.allow_ban_requests != true)
             {
-                return (null, "{string.errors.rmbr.banrequestsdisabled}");
+                return (null, Whispbot.Languages.Translator.Get(Whispbot.Languages.Language.EnglishUK, "rmod.requests.errors.disabled"));
             }
 
             BanRequest? banRequest = Postgres.SelectFirst<BanRequest>(
@@ -257,7 +256,7 @@ namespace Whispbot
                 _ = Task.Run(() => SendBanRequestCommand(banRequest, erlcServer));
                 return (banRequest, null);
             }
-            return (null, "{string.errors.rmbr.alreadyapproved}");
+            return (null, Whispbot.Languages.Translator.Get(Whispbot.Languages.Language.EnglishUK, "rmod.requests.errors.already_approved"));
         }
     }
 }

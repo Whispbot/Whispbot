@@ -34,7 +34,7 @@ namespace Whispbot.Tools.Games.ERLCAPI
                 {
                     if (ctx is not null)
                     {
-                        await ctx.EditResponse(m => m.Content = "{emoji.cross} {string.errors.erlcserver.apierror}");
+                        await ctx.EditResponse(m => m.Content = $"{ctx.Emoji("cross")} {ctx.String("erlc.errors.api_error")}");
                     }
                     return null;
                 }

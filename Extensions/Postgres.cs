@@ -173,11 +173,13 @@ namespace Whispbot.Extensions
             }
             else if (propertyType.IsEnum && value is string enumString)
             {
-                property.SetValue(item, Enum.Parse(property.PropertyType, enumString));
+                property.SetValue(item, Enum.Parse(propertyType, enumString));
             }
-            else if (propertyType.IsEnum && value is int enumInt)
+            else if (propertyType.IsEnum && value is IConvertible)
             {
-                property.SetValue(item, Enum.ToObject(property.PropertyType, enumInt));
+                var enumUnderlyingType = Enum.GetUnderlyingType(propertyType);
+                var enumValue = Convert.ChangeType(value, enumUnderlyingType);
+                property.SetValue(item, Enum.ToObject(propertyType, enumValue!));
             }
             else if (propertyType.IsClass && propertyType != typeof(string) && value is string jsonString)
             {
@@ -237,11 +239,13 @@ namespace Whispbot.Extensions
             }
             else if (fieldType.IsEnum && value is string enumString)
             {
-                field.SetValue(item, Enum.Parse(field.FieldType, enumString));
+                field.SetValue(item, Enum.Parse(fieldType, enumString));
             }
-            else if (fieldType.IsEnum && value is int enumInt)
+            else if (fieldType.IsEnum && value is IConvertible)
             {
-                field.SetValue(item, Enum.ToObject(field.FieldType, enumInt));
+                var enumUnderlyingType = Enum.GetUnderlyingType(fieldType);
+                var enumValue = Convert.ChangeType(value, enumUnderlyingType);
+                field.SetValue(item, Enum.ToObject(fieldType, enumValue!));
             }
             else if (fieldType.IsClass && fieldType != typeof(string) && value is string jsonString)
             {

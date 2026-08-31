@@ -29,13 +29,13 @@ namespace Whispbot.Interactions.Roblox_Moderations
                                 .WithSection(
                                     new SectionBuilder()
                                         .AddComponent(
-                                            new TextDisplayBuilder("{emoji.warning} {string.content.rm.confirmdelete}")
+                                            new TextDisplayBuilder($"{ctx.Emoji("warning")} {ctx.String("rmod.log.delete_confirmation")}")
                                         )
                                         .WithAccessory(
                                             new ButtonBuilder()
                                                 .WithCustomId($"rm_log_delete_confirm {ctx.args[0]}")
                                                 .WithStyle(ButtonStyle.Danger)
-                                                .WithLabel("{string.button.general.confirm}")
+                                                .WithLabel($"{ctx.String("general.button.confirm")}")
                                                 .WithEmote(Emojis.Get("tick"))
                                         )
                                 )

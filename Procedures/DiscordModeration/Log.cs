@@ -195,19 +195,20 @@ namespace Whispbot
             var target = await targetTask;
 
             var guildConfig = WhispCache.GuildConfig.Get(log.guild_id);
+            var lang = (await guildConfig)?.default_language ?? 0;
 
             return new EmbedBuilder()
                 .WithAuthor($"@{moderator.Username} ({log.moderator_id})", moderator.GetDisplayAvatarUrl())
                 .WithThumbnailUrl(target.GetDisplayAvatarUrl())
                 .WithDescription(
-                    $"{{string.dm.pt.{type.Item1.ToLower()}}} " +
+                    $"{lang.Translate($"dmod.punishment.{type.Item1.ToLower()}")} " +
                     $"**@{Users.FixUsername(target.Username)}** " +
                     $"({log.target_id})" +
-                    $"{(type.Item4 ? $" {{string.content.phrase.for}} {Time.ConvertMillisecondsToString((log.duration_s ?? 0) * 1000d)}" : "")}."
+                    $"{(type.Item4 ? $" {lang.Translate("phrase.for")} {Time.ConvertMillisecondsToString((log.duration_s ?? 0) * 1000d, language: lang)}" : "")}."
                 ) // Fuck locales
-                .AddField("{string.title.dm.reason}", log.reason)
+                .AddField(Whispbot.Languages.Translator.Get(Whispbot.Languages.Language.EnglishUK, "dmod.log.field.reason"), log.reason)
                 .WithColor(type.Item3)
-                .WithFooter($"{{string.footer.dm.case}}: {log.case_id}")
+                .WithFooter($"{lang.Translate("dmod.success.case_id")}: {log.case_id}")
                 .Build();
         }
 
@@ -285,15 +286,22 @@ namespace Whispbot
             var caseId = "";
             if (config?.discord_moderation?.display_case_id ?? true) caseId = lang.Translate("dmod.success.case_id", log.case_id.ToString());
             var duration = "";
-            if (type.Item4 && log.duration_s is not null) duration = $" {"phrase.for".Translate(lang)} **{Time.ConvertMillisecondsToString((double)log.duration_s * 1000, ", ", false, 1000, lang)}**";
+            bool hasDuration = type.Item4 && log.duration_s is not null;
+            if (hasDuration) duration = Time.ConvertMillisecondsToString((double)log.duration_s * 1000, ", ", false, 1000, lang);
             var reason = "";
-            if (config?.discord_moderation?.display_case_reason ?? true) reason = $" {"phrase.for".Translate(lang)} **{Users.FixUsername(log.reason)}**{(log.reason.EndsWith('.') || !messagedUser ? "" : '.')}";
-            var failedDM = "";
+            bool hasReason = !string.IsNullOrWhiteSpace(log.reason) && log.reason != "No reason provided" && (config?.discord_moderation?.display_case_reason ?? true);
+            if (hasReason) reason = Users.FixUsername(log.reason);
+            string? failedDM;
             if (!messagedUser) failedDM = $" - {"dmod.success.messagefailed".Translate(lang)}.";
+            else failedDM = hasReason && !reason.EndsWith('.') ? "." : "";
 
-            return $"{Emojis.Get("tick")} {caseId} - {"phrase.successfully".Translate(lang)} " +
-                $"{$"dmod.punishment.{type.Item1.ToLower()}".Translate(lang)} " +
-                $"**@{Users.FixUsername(user.Username)}**{duration}{reason}{failedDM}";
+            var translation = $"{(hasReason ? "y" : "n")}{(hasDuration ? "y" : "n")}";
+
+            Logging.Debug(translation);
+            Logging.Debug(reason);
+            Logging.Debug(duration);
+
+            return $"{Emojis.Get("tick")} {caseId} - {lang.Translate($"dmod.success.message.{translation}", lang.Translate($"dmod.punishment.{type.Item1.ToLower()}"), Users.FixUsername(user.Username), reason, duration)}{failedDM}";
         }
 
         /// <summary>

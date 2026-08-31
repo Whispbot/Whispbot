@@ -26,7 +26,7 @@ namespace Whispbot.Interactions.Roblox_Moderations
 
             var modal = new ModalBuilder()
                 .WithCustomId($"rm_modal_editreason {ctx.args[0]}")
-                .WithTitle("{string.button.rmlog.editreason}")
+                .WithTitle($"{ctx.String("rmod.log.button.edit_reason")}")
                 .AddTextInput(
                     "Reason",
                     customId: "reason",

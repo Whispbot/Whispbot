@@ -30,6 +30,8 @@ namespace Whispbot.Commands.Staff
 
             var max = languages.Max(x => x.Value.Item2);
 
+            languages = languages.OrderBy(x => x.Value.Item2).ToDictionary(x => x.Key, x => x.Value);
+
             var sb = new StringBuilder();
             foreach (var (key, (name, strings)) in languages)
             {

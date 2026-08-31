@@ -53,22 +53,36 @@ namespace Whispbot.Interactions
 
         public static async Task Handle(SocketInteraction interaction)
         {
-            if (interaction.GuildId is null) return;
             if (interaction is not SocketAutocompleteInteraction autocomplete) return;
+            if (interaction.GuildId is null)
+            {
+                await autocomplete.RespondAsync();
+                return;
+            }
 
             var data = autocomplete.Data;
             var option = GetOption(data, [data.CommandName], out var names);
-            if (option is null) return;
+            if (option is null)
+            {
+                await autocomplete.RespondAsync();
+                return;
+            }
 
             var command = GetCommand(names);
-            if (command is null) return;
+            if (command is null)
+            {
+                await autocomplete.RespondAsync();
+                return;
+            }
 
             var type = GetArgType(command, option.Name);
-            if (type is null) return;
+            if (type is null)
+            {
+                await autocomplete.RespondAsync();
+                return;
+            }
 
             var value = option.Value;
-
-            var config = await WhispCache.GuildConfig.Get(interaction.GuildId.Value);
 
             if (functions.TryGetValue(type.Value, out var func))
             {

@@ -86,13 +86,14 @@ namespace Whispbot.Tools.Logger
 
                 "Database" => LogStyles.Yellow,
                 "Commands" => LogStyles.LightBlue,
+                "Interacts" => LogStyles.LightRed,
                 "Bot" => LogStyles.LightMagenta,
                 "API" => LogStyles.Green,
 
                 _ => LogStyles.Red
             };
 
-            var source = $"[{sourceColor}{LogStyles.Bold}{message.Source}{LogStyles.Reset}]{new String(' ', Math.Max(0, 8 - message.Source.Length))}";
+            var source = $"[{sourceColor}{LogStyles.Bold}{message.Source}{LogStyles.Reset}]{new String(' ', Math.Max(0, 9 - message.Source.Length))}";
 
             Serilog.Log.Write(severity, message.Exception, "{Source} {Message}", source, message.Message);
         }

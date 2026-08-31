@@ -33,7 +33,7 @@ namespace Whispbot.Interactions.Shifts
 
             if (deletedShift is null)
             {
-                await ctx.Respond("{emoji.cross} {string.errors.adminmodify.shiftnotfound}");
+                await ctx.Respond($"{ctx.Emoji("cross")} {ctx.String("shifts.admin.errors.shift_not_found")}");
                 return;
             }
 

@@ -133,7 +133,7 @@ namespace Whispbot.Commands.ERLC.Commands
             {
                 if (commandName == ":log") // All commands that use :log require being logged in to work
                 {
-                    await ctx.Reply("{string.content.erlccommand.notloggedin}.");
+                    await ctx.Reply($"{ctx.String("erlc.errors.not_connected")}.");
                 }
                 return;
             }
@@ -186,7 +186,7 @@ namespace Whispbot.Commands.ERLC.Commands
 
                         if (playerId is null)
                         {
-                            await ctx.Reply("{string.content.erlccommand.log.playernotfound}.");
+                            await ctx.Reply($"{ctx.String("erlc.log.player_not_found")}.");
                             return;
                         }
 
@@ -196,7 +196,7 @@ namespace Whispbot.Commands.ERLC.Commands
 
                         if (moderation is null)
                         {
-                            await ctx.Reply(error ?? "{string.errors.erlccommand.log.failed}.");
+                            await ctx.Reply(error ?? $"{ctx.String("erlc.errors.log_failed")}.");
                             return;
                         }
 
@@ -206,17 +206,17 @@ namespace Whispbot.Commands.ERLC.Commands
 
                             if (bolo is null)
                             {
-                                await ctx.Reply("{string.errors.erlccommand.log.bolofailed}.");
+                                await ctx.Reply($"{ctx.String("erlc.errors.request_failed")}.");
                                 return;
                             }
                             else
                             {
-                                await ctx.Reply("{string.content.erlccommand.log.success2}.");
+                                await ctx.Reply($"{ctx.String("erlc.log.request_success")}.");
                                 return;
                             }
                         }
 
-                        await ctx.Reply("{string.content.erlccommand.log.success}.");
+                        await ctx.Reply($"{ctx.String("erlc.log.success")}.");
                     }
                 }
             }
@@ -236,7 +236,7 @@ namespace Whispbot.Commands.ERLC.Commands
 
                 if (target is null)
                 {
-                    await ctx.Reply("{string.content.erlccommand.log.playernotfound}");
+                    await ctx.Reply($"{ctx.String("erlc.log.player_not_found")}");
                     return;
                 }
 
@@ -262,21 +262,21 @@ namespace Whispbot.Commands.ERLC.Commands
 
                         if (bolo is not null)
                         {
-                            await ctx.Reply("{string.content.erlccommand.log.kickandbrlogged}");
+                            await ctx.Reply($"{ctx.String("erlc.log.kick_and_request_logged")}");
                         }
                         else
                         {
-                            await ctx.Reply($"{{string.content.erlccommand.log.kicklogged}}. {error ?? "{ string.errors.erlccommand.log.bolofailed}"}.");
+                            await ctx.Reply($"{ctx.String("erlc.log.kick_logged")}. {error ?? "{ string.errors.erlccommand.log.bolofailed}"}.");
                         }
                     }
                     else
                     {
-                        await ctx.Reply(action == "kicked" ? "{string.content.erlccommand.log.kicklogged}" : "{string.content.erlccommand.log.banlogged}");
+                        await ctx.Reply(action == "kicked" ? $"{ctx.String("erlc.log.kick_logged")}" : $"{ctx.String("erlc.log.ban_logged")}");
                     }
                 }
                 else
                 {
-                    await ctx.Reply(error ?? "{string.errors.erlccommand.log.failed}");
+                    await ctx.Reply(error ?? $"{ctx.String("erlc.errors.log_failed")}");
                 }
             }
         }

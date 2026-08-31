@@ -34,7 +34,7 @@ namespace Whispbot.Commands.Roblox_Moderation
 
             if (String.IsNullOrWhiteSpace(caseId))
             {
-                await ctx.Reply("{emoji.cross} {string.errors.rmcase.missingargs}.");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("rmod.case.errors.missing_arguments")}.");
                 return;
             }
 
@@ -60,7 +60,7 @@ namespace Whispbot.Commands.Roblox_Moderation
 
                 if (!isNum || intCaseId <= 0 || intCaseId >= 100_000)
                 {
-                    await ctx.Reply("{emoji.cross} {string.errors.rmcase.invalidid}");
+                    await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("rmod.case.errors.invalid_id")}");
                     return;
                 }
 
@@ -72,7 +72,7 @@ namespace Whispbot.Commands.Roblox_Moderation
 
             if (moderation is null)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.rmcase.notfound}");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("rmod.case.errors.not_found")}");
                 return;
             }
 
@@ -85,12 +85,12 @@ namespace Whispbot.Commands.Roblox_Moderation
             await ctx.Reply(
                 embed: new EmbedBuilder()
                     .WithAuthor(moderator.GlobalName ?? $"@{moderator.Username}")
-                    .WithTitle($"{{string.title.rmcase:case={moderation.@case}}}")
+                    .WithTitle(ctx.String("rmod.case.title", moderation.@case.ToString()))
                     .WithThumbnailUrl(await Roblox.GetUserAvatar(moderation.target_id.ToString(), 250))
                     .WithFields(
-                        new EmbedFieldBuilder() { Name = "{string.title.rmlog.user}", Value = $"{{emoji.user}} {target?.name}\n{(!string.IsNullOrWhiteSpace(target?.displayName) && target.displayName != target.name ? $"{{emoji.chat}} {target?.displayName}\n" : "")}{{emoji.folder}} {target?.id}\n{{emoji.clock}} <t:{target?.createTime?.ToUnixTimeSeconds()}:d> (<t:{target?.createTime?.ToUnixTimeSeconds()}:R>)" },
-                        new EmbedFieldBuilder() { Name = "{string.title.rmlog.type}", Value = $"{{emoji.folder}} {type?.name ?? "Unknown Type"}{(type?.is_deleted == true ? " ({string.content.rmcase.typedeleted})" : "")}" },
-                        new EmbedFieldBuilder() { Name = "{string.title.rmlog.reason}", Value = $"{{emoji.alignment}} {moderation.reason}" }
+                        new EmbedFieldBuilder() { Name = ctx.String("rmod.log.field.user"), Value = $"{ctx.Emoji("user")} {target?.name}\n{(!string.IsNullOrWhiteSpace(target?.displayName) && target.displayName != target.name ? $"{ctx.Emoji("chat")} {target?.displayName}\n" : "")}{ctx.Emoji("folder")} {target?.id}\n{ctx.Emoji("clock")} <t:{target?.CreateTime?.ToUnixTimeSeconds()}:d> (<t:{target?.CreateTime?.ToUnixTimeSeconds()}:R>)" },
+                        new EmbedFieldBuilder() { Name = $"{ctx.String("rmod.log.field.type")}", Value = $"{ctx.Emoji("folder")} {type?.name ?? "Unknown Type"}{(type?.is_deleted == true ? $" ({ctx.String("rmod.case.type_deleted")})" : "")}" },
+                        new EmbedFieldBuilder() { Name = $"{ctx.String("rmod.log.field.reason")}", Value = $"{ctx.Emoji("alignment")} {moderation.reason}" }
                     )
                     .Build()
             );

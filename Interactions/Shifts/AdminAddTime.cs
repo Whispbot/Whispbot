@@ -22,7 +22,7 @@ namespace Whispbot.Interactions.Shifts
 
             var modal = new ModalBuilder()
                 .WithCustomId($"sa_addtime {ctx.args[0]} {ctx.args[1]}")
-                .WithTitle("{string.button.shiftadmin.addtime}")
+                .WithTitle($"{ctx.String("shifts.admin.button.add_time")}")
                 .AddTextInput(
                     label: "Time To Add",
                     customId: "time",

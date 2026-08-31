@@ -18,23 +18,24 @@ namespace Whispbot.Interactions.Shifts
         public override InteractionType Type => InteractionType.ModalSubmit;
         public override async Task ExecuteAsync(InteractionContext ctx)
         {
-            if (ctx.GuildId is null || ctx.args.Count < 2 || ctx.interaction.Data is not IModalInteractionData data) return;
+            if (ctx.GuildId is null || ctx.args.Count < 2 || ctx.interaction is not IModalInteraction modal) return;
+            var data = modal.Data;
             if (await ctx.CheckAllowed()) return;
 
             if (!await WhispPermissions.CheckPermissionsInteraction(ctx, BotPermissions.ManageShifts)) return;
 
             string? shift_id = ctx.args[1];
-            string? new_type_id = data.Components.FirstOrDefault(c => c.CustomId == "new_type")?.Value;
+            string? new_type_id = data.Components.FirstOrDefault(c => c.CustomId == "new_type")?.Values.FirstOrDefault();
 
             if (shift_id is null || new_type_id is null)
             {
-                await ctx.Respond("{emoji.cross} {string.errors.adminmodify.noshift}");
+                await ctx.Respond($"{ctx.Emoji("cross")} {ctx.String("shifts.admin.errors.no_shift")}");
                 return;
             }
 
             if (!long.TryParse(new_type_id, out _))
             {
-                await ctx.Respond("{emoji.cross} {string.errors.adminmodify.invalidshiftid}");
+                await ctx.Respond($"{ctx.Emoji("cross")} {ctx.String("shifts.admin.errors.invalid_shift_id")}");
                 return;
             }
 
@@ -47,7 +48,7 @@ namespace Whispbot.Interactions.Shifts
 
             if (shift is null)
             {
-                await ctx.Respond("{emoji.cross} {string.errors.adminmodify.shiftnotfound}");
+                await ctx.Respond($"{ctx.Emoji("cross")} {ctx.String("shifts.admin.errors.shift_not_found")}");
                 return;
             }
 

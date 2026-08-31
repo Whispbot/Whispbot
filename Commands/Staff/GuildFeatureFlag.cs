@@ -40,7 +40,7 @@ namespace Whispbot.Commands.Staff
                 sb.AppendLine("**Guild Manual Flags:**");
                 foreach (var flag in flags)
                 {
-                    sb.AppendLine($"{(flag.enabled ? "{emoji.clockedin}" : "{emoji.clockedout}")} {flag.name}: {flag.description}");
+                    sb.AppendLine($"{(flag.enabled ? Whispbot.Tools.Disc.Emojis.Get("clockedin") : Whispbot.Tools.Disc.Emojis.Get("clockedout"))} {flag.name}: {flag.description}");
                 }
 
                 await ctx.Reply(sb.ToString());
@@ -59,7 +59,7 @@ namespace Whispbot.Commands.Staff
                 sb.AppendLine("**Enabled Flags:**");
                 foreach (var flag in flags)
                 {
-                    sb.AppendLine($"{(flag.enabled ? "{emoji.clockedin}" : "{emoji.clockedout}")} {flag.name}");
+                    sb.AppendLine($"{(flag.enabled ? Whispbot.Tools.Disc.Emojis.Get("clockedin") : Whispbot.Tools.Disc.Emojis.Get("clockedout"))} {flag.name}");
                 }
 
                 await ctx.Reply(sb.ToString());

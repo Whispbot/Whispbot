@@ -36,7 +36,7 @@ namespace Whispbot.Commands.Roblox_Moderation
 
             if (String.IsNullOrWhiteSpace(caseId))
             {
-                await ctx.Reply("{emoji.cross} {string.errors.rmcase.missingargs}.");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("rmod.case.errors.missing_arguments")}.");
                 return;
             }
 
@@ -55,7 +55,7 @@ namespace Whispbot.Commands.Roblox_Moderation
 
                 if (!isNum || intCaseId <= 0 || intCaseId >= 100_000)
                 {
-                    await ctx.Reply("{emoji.cross} {string.errors.rmcase.invalidid}");
+                    await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("rmod.case.errors.invalid_id")}");
                     return;
                 }
             }
@@ -63,7 +63,7 @@ namespace Whispbot.Commands.Roblox_Moderation
             List<RobloxModerationType> types = [..(await WhispCache.RobloxModerationTypes.Get(ctx.GuildId))?.Where(t => !t.is_deleted) ?? []];
             if (types.Count == 0)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.rmcase.notypes}.");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("rmod.case.errors.no_types")}.");
                 return;
             }
 

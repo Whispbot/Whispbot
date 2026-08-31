@@ -10,6 +10,7 @@ using Whispbot.Cache;
 using Whispbot.Commands.Shifts;
 using Whispbot.Databases;
 using Whispbot.Extensions;
+using Whispbot.Languages;
 using Whispbot.Tools;
 using Whispbot.Tools.Disc;
 
@@ -71,31 +72,34 @@ namespace Whispbot
             RobloxModerationType? type = types?.Find(t => t.id == moderation.type);
 
             GuildConfig? guildConfig = await WhispCache.GuildConfig.Get(moderation.guild_id);
+            var lang = guildConfig?.default_language ?? 0;
+
+            Logger.WithData(target ?? new()).Debug(target?.CreateTime?.ToUnixTimeSeconds().ToString() ?? "bruh");
 
             return (
                 new EmbedBuilder()
                     .WithAuthor(moderator.GlobalName ?? $"@{moderator.Username}", moderator.GetDisplayAvatarUrl(), $"{Config.websiteUrl}/case/{moderation.guild_id}/{moderation.@case}")
-                    .WithTitle("{string.title.rmlog.newmoderation}")
+                    .WithTitle(lang.Translate("rmod.log.title"))
                     .WithThumbnailUrl(await Roblox.GetUserAvatar(moderation.target_id.ToString()))
                     .WithFields(
                         new EmbedFieldBuilder()
-                            .WithName("{string.title.rmlog.user}")
-                            .WithValue($"{{emoji.user}} {target?.name}\n{(!string.IsNullOrWhiteSpace(target?.displayName) && target.displayName != target.name ? $"{{emoji.chat}} {target?.displayName}\n" : "")}{{emoji.folder}} {target?.id}\n{{emoji.clock}} <t:{target?.createTime?.ToUnixTimeSeconds()}:d> (<t:{target?.createTime?.ToUnixTimeSeconds()}:R>)"),
+                            .WithName(lang.Translate("rmod.log.field.user"))
+                            .WithValue($"{Emojis.Get("user")} {target?.name}\n{(!string.IsNullOrWhiteSpace(target?.displayName) && target.displayName != target.name ? $"{Emojis.Get("chat")} {target?.displayName}\n" : "")}{Emojis.Get("folder")} {target?.id}\n{Emojis.Get("clock")} <t:{target?.CreateTime?.ToUnixTimeSeconds()}:d> (<t:{target?.CreateTime?.ToUnixTimeSeconds()}:R>)"),
                         new EmbedFieldBuilder()
-                            .WithName("{string.title.rmlog.type}")
-                            .WithValue($"{{emoji.moderation}} {type?.name ?? "Unknown Type"}"),
+                            .WithName(lang.Translate("rmod.log.field.type"))
+                            .WithValue($"{Emojis.Get("moderation")} {type?.name ?? lang.Translate("rmod.log.errors.unknown_type")}"),
                         new EmbedFieldBuilder()
-                            .WithName("{string.title.rmlog.reason}")
-                            .WithValue($"{{emoji.alignment}} {moderation.reason ?? "*{string.content.rmlog.noreason}.*"}")
+                            .WithName(lang.Translate("rmod.log.field.reason"))
+                            .WithValue($"{Emojis.Get("alignment")} {moderation.reason ?? lang.Translate("rmod.log.errors.no_reason")}")
                     )
-                    .WithFooter($"{{string.content.rmlog.case}}: {moderation.@case}")
+                    .WithFooter($"{lang.Translate("rmod.log.footer")}: {moderation.@case}")
                     .Build(),
                 new ComponentBuilder()
                     .AddRow(
                         new ActionRowBuilder()
-                            .WithButton("{string.button.rmlog.editreason}", $"rm_log_editreason {moderation.@case}", ButtonStyle.Secondary, Emojis.Get("pen"))
-                            .WithButton("{string.button.rmlog.edittype}", $"rm_log_edittype {moderation.@case}", ButtonStyle.Secondary, Emojis.Get("folder"))
-                            .WithButton("{string.button.rmlog.delete}", $"rm_log_delete {moderation.@case}", ButtonStyle.Danger, Emojis.Get("delete"))
+                            .WithButton(lang.Translate("rmod.log.button.reason"), $"rm_log_editreason {moderation.@case}", ButtonStyle.Secondary, Emojis.Get("pen"))
+                            .WithButton(lang.Translate("rmod.log.button.type"), $"rm_log_edittype {moderation.@case}", ButtonStyle.Secondary, Emojis.Get("folder"))
+                            .WithButton(lang.Translate("rmod.log.button.delete"), $"rm_log_delete {moderation.@case}", ButtonStyle.Danger, Emojis.Get("delete"))
                     )
                     .Build()
             );
@@ -114,17 +118,17 @@ namespace Whispbot
         public static async Task<(RobloxModeration?, string?)> CreateModeration(ulong guildId, ulong moderatorId, ulong targetId, RobloxModerationType type, string reason = "No reason provided", int flags = 0)
         {
             // Makes sure the rm module is enabled
-            if (!(await WhispPermissions.CheckModule(guildId, Commands.Module.RobloxModeration)).Item1) return (null, "{string.errors.rmlog.moduledisabled}");
+            if (!(await WhispPermissions.CheckModule(guildId, Commands.Module.RobloxModeration)).Item1) return (null, Whispbot.Languages.Translator.Get(Whispbot.Languages.Language.EnglishUK, "rmod.errors.module_disabled"));
 
             // Makes sure the moderator has permissions to create the case
             if (!await WhispPermissions.HasPermission(guildId, moderatorId, BotPermissions.UseRobloxModerations))
             {
-                return (null, "{string.errors.rmlog.noperms}");
+                return (null, Whispbot.Languages.Translator.Get(Whispbot.Languages.Language.EnglishUK, "rmod.log.errors.no_permissions"));
             }
 
             if (type.is_deleted) // Don't create cases with deleted types
             {
-                return (null, "{string.errors.rmlog.typedeleted}");
+                return (null, Whispbot.Languages.Translator.Get(Whispbot.Languages.Language.EnglishUK, "rmod.log.errors.type_deleted"));
             }
 
             RobloxModeration? moderation = Postgres.SelectFirst<RobloxModeration>(
@@ -140,7 +144,7 @@ namespace Whispbot
             {
                 _ = Task.Run(() => PostCreateModeration(moderation));
                 return (moderation, null);
-            } return (null, "{string.errors.rmlog.logfailed}");
+            } return (null, Whispbot.Languages.Translator.Get(Whispbot.Languages.Language.EnglishUK, "rmod.log.errors.failed"));
         }
 
         public static async Task<(RobloxModeration?, string?)> CreateModeration(string guildId, string moderatorId, string targetId, RobloxModerationType type, string raeson = "No reason provided", int flags = 0)

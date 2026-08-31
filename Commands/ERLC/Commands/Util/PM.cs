@@ -23,19 +23,19 @@ namespace Whispbot.Commands.ERLC.Commands.Debug
         {
             if (ctx.args.Count < 1)
             {
-                await ctx.Reply("{string.errors.erlccommand.pm.missinguser}");
+                await ctx.Reply($"{ctx.String("erlc.errors.pm_missing_user")}");
                 return;
             }
 
             if (ctx.args.Count < 2)
             {
-                await ctx.Reply("{string.errors.erlccommand.pm.missingmessage}");
+                await ctx.Reply($"{ctx.String("erlc.errors.pm_missing_message")}");
                 return;
             }
 
             if (!await WhispPermissions.HasPermission(ctx.GuildId, ctx.UserId, BotPermissions.ERLCAdmin | BotPermissions.ERLCOWner))
             {
-                await ctx.Reply("{string.errors.erlccommand.pm.nopermission}");
+                await ctx.Reply($"{ctx.String("erlc.errors.pm_no_permissions")}");
                 return;
             }
 
@@ -84,7 +84,7 @@ namespace Whispbot.Commands.ERLC.Commands.Debug
 
             if (pmUsers.Count == 0)
             {
-                await ctx.Reply("{string.errors.erlccommand.pm.nousers}");
+                await ctx.Reply($"{ctx.String("erlc.errors.pm_no_users")}");
             }
 
             await ERLCAPI.SendCommand(ctx.server, $":pm {pmUsers.Join(",")} {ctx.robloxUsername} to {reciever}: {ctx.args.Join(" ")}");

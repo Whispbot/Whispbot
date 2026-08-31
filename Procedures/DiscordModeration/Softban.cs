@@ -13,7 +13,7 @@ namespace Whispbot
         public static async Task<string?> Softban(Context context)
         {
             IGuildUser? member = await context.Guild!.GetUserAsync(context.TargetUser!.Id);
-            if (member is null) return "{string.errors.dm.nomember}";
+            if (member is null) return Whispbot.Languages.Translator.Get(Whispbot.Languages.Language.EnglishUK, "dmod.errors.no_member");
 
             await member.BanAsync(7, context.Reason);
             await context.Guild.RemoveBanAsync(context.TargetUser.Id, new RequestOptions { AuditLogReason = "Reverting ban for softban" });

@@ -34,7 +34,7 @@ namespace Whispbot.Commands.Roblox_Moderation
 
             if (ctx.args.Count < 2)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.rmlog.missingargs}.");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("rmod.log.errors.missing_arguments")}.");
                 return;
             }
 
@@ -42,7 +42,7 @@ namespace Whispbot.Commands.Roblox_Moderation
 
             if (types is null)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.rmlog.dbfailed}.");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("rmod.log.errors.database")}.");
                 return;
             }
 
@@ -50,14 +50,14 @@ namespace Whispbot.Commands.Roblox_Moderation
 
             if (String.IsNullOrWhiteSpace(type))
             {
-                await ctx.Reply("{emoji.cross} {string.errors.rmlog.invalidtype}.");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("rmod.log.errors.invalid_type")}.");
                 return;
             }
 
             RobloxModerationType? modType = types.Find(t => t.triggers.Contains(type) || t.id.ToString() == type);
             if (modType is null)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.rmlog.invalidtype}.");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("rmod.log.errors.invalid_type")}.");
                 return;
             }
 
@@ -65,7 +65,7 @@ namespace Whispbot.Commands.Roblox_Moderation
 
             if (user is null)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.rmlog.invaliduser}.");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("rmod.log.errors.invalid_user")}.");
                 return;
             }    
 
@@ -73,7 +73,7 @@ namespace Whispbot.Commands.Roblox_Moderation
 
             if (ctx.GuildConfig?.roblox_moderation?.require_reason == true && string.IsNullOrWhiteSpace(reason))
             {
-                await ctx.Reply("{emoji.cross} {string.errors.rmlog.reasonrequired}");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("rmod.log.errors.reason_required")}");
                 return;
             }        
 
@@ -89,21 +89,21 @@ namespace Whispbot.Commands.Roblox_Moderation
             {
                 await ctx.Reply(
                     embed: new EmbedBuilder()
-                        .WithTitle("{string.title.rmlog.logged}")
-                        .WithDescription($"{{emoji.tick}} {{string.success.rmlog:caseid={log.@case}}}")
+                        .WithTitle(ctx.String("rmod.create.title"))
+                        .WithDescription($"{ctx.Emoji("tick")} {ctx.String("rmod.create.description", log.@case.ToString())}")
                         .WithAuthor(ctx.User.GlobalName ?? $"@{ctx.User.Username}", ctx.User.GetDisplayAvatarUrl())
                         .WithThumbnailUrl(await Roblox.GetUserAvatar(user.id, 250))
                         .WithFields(
-                            new EmbedFieldBuilder() { Name = "{string.title.rmlog.user}", Value = $"{{emoji.user}} **@{user.name}** ({user.id})", IsInline = true },
-                            new EmbedFieldBuilder() { Name = "{string.title.rmlog.type}", Value = $"{{emoji.folder}} {modType.name}", IsInline = true },
-                            new EmbedFieldBuilder() { Name = "{string.title.rmlog.reason}", Value = $"{{emoji.alignment}} {reason}", IsInline = false }
+                            new EmbedFieldBuilder() { Name = ctx.String("rmod.log.field.user"), Value = $"{ctx.Emoji("user")} **@{user.name}** ({user.id})", IsInline = true },
+                            new EmbedFieldBuilder() { Name = ctx.String("rmod.log.field.type"), Value = $"{ctx.Emoji("folder")} {modType.name}", IsInline = true },
+                            new EmbedFieldBuilder() { Name = ctx.String("rmod.log.field.reason"), Value = $"{ctx.Emoji("alignment")} {reason ?? ctx.String("rmod.log.errors.no_reason")}", IsInline = false }
                         )
                         .Build()
                 );
             }
             else
             {
-                await ctx.Reply("{emoji.cross} {string.errors}.");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("errors.general.unknown")}.");
             }
         }
     }

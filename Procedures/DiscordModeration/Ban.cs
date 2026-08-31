@@ -18,12 +18,12 @@ namespace Whispbot
 
             if (context.DurationSeconds > 3600 * 24 * 365 * 67)
             {
-                return "{string.errors.dm.toolongban}";
+                return Whispbot.Languages.Translator.Get(Whispbot.Languages.Language.EnglishUK, "dmod.errors.ban_duration_too_long");
             }
 
             if (context.DurationSeconds < 60 && context.DurationSeconds != -1)
             {
-                return "{string.errors.dm.tooshortban}";
+                return Whispbot.Languages.Translator.Get(Whispbot.Languages.Language.EnglishUK, "dmod.errors.ban_duration_too_short");
             }
 
             await context.Guild.BanUserAsync(context.TargetUser, (uint)(deleteMessages ?? 0), new RequestOptions { AuditLogReason = context.Reason! });

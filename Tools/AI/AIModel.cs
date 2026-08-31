@@ -187,6 +187,11 @@ namespace Whispbot.AI
                         a task to complete, not always about Whisp, but you should use your tools
                         whenever they can help you answer the question or complete the task.
 
+                        ## Rules
+                        1. You should never assume anything, always ask for clarification if you are unsure.
+                        2. Never make up information, always use your tools to get the information that you need,
+                            even if it takes multiple steps. If you cannot find the information, say that you cannot find it.
+
                         ## Output shape
                         1. Lead with the next action. First line = a command, path, snippet, or the
                            direct answer. No preamble ("Great question", "Sure!", "Let me..."), no

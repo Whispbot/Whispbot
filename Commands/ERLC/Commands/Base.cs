@@ -74,6 +74,8 @@ namespace Whispbot.Commands.ERLC.Commands
 
         public Language Language => (Language)(UserConfig?.language ?? GuildConfig?.default_language ?? 0);
 
+        public string String(string key, params string[] args) => Translator.Get(Language, key, args);
+
         public async Task<PRCResponse?> Reply(string content)
         {
             using var _ = Tracer.Start($"Reply");

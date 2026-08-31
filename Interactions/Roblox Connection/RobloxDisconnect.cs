@@ -19,7 +19,7 @@ namespace Whispbot.Interactions.Roblox_Connection
         {
             if (await ctx.CheckAllowed()) return;
 
-            Task _ = ctx.DeferResponse();
+            await ctx.DeferResponse();
 
             UserConfig? updatedConfig = Postgres.SelectFirst<UserConfig>(
                 @"UPDATE user_config SET roblox_id = NULL WHERE id = @1 RETURNING *;",
@@ -28,7 +28,7 @@ namespace Whispbot.Interactions.Roblox_Connection
 
             if (updatedConfig is null)
             {
-                await ctx.Respond("{emoji.cross} {string.errors.disconnect.failedroblox}.", ephemeral: true);
+                await ctx.Respond($"{ctx.Emoji("cross")} {ctx.String("connections.errors.disconnect_failed")}.", ephemeral: true);
             }
             else
             {

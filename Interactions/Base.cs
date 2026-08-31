@@ -13,6 +13,8 @@ using Whispbot.Cache;
 using Whispbot.Commands;
 using Whispbot.Extensions;
 using Whispbot.Languages;
+using Whispbot.Tools;
+using Whispbot.Tools.Disc;
 
 namespace Whispbot.Interactions
 {
@@ -46,6 +48,11 @@ namespace Whispbot.Interactions
             return Translator.Get(Language, key, args);
         }
 
+        public IEmote Emoji(string name)
+        {
+            return Emojis.Get(name);
+        }
+
         public async Task Respond(
             string? text = null, 
             Embed[]? embeds = null, 
@@ -59,7 +66,22 @@ namespace Whispbot.Interactions
             MessageFlags flags = MessageFlags.None
         )
         {
-            await interaction.RespondAsync(text, embeds, isTTS, ephemeral, allowedMentions, components, embed, options, poll, flags);
+            if (interaction.HasResponded)
+            {
+                await interaction.ModifyOriginalResponseAsync(m =>
+                {
+                    m.Content = text;
+                    m.Embeds = embeds;
+                    m.Embed = embed;
+                    m.AllowedMentions = allowedMentions;
+                    m.Components = components;
+                    m.Flags = flags;
+                });
+            }
+            else
+            {
+                await interaction.RespondAsync(text, embeds, isTTS, ephemeral, allowedMentions, components, embed, options, poll, flags);
+            }
         }
 
         public async Task UpdateResponse(Action<MessageProperties> func)
@@ -110,6 +132,12 @@ namespace Whispbot.Interactions
 
         public async Task ShowModal(Modal modal)
         {
+            if (interaction.HasResponded)
+            {
+                await interaction.ModifyOriginalResponseAsync(m => m.Content = "This action took too long. Please try again.");
+                return;
+            }
+
             await interaction.RespondWithModalAsync(modal);
         }
 
@@ -117,7 +145,7 @@ namespace Whispbot.Interactions
         {
             if (allowedUserId != UserId)
             {
-                await Respond("{emoji.cross} {string.errors.notyours}.", ephemeral: true);
+                await Respond($"{Emoji("cross")} {String("errors.notyours")}.", ephemeral: true);
                 return true;
             }
             else return false;

@@ -25,18 +25,18 @@ namespace Whispbot.Interactions.Shifts
                 m.Components = new ComponentBuilderV2()
                     .WithContainer(
                         new ContainerBuilder()
-                            .WithTextDisplay("{string.content.shiftadmin.deletewarning}")
+                            .WithTextDisplay($"{ctx.String("shifts.admin.delete_warning")}")
                             .WithAccentColor(new Color(150, 0, 0))
                     )
                     .WithActionRow(
                         new ActionRowBuilder()
                             .WithButton(
-                                "{string.buttons.shiftadmin.deletecancel}",
+                                $"{ctx.String("shifts.admin.button.delete_cancel")}",
                                 $"sa_modifyshift {ctx.args[0]} {ctx.args[1]} {ctx.args[2]} {ctx.args[3]}",
                                 ButtonStyle.Secondary
                             )
                             .WithButton(
-                                "{string.buttons.shiftadmin.deleteconfirm}",
+                                $"{ctx.String("shifts.admin.button.delete_confirm")}",
                                 $"sa_deleteshift {ctx.args[0]} {ctx.args[2]} {ctx.args[3]}",
                                 ButtonStyle.Danger
                             )

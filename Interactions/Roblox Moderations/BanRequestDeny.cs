@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using Whispbot.Commands.Shifts;
 using Whispbot.Databases;
 using Whispbot.Tools;
+using Whispbot.Tools.Logger;
 
 namespace Whispbot.Interactions.Roblox_Moderations
 {
@@ -26,8 +27,13 @@ namespace Whispbot.Interactions.Roblox_Moderations
 
             if (delete.Item1 is null)
             {
-                await ctx.SendFollowup($"{{emoji.cross}} {delete.Item2}", ephemeral: true);
+                await ctx.UpdateResponse(m => m.Content = $"{ctx.Emoji("cross")} {delete.Item2}");
+                return;
             }
+
+            // A deferred component interaction must be completed. On success this is the
+            // original ban-request message, so deleting it also clears Discord's loading state.
+            await ctx.DeleteResponse();
         }
     }
 }

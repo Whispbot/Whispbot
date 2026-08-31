@@ -18,7 +18,8 @@ namespace Whispbot.Interactions.Roblox_Moderations
         public override InteractionType Type => InteractionType.MessageComponent;
         public override async Task ExecuteAsync(InteractionContext ctx)
         {
-            if (ctx.GuildId is null || ctx.args.Count < 1 || ctx.interaction.Data is not IComponentInteractionData data) return;
+            if (ctx.GuildId is null || ctx.args.Count < 1 || ctx.interaction is not IComponentInteraction component) return;
+            var data = component.Data;
             if (await ctx.CheckAllowed()) return;
 
             await ctx.DeferResponse();
@@ -31,7 +32,7 @@ namespace Whispbot.Interactions.Roblox_Moderations
 
             if (type is null)
             {
-                await ctx.SendFollowup("{emoji.cross} {string.error.rmcase.invalidtype}", ephemeral: true);
+                await ctx.Respond($"{ctx.Emoji("cross")} {ctx.String("rmod.case.errors.invalid_type")}");
                 return;
             }
 
@@ -41,13 +42,13 @@ namespace Whispbot.Interactions.Roblox_Moderations
 
             if (moderation is null)
             {
-                await ctx.SendFollowup("{emoji.cross} {string.error.rmcase.notfound}", ephemeral: true);
+                await ctx.Respond($"{ctx.Emoji("cross")} {ctx.String("rmod.case.errors.not_found")}");
                 return;
             }
 
             await ctx.EditMessage(m =>
             {
-                m.Content = $"{{emoji.tick}} {{string.success.rmedit.updated:case={moderation.@case}}}.";
+                m.Content = $"{ctx.Emoji("tick")} {ctx.String("rmod.edit.success.updated", moderation.@case.ToString())}.";
                 m.Components = MessageComponent.Empty;
             });
         }

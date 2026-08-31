@@ -84,8 +84,6 @@ namespace Whispbot
                 );
             }
 
-            if (moderation is not null) _ = Task.Run(() => PostRMDelete(moderation));
-
             return moderation;
         }
     }

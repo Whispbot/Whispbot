@@ -19,19 +19,23 @@ namespace Whispbot.Interactions.Roblox_Moderations
         public override InteractionType Type => InteractionType.ModalSubmit;
         public override async Task ExecuteAsync(InteractionContext ctx)
         {
-            if (ctx.GuildId is null || ctx.args.Count < 1 || ctx.interaction.Data is not IModalInteractionData data) return;
+            if (ctx.GuildId is null || ctx.args.Count < 1 || ctx.interaction is not IModalInteraction modal) return;
+            var data = modal.Data;
 
-            var defer = ctx.DeferResponse();
+            await ctx.DeferResponse();
 
             string? newType = data.Components.FirstOrDefault(c => c.CustomId == "type")?.Value;
-            if (newType is null) return;
+            if (newType is null)
+            {
+                await ctx.Respond($"{ctx.Emoji("cross")} {ctx.String("rmod.log.errors.database")}");
+                return;
+            }
 
             List<RobloxModerationType>? types = await WhispCache.RobloxModerationTypes.Get(ctx.GuildId.Value);
             RobloxModerationType? selectedType = types?.Find(t => t.id.ToString() == newType);
             if (selectedType is null)
             {
-                await defer;
-                await ctx.SendFollowup("{emoji.cross} {string.errors.rmlog.dbfailed}", ephemeral: true);
+                await ctx.Respond($"{ctx.Emoji("cross")} {ctx.String("rmod.log.errors.database")}");
                 return;
             }
 
@@ -39,9 +43,11 @@ namespace Whispbot.Interactions.Roblox_Moderations
 
             if (updatedModeration is null)
             {
-                await defer;
-                await ctx.SendFollowup("{emoji.cross} {string.errors.rmlog.noeditperms}", ephemeral: true);
+                await ctx.Respond($"{ctx.Emoji("cross")} {ctx.String("rmod.log.errors.no_edit_permissions")}");
+                return;
             }
+
+            await ctx.DeleteResponse();
         }
     }
 }

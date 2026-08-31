@@ -53,13 +53,13 @@ namespace Whispbot.Tools.Games.ERLCAPI
 
             if (server is null)
             {
-                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("erlc.errors.erlcserver.notfound")}");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("erlc.errors.notfound")}");
                 return null;
             }
 
             if (server.api_key is null)
             {
-                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("erlc.errors.erlcserver.nokey")}");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("erlc.errors.nokey")}");
                 return null;
             }
 

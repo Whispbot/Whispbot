@@ -24,12 +24,12 @@ namespace Whispbot.Interactions.Shifts
             List<ShiftType>? types = await WhispCache.ShiftTypes.Get(ctx.GuildId.Value);
             if (types is null || types.Count == 0)
             {
-                await ctx.Respond("{emoji.cross} {string.errors.clockin.dbfailed}");
+                await ctx.Respond($"{ctx.Emoji("cross")} {ctx.String("shifts.errors.failed_get_shift_data")}");
                 return;
             }
 
             await ctx.ShowModal(new ModalBuilder()
-                .WithTitle("{string.button.shiftadmin.changetype}")
+                .WithTitle($"{ctx.String("shifts.admin.button.change_type")}")
                 .WithCustomId($"sa_changetype {ctx.args[0]} {ctx.args[1]}")
                 .AddSelectMenu(
                     label: "Select new type",

@@ -19,7 +19,8 @@ namespace Whispbot.Interactions.Roblox_Moderations
         public override InteractionType Type => InteractionType.ModalSubmit;
         public override async Task ExecuteAsync(InteractionContext ctx)
         {
-            if (ctx.GuildId is null || ctx.args.Count < 1 || ctx.interaction.Data is not IModalInteractionData data) return;
+            if (ctx.GuildId is null || ctx.args.Count < 1 || ctx.interaction is not IModalInteraction modal) return;
+            var data = modal.Data;
 
             string? selectedId = data.Components.FirstOrDefault(c => c.CustomId == "server")?.Value;
             if (selectedId is null) return;
@@ -29,7 +30,7 @@ namespace Whispbot.Interactions.Roblox_Moderations
 
             if (server is null)
             {
-                await ctx.Respond("{emoji.cross} {string.errors.rmbr.servernotfound}", ephemeral: true);
+                await ctx.Respond($"{ctx.Emoji("cross")} {ctx.String("rmod.requests.errors.server_not_found")}", ephemeral: true);
                 return;
             }
 
@@ -37,7 +38,8 @@ namespace Whispbot.Interactions.Roblox_Moderations
             var result = await Procedures.ApproveBanRequest(ulong.Parse(ctx.args[0]), ctx.GuildId.Value, ctx.UserId, server);
             if (result.Item1 is null)
             {
-                await ctx.SendFollowup($"{{emoji.cross}} {result.Item2}", ephemeral: true);
+                await ctx.Respond($"{ctx.Emoji("cross")} {result.Item2}");
+                return;
             }
         }
     }

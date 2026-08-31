@@ -37,7 +37,7 @@ namespace Whispbot.Commands.General
 
             if (userConfig?.roblox_id is not null && robloxUser is null)
             {
-                await ctx.Reply(components: new ComponentBuilderV2().WithTextDisplay(new TextDisplayBuilder("{emoji.loading} {string.content.connections.fetchingroblox}...")).Build(), flags: MessageFlags.ComponentsV2);
+                await ctx.Reply(components: new ComponentBuilderV2().WithTextDisplay(new TextDisplayBuilder($"{ctx.Emoji("loading")} {ctx.String("connections.loading")}...")).Build(), flags: MessageFlags.ComponentsV2);
 
                 robloxUser = await GetUserById(userConfig.roblox_id.ToString()!);
             }
@@ -61,7 +61,7 @@ namespace Whispbot.Commands.General
                                 )
                                 .WithComponents(
                                     robloxUser is not null ? [
-                                        new TextDisplayBuilder($"{Emojis.Get("roblox")} **{language.Translate("name.roblox")}**"),
+                                        new TextDisplayBuilder($"{Emojis.Get("roblox")} **Roblox**"),
                                         new TextDisplayBuilder($"> **@{robloxUser.name}** ({robloxUser.id})")
                                     ] : [
                                         new TextDisplayBuilder($"{Emojis.Get("roblox")} *{language.Translate("connections.errors.notconnected")}*")

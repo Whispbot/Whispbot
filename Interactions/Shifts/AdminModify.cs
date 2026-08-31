@@ -24,14 +24,14 @@ namespace Whispbot.Interactions.Shifts
             List<ShiftType>? types = await WhispCache.ShiftTypes.Get(ctx.GuildId.Value);
             if (types is null)
             {
-                await ctx.Respond("{emoji.cross} {string.errors.clockin.dbfailed}");
+                await ctx.Respond($"{ctx.Emoji("cross")} {ctx.String("shifts.errors.failed_get_shift_data")}");
                 return;
             }
 
             ShiftType? type = types.Find(t => ctx.args.Count >= 3 && t.id.ToString() == ctx.args[2]);
             if (type is null && ctx.args.Count > 2)
             {
-                await ctx.Respond("{emoji.cross} {string.errors.clockin.typenotfound}");
+                await ctx.Respond($"{ctx.Emoji("cross")} {ctx.String("shifts.errors.type_not_found")}");
                 return;
             }
 
@@ -48,7 +48,7 @@ namespace Whispbot.Interactions.Shifts
 
             if (shifts is null)
             {
-                await ctx.Respond("{emoji.warning} {string.errors.general.dbfailed}");
+                await ctx.Respond($"{ctx.Emoji("warning")} {ctx.String("errors.dbfailed")}");
                 return;
             }
 

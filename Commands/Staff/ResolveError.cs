@@ -26,7 +26,7 @@ namespace Whispbot.Commands.Staff
         {
             if (ctx.args.Count == 0)
             {
-                await ctx.Reply("{emoji.cross} Please provide an error ID to resolve.");
+                await ctx.Reply($"{ctx.Emoji("cross")} Please provide an error ID to resolve.");
                 return;
             }
 
@@ -34,7 +34,7 @@ namespace Whispbot.Commands.Staff
 
             if (String.IsNullOrWhiteSpace(errorId) || errorId.Length != 32)
             {
-                await ctx.Reply("{emoji.cross} The provided error ID is not valid. Please provide a valid error ID.");
+                await ctx.Reply($"{ctx.Emoji("cross")} The provided error ID is not valid. Please provide a valid error ID.");
                 return;
             }
 
@@ -42,7 +42,7 @@ namespace Whispbot.Commands.Staff
 
             if (error is null)
             {
-                await ctx.Reply("{emoji.cross} Could not find any error with the provided ID.");
+                await ctx.Reply($"{ctx.Emoji("cross")} Could not find any error with the provided ID.");
                 return;
             }
 

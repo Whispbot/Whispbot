@@ -125,7 +125,7 @@ namespace Whispbot.Commands
             {
                 if (ignoreGuilds.Contains(channel.GuildId)) return;
             }
-            else return; // only reply to guild messagesW
+            else return; // only reply to guild messages
 
             using var messageTrace = Tracer.Start("Message");
             DateTimeOffset start = DateTimeOffset.UtcNow;
@@ -170,7 +170,11 @@ namespace Whispbot.Commands
                     }
                 }
 
-                var (arguments, error) = await ArgParser.GetArguments(message, command, args);
+                UserConfig? userConfig = null;
+                using (Tracer.Start("GetUserConfig"))
+                    userConfig = await WhispCache.UserConfig.Get(message.Author.Id);
+
+                var (arguments, error) = await ArgParser.GetArguments(message, $"{prefix}{(prefix == mention ? " " : "")}", command, args, userConfig?.language ?? guildConfig.default_language ?? 0);
                 if (error is not null)
                 {
                     await ArgParser.SendArgError(message, error);
@@ -214,7 +218,7 @@ namespace Whispbot.Commands
 
                 if (command is null) return;
 
-                var (arguments, error) = await ArgParser.GetArguments(message, command, args);
+                var (arguments, error) = await ArgParser.GetArguments(message, staffPrefix, command, args, 0);
                 if (error is not null)
                 {
                     await ArgParser.SendArgError(message, error);

@@ -18,20 +18,27 @@ namespace Whispbot.Interactions.Roblox_Moderations
         public override InteractionType Type => InteractionType.ModalSubmit;
         public override async Task ExecuteAsync(InteractionContext ctx)
         {
-            if (ctx.GuildId is null || ctx.args.Count < 1 || ctx.interaction.Data is not IModalInteractionData data) return;
+            if (ctx.GuildId is null || ctx.args.Count < 1 || ctx.interaction is not IModalInteraction modal) return;
+            var data = modal.Data;
 
-            var defer = ctx.DeferResponse();
+            await ctx.DeferResponse();
 
             string? newReason = data.Components.FirstOrDefault(c => c.CustomId == "reason")?.Value;
-            if (newReason is null) return;
+            if (newReason is null)
+            {
+                await ctx.Respond($"{ctx.Emoji("cross")} {ctx.String("rmod.log.errors.no_edit_permissions")}");
+                return;
+            }
 
             RobloxModeration? updatedModeration = await Procedures.ChangeRMReason(ctx.GuildId.Value, ctx.UserId, newReason, int.Parse(ctx.args[0]));
 
             if (updatedModeration is null)
             {
-                await defer;
-                await ctx.SendFollowup("{emoji.cross} {string.errors.rmlog.noeditperms}");
+                await ctx.Respond($"{ctx.Emoji("cross")} {ctx.String("rmod.log.errors.no_edit_permissions")}");
+                return;
             }
+
+            await ctx.DeleteResponse();
         }
     }
 }

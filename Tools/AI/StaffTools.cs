@@ -11,6 +11,13 @@ namespace Whispbot.AI
 {
     public static class AIStaffTools
     {
+        private static readonly JsonSerializerSettings _jsonSettings = new()
+        {
+            ReferenceLoopHandling = ReferenceLoopHandling.Ignore,
+            NullValueHandling = NullValueHandling.Include,
+            MaxDepth = 3
+        };
+
         public static string GetGuildData(JsonDocument args)
         {
             if (args.RootElement.TryGetProperty("guildId", out JsonElement value) && value.ValueKind == JsonValueKind.String)
@@ -21,7 +28,7 @@ namespace Whispbot.AI
                     return "Guild ID is required.";
                 }
 
-                return JsonConvert.SerializeObject(Config.client!.GetGuild(ulong.Parse(guildId)));
+                return JsonConvert.SerializeObject(Config.client!.GetGuild(ulong.Parse(guildId)), _jsonSettings);
             }
             else
             {
@@ -42,7 +49,7 @@ namespace Whispbot.AI
                 var user = Config.client!.GetUser(userId);
                 if (user is null) return "User not found.";
 
-                return JsonConvert.SerializeObject(user);
+                return JsonConvert.SerializeObject(user, _jsonSettings);
             }
             else
             {
@@ -68,7 +75,7 @@ namespace Whispbot.AI
                 var member = guild.GetUser(ulong.Parse(userId));
                 if (member is null) return "Member not found in the specified guild.";
 
-                return JsonConvert.SerializeObject(member);
+                return JsonConvert.SerializeObject(member, _jsonSettings);
             }
             else
             {
@@ -89,7 +96,7 @@ namespace Whispbot.AI
                 var channel = Config.client!.GetChannel(ulong.Parse(channelId));
                 if (channel is null) return "Channel not found.";
 
-                return JsonConvert.SerializeObject(channel);
+                return JsonConvert.SerializeObject(channel, _jsonSettings);
             }
             else
             {
@@ -107,7 +114,7 @@ namespace Whispbot.AI
 
                 var result = Tools.Google.Search(query, count, start).Result;
                 if (result is null) return "Failed to perform search.";
-                return JsonConvert.SerializeObject(result.items);
+                return JsonConvert.SerializeObject(result.items, _jsonSettings);
             }
             else
             {
@@ -124,7 +131,7 @@ namespace Whispbot.AI
                 int start = args.RootElement.TryGetProperty("start", out JsonElement startValue) && startValue.ValueKind == JsonValueKind.Number ? startValue.GetInt32() : 1;
                 var result = Tools.Google.WhispSearch(query, count, start).Result;
                 if (result is null) return "Failed to perform search.";
-                return JsonConvert.SerializeObject(result.items);
+                return JsonConvert.SerializeObject(result.items, _jsonSettings);
             }
             else
             {

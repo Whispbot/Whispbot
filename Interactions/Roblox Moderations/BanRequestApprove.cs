@@ -29,9 +29,9 @@ namespace Whispbot.Interactions.Roblox_Moderations
                     await ctx.ShowModal(
                         new ModalBuilder()
                             .WithCustomId($"rm_br_confirm {ctx.args[0]}")
-                            .WithTitle("{string.title.rmbr.selectserver}")
+                            .WithTitle($"{ctx.String("rmod.requests.title.select_server")}")
                             .AddSelectMenu(
-                                "{string.title.rmbr.selectserver2}",
+                                $"{ctx.String("rmod.requests.title.select_server_prompt")}",
                                 new SelectMenuBuilder()
                                     .WithOptions([..
                                         erlcServers.Select(s => 
@@ -49,13 +49,23 @@ namespace Whispbot.Interactions.Roblox_Moderations
                 else
                 {
                     await ctx.DeferResponse();
-                    await Procedures.ApproveBanRequest(ulong.Parse(ctx.args[0]), ctx.GuildId.Value, ctx.UserId, erlcServers[0]);
+                    var result = await Procedures.ApproveBanRequest(ulong.Parse(ctx.args[0]), ctx.GuildId.Value, ctx.UserId, erlcServers[0]);
+                    if (result.Item1 is null)
+                    {
+                        await ctx.Respond($"{ctx.Emoji("cross")} {result.Item2}");
+                        return;
+                    }
                 }
             }
             else
             {
                 await ctx.DeferResponse();
-                await Procedures.MarkAsBanned(ulong.Parse(ctx.args[0]), ctx.GuildId.Value, ctx.UserId);
+                var result = await Procedures.MarkAsBanned(ulong.Parse(ctx.args[0]), ctx.GuildId.Value, ctx.UserId);
+                if (result.Item1 is null)
+                {
+                    await ctx.Respond($"{ctx.Emoji("cross")} {result.Item2}");
+                    return;
+                }
             }
         }
     }

@@ -36,7 +36,7 @@ namespace Whispbot.Commands.ERLC
         {
             if (ctx.args.Count < 1)
             {
-                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("erlc.player.errors.nouser")}");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("erlc.player.errors.notfound")}");
                 return;
             }
 

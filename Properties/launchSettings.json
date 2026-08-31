@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "Whispbot": {
+      "commandName": "Project",
+      "sqlDebugging": true,
+      "remoteDebugEnabled": false
+    },
+    "Container (Dockerfile)": {
+      "commandName": "Docker"
+    }
+  }
+}

@@ -31,14 +31,14 @@ namespace Whispbot.Interactions.Shifts
             List<ShiftType>? types = await WhispCache.ShiftTypes.Get(ctx.GuildId.Value);
             if (types is null)
             {
-                await ctx.Respond("{emoji.cross} {string.errors.clockin.dbfailed}");
+                await ctx.Respond($"{ctx.Emoji("cross")} {ctx.String("shifts.errors.failed_get_shift_data")}");
                 return;
             }
 
             ShiftType? type = types.Find(t => typeId is not null ? t.id.ToString() == typeId : t.is_default);
             if (type is null)
             {
-                await ctx.Respond("{emoji.cross} {string.errors.clockin.typenotfound}");
+                await ctx.Respond($"{ctx.Emoji("cross")} {ctx.String("shifts.errors.type_not_found")}");
                 return;
             }
 
@@ -48,12 +48,11 @@ namespace Whispbot.Interactions.Shifts
 
             if (shift is not null)
             {
-                _ = ctx.DeleteResponse();
                 await ctx.EditMessage(async m => m.Components = await ShiftAdminMessages.GetMainMessage(ctx.GuildId.Value, userId, adminId, ctx.args.Count > 2 ? type : null));
             }
             else
             {
-                await ctx.Respond($"{{emoji.cross}} {errormessage ?? "{string.errors.clockout.failed}"}");
+                await ctx.Respond($"{ctx.Emoji("cross")} {errormessage ?? ctx.String("shifts.clockout.errors.failed")}");
             }
         }
     }

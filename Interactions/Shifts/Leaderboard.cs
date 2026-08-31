@@ -24,7 +24,7 @@ namespace Whispbot.Interactions.Shifts
 
             if (!goodPage)
             {
-                await ctx.Respond("{emoji.cross} {string.errors.general.invalidpage}.");
+                await ctx.Respond($"{ctx.Emoji("cross")} {ctx.String("errors.invalid_page")}.");
                 return;
             }
 
@@ -34,7 +34,7 @@ namespace Whispbot.Interactions.Shifts
 
             if (error is not null)
             {
-                await ctx.SendFollowup(error);
+                await ctx.Respond(error);
             }
             else if (embed is not null && components is not null)
             {

@@ -7,6 +7,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Whispbot.Extensions;
+using Whispbot.Languages;
 using Whispbot.Tools;
 using Whispbot.Tools.Disc;
 
@@ -94,7 +95,15 @@ namespace Whispbot.Commands
             { "duration",   DurationArg     }
         };
 
-        public static async Task<(CommandArguments?, string?)> GetArguments(SocketMessage message, Command command, List<string> args)
+        public static (string name, string value, bool isOptional) ParseArguments(string arg)
+        {
+            var match = CommandSchemaRegex().Match(arg);
+            if (!match.Success) throw new Exception($"Invalid argument schema: {arg}");
+
+            return (match.Groups[1].Value, match.Groups[2].Value, match.Groups[3].Value == "?");
+        }
+
+        public static async Task<(CommandArguments?, string?)> GetArguments(SocketMessage message, string prefix, Command command, List<string> args, Language lang)
         {
             var schema = command.Schema;
 
@@ -102,17 +111,20 @@ namespace Whispbot.Commands
 
             foreach (var arg in schema)
             {
-                var match = CommandSchemaRegex().Match(arg);
-                if (!match.Success) continue;
-
-                string name = match.Groups[1].Value;
-                string value = match.Groups[2].Value;
-                bool isOptional = match.Groups[3].Value == "?";
+                var (name, value, isOptional) = ParseArguments(arg);
 
                 if (args.Count == 0)
                 {
                     if (isOptional) continue;
-                    else return (null, $"Missing required argument '{name}'");
+                    else return (
+                        null, 
+                        "args.errors.missing".Translate(lang, name, $"{prefix}{command.Aliases.First()} {command.Schema?.Select(a =>
+                        {
+                            var (name, value, isOptional) = ParseArguments(a);
+
+                            return isOptional ? $"({name})" : name;
+                        }).Join(" ")}")
+                    );
                 }
 
                 var func = _argFunctions.GetValueOrDefault(value, DefaultArg);
@@ -131,7 +143,12 @@ namespace Whispbot.Commands
         public static async Task SendArgError(SocketMessage message, string error)
         {
             if (message.Channel is null) return;
-            await message.Channel.SendMessageAsync($"err: {error}");
+            await message.Channel.SendMessageAsync(
+                embed: new EmbedBuilder()
+                    .WithDescription(error)
+                    .WithColor(new Color(150, 50, 50))
+                    .Build()
+            );
         }
 
         public static async Task<(CommandArgument?, string?)> DefaultArg(SocketMessage _, string name, List<string> args, bool isLast)

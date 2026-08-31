@@ -10,6 +10,7 @@ using Whispbot.Cache;
 using Whispbot.Commands.Shifts;
 using Whispbot.Databases;
 using Whispbot.Tools;
+using Whispbot.Tools.Logger;
 
 namespace Whispbot.Interactions.Shifts
 {
@@ -19,7 +20,8 @@ namespace Whispbot.Interactions.Shifts
         public override InteractionType Type => InteractionType.ModalSubmit;
         public override async Task ExecuteAsync(InteractionContext ctx)
         {
-            if (ctx.GuildId is null || ctx.args.Count <= 1 || ctx.interaction.Data is not IModalInteractionData data) return;
+            if (ctx.GuildId is null || ctx.args.Count <= 1 || ctx.interaction is not IModalInteraction modal) return;
+            var data = modal.Data;
             if (await ctx.CheckAllowed()) return;
 
             if (!await WhispPermissions.CheckPermissionsInteraction(ctx, BotPermissions.ManageShifts)) return;
@@ -27,31 +29,31 @@ namespace Whispbot.Interactions.Shifts
             List<ShiftType>? types = await WhispCache.ShiftTypes.Get(ctx.GuildId.Value);
             if (types is null)
             {
-                await ctx.Respond("{emoji.cross} {string.errors.clockin.dbfailed}");
+                await ctx.Respond($"{ctx.Emoji("cross")} {ctx.String("shifts.errors.failed_get_shift_data")}");
                 return;
             }
 
             ShiftType? type = types.Find(t => ctx.args.Count >= 3 && t.id.ToString() == ctx.args[2]);
             if (type is null && ctx.args.Count > 2)
             {
-                await ctx.Respond("{emoji.cross} {string.errors.clockin.typenotfound}");
+                await ctx.Respond($"{ctx.Emoji("cross")} {ctx.String("shifts.errors.type_not_found")}");
                 return;
             }
 
             string userId = ctx.args[1];
 
             string? entered_shift_id = data.Components.FirstOrDefault(c => c.CustomId == "shift_id")?.Value;
-            string? shift_id = string.IsNullOrEmpty(entered_shift_id) ? data.Components.FirstOrDefault(c => c.CustomId == "recent_shift")?.Value : entered_shift_id;
+            string? shift_id = string.IsNullOrEmpty(entered_shift_id) ? data.Components.FirstOrDefault(c => c.CustomId == "recent_shift")?.Values.FirstOrDefault() : entered_shift_id;
 
             if (shift_id is null)
             {
-                await ctx.Respond("{emoji.cross} {string.errors.adminmodify.noshift}");
+                await ctx.Respond($"{ctx.Emoji("cross")} {ctx.String("shifts.admin.errors.no_shift")}");
                 return;
             }
 
             if (!long.TryParse(shift_id, out _))
             {
-                await ctx.Respond("{emoji.cross} {string.errors.adminmodify.invalidshiftid}");
+                await ctx.Respond($"{ctx.Emoji("cross")} {ctx.String("shifts.admin.errors.invalid_shift_id")}");
                 return;
             }
 
@@ -64,7 +66,7 @@ namespace Whispbot.Interactions.Shifts
 
             if (shift is null)
             {
-                await ctx.Respond("{emoji.cross} {string.errors.adminmodify.shiftnotfound}");
+                await ctx.Respond($"{ctx.Emoji("cross")} {ctx.String("shifts.admin.errors.shift_not_found")}");
                 return;
             }
 
