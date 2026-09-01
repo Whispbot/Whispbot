@@ -12,6 +12,7 @@ using Whispbot.Commands;
 using Whispbot.Databases;
 using Whispbot.Languages;
 using Whispbot.Tools;
+using Whispbot.Tools.Logging;
 
 namespace Whispbot.Cache
 {

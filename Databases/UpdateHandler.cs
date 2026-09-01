@@ -10,7 +10,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Cache;
 using Whispbot.Tools;
-using Whispbot.Tools.Logger;
+using Whispbot.Tools.Logging;
 using static Whispbot.Cache.WhispCache;
 
 namespace Whispbot.Databases

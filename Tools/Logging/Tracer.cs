@@ -8,7 +8,7 @@ using System.Linq;
 using System.Threading;
 using Whispbot.Databases;
 
-namespace Whispbot
+namespace Whispbot.Tools.Logging
 {
     public sealed class Tracer
     {

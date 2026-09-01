@@ -10,7 +10,7 @@ using Whispbot.Cache;
 using Whispbot.Commands.Shifts;
 using Whispbot.Databases;
 using Whispbot.Tools;
-using Whispbot.Tools.Logger;
+using Whispbot.Tools.Logging;
 
 namespace Whispbot.Interactions.Shifts
 {

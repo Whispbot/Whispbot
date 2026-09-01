@@ -10,7 +10,7 @@ using Discord.WebSocket;
 using Whispbot.Commands;
 using Whispbot.Extensions;
 
-namespace Whispbot.Tools.Logger
+namespace Whispbot.Tools.Logging
 {
     public static class ShardLogger
     {
@@ -73,7 +73,7 @@ namespace Whispbot.Tools.Logger
         public static void Init(DiscordShardedClient client)
         {
             client.ShardReady           +=  (c)          => LogShardInfo(c, Status.ONLINE);
-            client.ShardConnected       +=  (c)          => LogShardInfo(c, Status.CONNECTING);
+            client.ShardConnected       +=  (c)          => LogShardInfo(c, Status.ONLINE);
             client.ShardDisconnected    +=  (e, c)       => LogShardInfo(c, Status.OFFLINE);
             client.ShardLatencyUpdated  +=  (_, l, c)    => LogShardInfo(c, Status.ONLINE);
 

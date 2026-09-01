@@ -12,7 +12,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Commands.ERLC.Commands.Debug;
 
-namespace Whispbot
+namespace Whispbot.Tools.Logging
 {
     public static class Logger
     {

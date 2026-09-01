@@ -5,6 +5,7 @@ using System.Text;
 using Whispbot.Cache;
 using Whispbot.Commands;
 using Whispbot.Tools.Games.ERLCAPI.Classes;
+using Whispbot.Tools.Logging;
 
 namespace Whispbot.Tools.Games.ERLCAPI
 {

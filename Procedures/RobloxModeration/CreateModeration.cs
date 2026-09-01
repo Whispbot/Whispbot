@@ -13,6 +13,7 @@ using Whispbot.Extensions;
 using Whispbot.Languages;
 using Whispbot.Tools;
 using Whispbot.Tools.Disc;
+using Whispbot.Tools.Logging;
 
 namespace Whispbot
 {

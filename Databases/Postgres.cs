@@ -9,7 +9,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Extensions;
-using Whispbot.Tools.Logger;
+using Whispbot.Tools.Logging;
 
 namespace Whispbot.Databases
 {

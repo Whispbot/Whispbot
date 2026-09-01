@@ -12,7 +12,7 @@ using Whispbot.Extensions;
 using Whispbot.Languages;
 using Whispbot.Tools;
 using Whispbot.Tools.Disc;
-using Whispbot.Tools.Logger;
+using Whispbot.Tools.Logging;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 using static Whispbot.DiscordModeration;
 

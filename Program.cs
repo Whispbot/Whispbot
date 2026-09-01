@@ -12,7 +12,7 @@ using Whispbot.Interactions;
 using Whispbot.Tools;
 using Whispbot.Tools.Bot;
 using Whispbot.Tools.Disc;
-using Whispbot.Tools.Logger;
+using Whispbot.Tools.Logging;
 
 Logger.Initialize();
 Shutdown.Init();
@@ -82,6 +82,14 @@ CacheThread.Start();
 string? shardsEnv = Config.isDev ? null : Environment.GetEnvironmentVariable("SHARDS");
 int? shards = shardsEnv is null ? null : int.Parse(shardsEnv);
 
+// When providing a shard account, the timeout timer starts with the first shard
+// and since discord has a 5 second identify window, we need to add time to
+// account for the other shards starting up.
+const int gatewayReadyTimeoutMs = 30_000;
+const int identifyWindowMs = 5_000;
+int connectionTimeoutMs = gatewayReadyTimeoutMs
+    + Math.Max(0, (shards ?? 1) - 1) * identifyWindowMs;
+
 var config = new DiscordSocketConfig
 {
     AuditLogCacheSize = 5,
@@ -97,7 +105,8 @@ var config = new DiscordSocketConfig
 
     GatewayIntents = GatewayIntents.AllUnprivileged | GatewayIntents.MessageContent | GatewayIntents.GuildMembers,
 
-    TotalShards = shards
+    TotalShards = shards,
+    ConnectionTimeout = connectionTimeoutMs
 };
 
 var client = new DiscordShardedClient(config);
@@ -116,5 +125,8 @@ DiscordModeration.RegisterClient(client);
 
 await client.LoginAsync(TokenType.Bot, token);
 await client.StartAsync();
+
+ShardLogger.Init(client);
+WebhookLogger.Init(client);
 
 await Shutdown.WaitAsync();

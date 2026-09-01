@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Whispbot.Tools.Logger
+namespace Whispbot.Tools.Logging
 {
     public static class LogStyles
     {

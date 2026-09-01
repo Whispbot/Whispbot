@@ -14,7 +14,7 @@ using Whispbot.Interactions.Roblox_Moderations;
 using Whispbot.Interactions.Shifts;
 using Whispbot.Languages;
 using Whispbot.Tools;
-using Whispbot.Tools.Logger;
+using Whispbot.Tools.Logging;
 
 namespace Whispbot.Interactions
 {

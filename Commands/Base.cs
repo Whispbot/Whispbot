@@ -13,6 +13,7 @@ using Whispbot.Cache;
 using Whispbot.Extensions;
 using Whispbot.Languages;
 using Whispbot.Tools.Disc;
+using Whispbot.Tools.Logging;
 using static Microsoft.Extensions.Logging.EventSource.LoggingEventSource;
 
 namespace Whispbot.Commands

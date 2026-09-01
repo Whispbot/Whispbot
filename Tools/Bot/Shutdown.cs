@@ -5,7 +5,8 @@ using System.Runtime.InteropServices;
 using System.Text;
 using Whispbot.Commands;
 using Whispbot.Databases;
-using Whispbot.Tools.Logger;
+using Whispbot.Tools.Logging;
+using static Whispbot.Tools.Logging.Logging;
 
 namespace Whispbot.Tools.Bot
 {
@@ -45,11 +46,14 @@ namespace Whispbot.Tools.Bot
         }
 
         private static bool _started = false;
+        public static bool IsShuttingDown => _started;
+        public static event Action? OnShuttingDown;
         public static async Task Start()
         {
             if (_started) return;
             _started = true;
-            Logging.Warning("Starting shutdown...");
+            OnShuttingDown?.Invoke();
+            Warning("Starting shutdown...");
 
             var client = Config.client;
             if (client is not null)
@@ -61,8 +65,8 @@ namespace Whispbot.Tools.Bot
             Postgres.Dispose();
             Redis.Dispose();
 
-            Logging.Info("Goodbye!");
-            Whispbot.Logger.Shutdown();
+            Info("Goodbye!");
+            Logger.Shutdown();
             _signal.Release();
         }
 

@@ -22,7 +22,7 @@ using Whispbot.Languages;
 using Whispbot.Tools;
 using Whispbot.Tools.Bot;
 using Whispbot.Tools.Disc;
-using Whispbot.Tools.Logger;
+using Whispbot.Tools.Logging;
 
 namespace Whispbot.Commands
 {

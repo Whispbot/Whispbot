@@ -15,7 +15,7 @@ using Serilog;
 using System.ComponentModel.Design.Serialization;
 using System.Net;
 using Whispbot.Commands;
-using Whispbot.Tools.Logger;
+using Whispbot.Tools.Logging;
 
 namespace Whispbot.API
 {

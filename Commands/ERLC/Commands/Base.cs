@@ -15,6 +15,7 @@ using Whispbot.Languages;
 using Whispbot.Tools;
 using Whispbot.Tools.Games.ERLCAPI;
 using Whispbot.Tools.Games.ERLCAPI.Classes;
+using Whispbot.Tools.Logging;
 
 namespace Whispbot.Commands.ERLC.Commands
 {

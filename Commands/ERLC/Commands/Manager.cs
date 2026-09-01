@@ -14,7 +14,7 @@ using Whispbot.Databases;
 using Whispbot.Extensions;
 using Whispbot.Tools;
 using Discord;
-using Whispbot.Tools.Logger;
+using Whispbot.Tools.Logging;
 
 namespace Whispbot.Commands.ERLC.Commands
 {
