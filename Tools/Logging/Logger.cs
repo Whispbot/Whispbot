@@ -9,6 +9,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Whispbot.Commands.ERLC.Commands.Debug;
 
@@ -49,7 +50,7 @@ namespace Whispbot.Tools.Logging
         }
     }
 
-    public class LogEnricher: ILogEventEnricher
+    public partial class LogEnricher: ILogEventEnricher
     {
         public void Enrich(LogEvent logEvent, ILogEventPropertyFactory propertyFactory)
         {
@@ -57,6 +58,19 @@ namespace Whispbot.Tools.Logging
 
             if (!logEvent.Properties.ContainsKey("Data"))
                 logEvent.AddPropertyIfAbsent(new LogEventProperty("Data", new ScalarValue(null)));
+
+            // When logging ASCII characters, the log message is escaped, which can cause issues with JSON parsing (for railway logs).
+            if (!Config.isDev)
+            {
+                var message = logEvent.Properties.ContainsKey("Message") ? logEvent.Properties["Message"].ToString() : "";
+
+                var newMessage = ReplaceEscapeRegex().Replace(message, "\\u");
+
+                logEvent.AddOrUpdateProperty(propertyFactory.CreateProperty("Message", newMessage));
+            }
         }
+
+        [GeneratedRegex(@"[^\\]\\u")]
+        private static partial Regex ReplaceEscapeRegex();
     }
 }

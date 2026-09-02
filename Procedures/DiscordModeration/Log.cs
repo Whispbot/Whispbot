@@ -287,7 +287,7 @@ namespace Whispbot
             if (config?.discord_moderation?.display_case_id ?? true) caseId = lang.Translate("dmod.success.case_id", log.case_id.ToString());
             var duration = "";
             bool hasDuration = type.Item4 && log.duration_s is not null;
-            if (hasDuration) duration = Time.ConvertMillisecondsToString((double)log.duration_s * 1000, ", ", false, 1000, lang);
+            if (hasDuration) duration = Time.ConvertMillisecondsToString((double)log.duration_s! * 1000, ", ", false, 1000, lang);
             var reason = "";
             bool hasReason = !string.IsNullOrWhiteSpace(log.reason) && log.reason != "No reason provided" && (config?.discord_moderation?.display_case_reason ?? true);
             if (hasReason) reason = Users.FixUsername(log.reason);
