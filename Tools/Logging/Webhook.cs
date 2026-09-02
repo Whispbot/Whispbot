@@ -83,7 +83,7 @@ namespace Whispbot.Tools.Logging
             var ts = GenerateTimestamp();
 
             // Ignore GatewayReconnectException as it is expected when a shard is asked to reconnect by Discord
-            var exMessage = ex is not null && ex is not GatewayReconnectException ? $"\n```ts\n[{ex.GetType().FullName}] {ex.Message}\n{ex.StackTrace}\n```" : "";
+            var exMessage = ex is not null && ex is not GatewayReconnectException ? $"\n```ts\n{ex}\n```" : "";
 
             return ts + status switch
             {
