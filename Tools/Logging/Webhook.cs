@@ -82,8 +82,8 @@ namespace Whispbot.Tools.Logging
             var shardId = shard.ShardId;
             var ts = GenerateTimestamp();
 
-            // Ignore WebSocketClosedException as it is expected when a shard is disconnected by Discord
-            var exMessage = ex is not null && ex is not WebSocketClosedException ? $"\n```ts\n[{ex.GetType().FullName}] {ex.Message}\n{ex.StackTrace}\n```" : "";
+            // Ignore GatewayReconnectException as it is expected when a shard is asked to reconnect by Discord
+            var exMessage = ex is not null && ex is not GatewayReconnectException ? $"\n```ts\n[{ex.GetType().FullName}] {ex.Message}\n{ex.StackTrace}\n```" : "";
 
             return ts + status switch
             {
