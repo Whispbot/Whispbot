@@ -6,9 +6,11 @@ namespace Whispbot.Tools.Logging
 {
     public static class LogStyles
     {
+        private static readonly string _escape = Config.isDev ? "\u001b" : "\\u001b";
+
         public static string Get(params int[] colours)
         {
-            return $"\u001b[{string.Join(";", colours)}m";
+            return $"{_escape}[{string.Join(";", colours)}m";
         }
 
         public static string Reset => Get(0);
