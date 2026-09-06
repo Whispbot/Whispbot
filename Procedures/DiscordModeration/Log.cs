@@ -1,4 +1,5 @@
 ﻿using Discord;
+using Discord.Net;
 using Discord.Rest;
 using System;
 using System.Collections.Generic;
@@ -219,23 +220,30 @@ namespace Whispbot
         /// <returns>Returns the <see cref="Message"/> sent to the target user.</returns>
         public static async Task<IUserMessage?> SendUserMessage(DiscordModerationCase log, Language lang)
         {
-            var user = await Config.client!.GetUserAsync(log.target_id, CacheMode.AllowDownload, RequestOptions.Default);
-            if (user is null) return null;
-
-            var channel = await user.CreateDMChannelAsync();
-            if (channel is null) return null;
-
-            var message = await channel.SendMessageAsync(embed: await GenerateUserEmbed(log, lang));
-
-            if (message is not null)
+            try
             {
-                Postgres.Execute(
-                    "UPDATE discord_moderations SET dm_message_id = @1 WHERE case_id = @2;",
-                    [message.Id, log.case_id]
-                );
-            }
+                var user = await Config.client!.GetUserAsync(log.target_id, CacheMode.AllowDownload, RequestOptions.Default);
+                if (user is null) return null;
 
-            return message;
+                var channel = await user.CreateDMChannelAsync();
+                if (channel is null) return null;
+
+                var message = await channel.SendMessageAsync(embed: await GenerateUserEmbed(log, lang));
+
+                if (message is not null)
+                {
+                    Postgres.Execute(
+                        "UPDATE discord_moderations SET dm_message_id = @1 WHERE case_id = @2;",
+                        [message.Id, log.case_id]
+                    );
+                }
+
+                return message;
+            }
+            catch (HttpException)
+            {
+                return null;
+            }
         }
 
         /// <summary>
