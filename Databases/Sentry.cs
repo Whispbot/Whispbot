@@ -4,6 +4,7 @@ using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Tools.Logging;
@@ -12,6 +13,10 @@ namespace Whispbot.Databases
 {
     public static class SentryConnection
     {
+        private static readonly string _releaseId =
+            Environment.GetEnvironmentVariable("RAILWAY_DEPLOYMENT_ID")?.Split("-")[0]
+            ?? $"dev{Random.Shared.Next(65_536, 1_048_575):X5}";
+
         public static void Init()
         {
             string? sentry_dsn = Environment.GetEnvironmentVariable("SENTRY_DSN");
@@ -32,7 +37,7 @@ namespace Whispbot.Databases
 
                     options.AutoSessionTracking = true;
 
-                    options.Release = Environment.GetEnvironmentVariable("RAILWAY_DEPLOYMENT_ID") ?? $"dev-{Random.Shared.Next(100_000_000, 999_999_999)}";
+                    options.Release = $"whispbot@{Assembly.GetEntryAssembly()?.GetName().Version}+{_releaseId}";
                     options.Environment = !Config.isDev ? "production" : "development";
                 });
                 Logging.Log(LogSeverity.Info, "Database", "Initialized sentry");
