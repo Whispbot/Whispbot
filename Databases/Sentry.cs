@@ -31,6 +31,9 @@ namespace Whispbot.Databases
                     options.Debug = false;
 
                     options.AutoSessionTracking = true;
+
+                    options.Release = Environment.GetEnvironmentVariable("RAILWAY_DEPLOYMENT_ID") ?? $"dev-{Random.Shared.Next(100_000_000, 999_999_999)}";
+                    options.Environment = !Config.isDev ? "production" : "development";
                 });
                 Logging.Log(LogSeverity.Info, "Database", "Initialized sentry");
             }
