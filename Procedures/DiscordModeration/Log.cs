@@ -305,10 +305,6 @@ namespace Whispbot
 
             var translation = $"{(hasReason ? "y" : "n")}{(hasDuration ? "y" : "n")}";
 
-            Logging.Debug(translation);
-            Logging.Debug(reason);
-            Logging.Debug(duration);
-
             return $"{Emojis.Get("tick")} {caseId} - {lang.Translate($"dmod.success.message.{translation}", lang.Translate($"dmod.punishment.{type.Item1.ToLower()}"), Users.FixUsername(user.Username), reason, duration)}{failedDM}";
         }
 
