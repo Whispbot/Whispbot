@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
@@ -70,7 +70,6 @@ namespace Whispbot.Cache
         /// <returns><see cref="T"/> represented by the given key</returns>
         public async Task<T?> Get(K key)
         {
-
             T? cachedValue = FromCache(key);
             if (cachedValue is not null) return cachedValue;
 

@@ -1,4 +1,4 @@
-﻿using Discord.Commands;
+using Discord.Commands;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
 using Serilog;
 using System;
@@ -103,7 +103,6 @@ namespace Whispbot.Languages
             { Language.Japanese, ("ja", "Japanese", "日本語") },
             { Language.Korean, ("ko", "Korean", "한국어") },
         };
-
     }
     public enum Language
     {

@@ -98,7 +98,6 @@ namespace Whispbot.Commands
                     }
                     else options.ForEach(x => command.AddOption(x));
 
-
                     commands.Remove(command);
                     commands.Add(command);
                 }

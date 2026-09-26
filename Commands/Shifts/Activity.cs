@@ -189,7 +189,6 @@ namespace Whispbot.Commands.Shifts
             if (metRequirement.Count == 0) metRequirement.Add(ctx.String("shifts.activity.nobody"));
             if (notMetRequirement.Count == 0) notMetRequirement.Add(ctx.String("shifts.activity.nobody"));
 
-
             await ctx.Reply(
                 embeds: [
                     ..embeds,
