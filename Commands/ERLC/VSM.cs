@@ -1,3 +1,4 @@
+using Discord;
 using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Newtonsoft.Json;
 using Sentry.Protocol;
@@ -9,13 +10,13 @@ using System.Resources;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Databases;
+using Whispbot.Extensions;
 using Whispbot.Tools;
-using Whispbot.Tools.Games.ERLC;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
+using Whispbot.Tools.Games.ERLCAPI;
 
-namespace Whispbot.Commands.ERLCCommands
+namespace Whispbot.Commands.ERLC
 {
     public class ERLC_VSM : Command
     {
@@ -29,40 +30,27 @@ namespace Whispbot.Commands.ERLCCommands
             new ("command", "The command to run on the server.", CommandArgType.ERLCCommand),
             new ("server", "The ERLC server to run the command on. If not provided, the default will be used.", CommandArgType.ERLCServer, optional: true)
         ];
-        public override List<string> Schema => ["<command:erlccommand>"];
+        public override List<string> Schema => ["<command:erlccommand?>"];
         public override List<string> Aliases => ["vsm", "erlc vsm", "erlc command", ":"];
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
         {
-            if (ctx.User?.id is null) return;
-
-            if (ctx.GuildId is null) // Make sure ran in server
-            {
-                await ctx.Reply("{emoji.cross} {string.errors.general.guildonly}.");
-                return;
-            }
-
             if (!await WhispPermissions.CheckModuleMessage(ctx, Module.ERLC)) return;
             if (!await WhispPermissions.CheckPermissionsMessage(ctx, BotPermissions.ERLCModerator | BotPermissions.ERLCAdmin | BotPermissions.ERLCOWner)) return;
 
             if (ctx.args.Count == 0)
             {
                 await ctx.Reply(
-                    new MessageBuilder
-                    {
-                        components = [
-                            new ContainerBuilder
-                            {
-                                components = [
-                                    new TextDisplayBuilder("## {string.title.vsm.commands}"),
-                                    new TextDisplayBuilder($"**{{string.title.vsm.mod}}**\n> {Tools.Games.ERLC.ERLCCommands.modCommands.Keys.Join(", ")}"),
-                                    new TextDisplayBuilder($"**{{string.title.vsm.admin}}**\n> {Tools.Games.ERLC.ERLCCommands.adminCommands.Keys.Join(", ")}"),
-                                    new TextDisplayBuilder($"**{{string.title.vsm.owner}}**\n> {Tools.Games.ERLC.ERLCCommands.ownerCommands.Keys.Join(", ")}")
-                                ]
-                            }
-                        ],
-                        flags = MessageFlags.IsComponentsV2
-                    }
+                    components: new ComponentBuilderV2()
+                        .WithContainer(
+                            new ContainerBuilder()
+                                .WithTextDisplay($"## {ctx.String("erlc.vsm.title")}")
+                                .WithTextDisplay($"**{ctx.String("erlc.vsm.mod")}**\n> {ERLCCommands.modCommands.Keys.Join(", ")}")
+                                .WithTextDisplay($"**{ctx.String("erlc.vsm.admin")}**\n> {ERLCCommands.adminCommands.Keys.Join(", ")}")
+                                .WithTextDisplay($"**{ctx.String("erlc.vsm.owner")}**\n> {ERLCCommands.ownerCommands.Keys.Join(", ")}")
+                        )
+                        .Build(),
+                    flags: MessageFlags.ComponentsV2
                 );
             }
             else
@@ -75,10 +63,10 @@ namespace Whispbot.Commands.ERLCCommands
 
                 async Task OnMissingArgs(int requiredNum, string format)
                 {
-                    await ctx.Reply($"Missing arguments for command, requires {requiredNum} arguments in the format `:{commandName} {format}`,");
+                    await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("erlc.vsm.errors.missingargs", requiredNum.ToString(), commandName, format)}");
                 }
                 
-                if (Tools.Games.ERLC.ERLCCommands.modCommands.TryGetValue(commandName, out (int, string) v))
+                if (ERLCCommands.modCommands.TryGetValue(commandName, out (int, string) v))
                 {
                     if (args.Count < v.Item1)
                     {
@@ -86,7 +74,7 @@ namespace Whispbot.Commands.ERLCCommands
                         return;
                     }
                 }
-                else if (Tools.Games.ERLC.ERLCCommands.adminCommands.TryGetValue(commandName, out (int, string) a))
+                else if (ERLCCommands.adminCommands.TryGetValue(commandName, out (int, string) a))
                 {
                     if (args.Count < a.Item1)
                     {
@@ -96,7 +84,7 @@ namespace Whispbot.Commands.ERLCCommands
 
                     if (!await WhispPermissions.CheckPermissionsMessage(ctx, BotPermissions.ERLCAdmin | BotPermissions.ERLCOWner)) return;
                 }
-                else if (Tools.Games.ERLC.ERLCCommands.ownerCommands.TryGetValue(commandName, out (int, string) o))
+                else if (ERLCCommands.ownerCommands.TryGetValue(commandName, out (int, string) o))
                 {
                     if (args.Count < o.Item1)
                     {
@@ -108,7 +96,7 @@ namespace Whispbot.Commands.ERLCCommands
                 }
                 else
                 {
-                    await ctx.Reply($"{{emoji.cross}} Unknown command `:{commandName}`. Use this command without arguments to see a list of possible commands.");
+                    await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("erlc.vsm.errors.unknowncommand", commandName)}");
                     return;
                 }
 
@@ -116,7 +104,7 @@ namespace Whispbot.Commands.ERLCCommands
 
                 if (servers is null || servers.Count == 0)
                 {
-                    await ctx.Reply("{emoji.cross} {string.errors.erlcserver.notfound}");
+                    await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("erlc.errors.noservers")}");
                     return;
                 }
 
@@ -137,33 +125,39 @@ namespace Whispbot.Commands.ERLCCommands
 
                 if (server is null)
                 {
-                    await ctx.Reply("{emoji.cross} {string.errors.erlcserver.notfound}");
+                    await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("erlc.errors.notfound")}");
                     return;
                 }
 
                 if (server.api_key is null)
                 {
-                    await ctx.Reply("{emoji.cross} {string.errors.erlcserver.nokey}");
+                    await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("erlc.errors.nokey")}");
                     return;
                 }
 
-                await ctx.Reply("{emoji.loading} {string.content.erlcvsm.sending}...");
+                if (server.ingame_players == 0)
+                {
+                    await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("erlc.errors.api.serveroffline")}");
+                    return;
+                }
 
-                var response = await ERLC.SendCommand(server, $":{commandName} {args.Join(" ")}");
+                await ctx.Reply($"{ctx.Emoji("loading")} {ctx.String("erlc.vsm.sending")}...");
+
+                var response = await ERLCAPI.SendCommand(server, $":{commandName} {args.Join(" ")}");
 
                 if (response is null)
                 {
-                    await ctx.EditResponse("{emoji.cross} {string.errors.erlcvsm.failed}");
+                    await ctx.EditResponse($"{ctx.Emoji("cross")} {ctx.String("erlc.vsm.errors.failed")}");
                     return;
                 }
 
-                if (Errors.ResponseHasError(response, out var errorMessage))
+                if (Errors.ResponseHasError(ctx, response, out var errorMessage))
                 {
-                    await ctx.EditResponse(errorMessage!);
+                    await ctx.EditResponse(text: "", components: errorMessage!, flags: MessageFlags.ComponentsV2);
                     return;
                 }
 
-                await ctx.EditResponse("{emoji.tick} {string.content.erlcvsm.success}.");
+                await ctx.EditResponse($"{ctx.Emoji("tick")} {ctx.String("erlc.vsm.success")}");
             }
         }
     }

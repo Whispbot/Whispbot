@@ -1,3 +1,5 @@
+using Discord;
+using Discord.WebSocket;
 using Newtonsoft.Json;
 using Serilog;
 using System;
@@ -5,21 +7,22 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Commands;
 using Whispbot.Databases;
 using Whispbot.Interactions.Roblox_Connection;
 using Whispbot.Interactions.Roblox_Moderations;
 using Whispbot.Interactions.Shifts;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
-using YellowMacaroni.Discord.Sharding;
+using Whispbot.Languages;
+using Whispbot.Tools;
+using Whispbot.Tools.Logging;
 
 namespace Whispbot.Interactions
 {
-    public class InteractionManager
+    public static class InteractionManager
     {
-        private List<InteractionCommandData> _interactions = [];
+        private static readonly List<InteractionCommandData> _interactions = [];
 
-        public InteractionManager()
+        public static void Init(DiscordShardedClient client)
         {
             RegisterInteraction(new RobloxDisconnect());
             RegisterInteraction(new RobloxDisconnect());
@@ -63,60 +66,122 @@ namespace Whispbot.Interactions
             RegisterInteraction(new BanRequestApproveModal());
             RegisterInteraction(new BanRequestDeny());
 
-            Log.Debug($"[Debug] Loaded {_interactions.Count} interactions");
+            Logging.Log($"Loaded {_interactions.Count} interactions");
+
+            client.InteractionCreated += async (interaction) =>
+            {
+                await HandleInteraction(client, interaction);
+            };
         }
 
-        public void RegisterInteraction(InteractionCommandData interaction)
+        public static void RegisterInteraction(InteractionCommandData interaction)
         {
             if (_interactions.Any(i => i.CustomId == interaction.CustomId && i.Type == interaction.Type)) return;
             _interactions.Add(interaction);
         }
 
-        public async Task HandleInteraction(Client client, Interaction interaction)
+        public static async Task HandleInteraction(DiscordShardedClient client, SocketInteraction interaction)
         {
-            if (interaction.type == InteractionType.Ping) return;
-            else if (interaction.type == InteractionType.ApplicationCommandAutocomplete) await Autocomplete.Handle(interaction);
-            else if (interaction.type == InteractionType.ApplicationCommand) await Commands.Handle(client, interaction);
+            if (interaction.Type == InteractionType.Ping) return;
 
-            if (interaction.data?.custom_id is null) return;
-
-            List<string> args = [.. interaction.data.custom_id.Split(' ', StringSplitOptions.RemoveEmptyEntries)];
-            if (args.Count == 0) return;
-            string command = args[0];
-            args.RemoveAt(0);
-
-            InteractionCommandData? data = _interactions.FirstOrDefault(i => i.CustomId == command && i.Type == interaction.type);
-
-            if (data is null) return;
-
-            var ctx = new InteractionContext(client, interaction, args);
-
-            var localeMatches = Tools.Strings.Languages.Where(l => l.Value.Item1 == interaction.locale);
-            int language = (int)(localeMatches.Any() ? localeMatches.First().Key : 0);
-            if (ctx.UserConfig is not null && (ctx.UserConfig?.language ?? ctx.GuildConfig?.default_language) != language)
+            Task handler = Task.Run(async () =>
             {
-                ctx.UserConfig!.language = language;
-                _ = Task.Run(() => Postgres.Execute("UPDATE user_config SET language = @1 WHERE id = @2;", [language, long.Parse(ctx.UserId!)]));
+                if (interaction.Type == InteractionType.ApplicationCommandAutocomplete)
+                {
+                    await Autocomplete.Handle(interaction);
+                    return;
+                }
+
+                if (interaction.Type == InteractionType.ApplicationCommand)
+                {
+                    await Commands.Handle(client, interaction);
+                    return;
+                }
+
+                string? customId = interaction switch
+                {
+                    IComponentInteraction component => component.Data.CustomId,
+                    IModalInteraction modal => modal.Data.CustomId,
+                    _ => null
+                };
+
+                if (customId is null) return;
+
+                DateTimeOffset start = DateTimeOffset.UtcNow;
+
+                List<string> args = [.. customId.Split(' ', StringSplitOptions.RemoveEmptyEntries)];
+                if (args.Count == 0) return;
+                string command = args[0];
+                args.RemoveAt(0);
+
+                InteractionCommandData? commandData = _interactions.FirstOrDefault(i => i.CustomId == command && i.Type == interaction.Type);
+                if (commandData is null) return;
+
+                var ctx = new InteractionContext(client, interaction, args);
+
+                var localeMatches = Translator.LanguageInfo.Where(l => l.Value.Item1 == interaction.UserLocale);
+                var language = (localeMatches.Any() ? localeMatches.First().Key : 0);
+                if (ctx.UserConfig is not null && (ctx.UserConfig?.language ?? ctx.GuildConfig?.default_language) != language)
+                {
+                    ctx.UserConfig!.language = language;
+                    _ = Task.Run(() => Postgres.Execute("UPDATE user_config SET language = @1 WHERE id = @2;", [language, ctx.UserId]));
+                }
+
+                await commandData.ExecuteAsync(ctx);
+
+                DateTimeOffset end = DateTimeOffset.UtcNow;
+                LogInteraction(ctx, commandData, end - start);
+            });
+
+            if (await Task.WhenAny(handler, Task.Delay(TimeSpan.FromSeconds(2))) != handler)
+            {
+                // If the handler takes longer than 2 seconds, we defer the interaction to avoid a timeout.
+                if (!interaction.HasResponded)
+                {
+                    if (interaction is SocketAutocompleteInteraction autocomplete)
+                        await autocomplete.RespondAsync();
+                    else
+                        await interaction.DeferAsync();
+                }
+
+                _ = ObserveHandlerAsync(handler, interaction);
+                return;
             }
 
-            await data.ExecuteAsync(ctx);
+            await ObserveHandlerAsync(handler, interaction);
         }
 
-        public void Attach(Client client)
+        private static async Task ObserveHandlerAsync(Task handler, SocketInteraction interaction)
         {
-            client.InteractionCreate += async (c, interaction) =>
+            try
             {
-                if (c is not Client client) return;
-                await HandleInteraction(client, interaction);
-            };
-        }
+                await handler;
 
-        public void Attach(ShardingManager manager)
-        {
-            foreach (Shard shard in manager.shards)
-            {
-                Attach(shard.client);
+                if (!interaction.HasResponded)
+                {
+                    if (interaction is SocketAutocompleteInteraction autocomplete)
+                        await autocomplete.RespondAsync();
+                    else
+                        await interaction.RespondAsync("This interaction is no longer available.", ephemeral: true);
+                }
             }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Unhandled interaction exception ({InteractionType}, {InteractionId})", interaction.Type, interaction.Id);
+
+                if (!interaction.HasResponded && interaction.CreatedAt > DateTimeOffset.UtcNow - TimeSpan.FromSeconds(2.5f))
+                {
+                    if (interaction is SocketAutocompleteInteraction autocomplete)
+                        await autocomplete.RespondAsync();
+                    else
+                        await interaction.RespondAsync("Something went wrong while handling that interaction.", ephemeral: true);
+                }
+            }
+        }
+
+        public static void LogInteraction(InteractionContext ctx, InteractionCommandData command, TimeSpan duration)
+        {
+            Logging.Log(LogSeverity.Debug, "Interacts", $"Executed '{command.CustomId}' in {Time.ConvertMillisecondsToString(duration.TotalMilliseconds, Small: true, RoundTo: 1)} for '@{ctx.User.Username}' ({ctx.UserId}) in '{ctx.Guild?.Name}' ({ctx.GuildId})");
         }
     }
 }

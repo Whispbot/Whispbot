@@ -1,3 +1,4 @@
+using Discord;
 using Microsoft.AspNetCore.DataProtection.XmlEncryption;
 using Serilog;
 using System;
@@ -7,8 +8,6 @@ using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Commands.Shifts;
 using Whispbot.Databases;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Interactions.Shifts
 {
@@ -18,28 +17,28 @@ namespace Whispbot.Interactions.Shifts
         public override InteractionType Type => InteractionType.MessageComponent;
         public override async Task ExecuteAsync(InteractionContext ctx)
         {
-            if (ctx.UserId is null || ctx.GuildId is null || ctx.args.Count < 2) return;
+            if (ctx.GuildId is null || ctx.args.Count < 2) return;
             if (await ctx.CheckAllowed()) return;
 
             bool goodPage = int.TryParse(ctx.args[1], out int page);
 
             if (!goodPage)
             {
-                await ctx.Respond("{emoji.cross} {string.errors.general.invalidpage}.");
+                await ctx.Respond($"{ctx.Emoji("cross")} {ctx.String("errors.invalid_page")}.");
                 return;
             }
 
-            await ctx.DeferUpdate();
+            await ctx.DeferResponse();
 
-            var (message, error) = await Procedures.GenerateShiftLeaderboard(ctx.GuildId, ctx.UserId, page, ctx.args.Count >= 3 ? long.Parse(ctx.args[2]) : null);
+            var (embed, components, error) = await Procedures.GenerateShiftLeaderboard(ctx.GuildId.Value, ctx.UserId, page, ctx.args.Count >= 3 ? ulong.Parse(ctx.args[2]) : null);
 
             if (error is not null)
             {
-                await ctx.SendFollowup(error);
+                await ctx.Respond(error);
             }
-            else if (message is not null)
+            else if (embed is not null && components is not null)
             {
-                await ctx.EditMessage(message);
+                await ctx.EditMessage(m => { m.Embed = embed; m.Components = components; });
             }
         }
     }

@@ -1,3 +1,5 @@
+using Discord;
+using Newtonsoft.Json;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -5,8 +7,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Databases;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Commands.Staff
 {
@@ -24,7 +24,7 @@ namespace Whispbot.Commands.Staff
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
         {
-            if (ctx.message?.author.id != "531414889923608595")
+            if (ctx.UserId != 531414889923608595L)
             {
                 await ctx.Reply("How about... no?");
                 return;
@@ -66,16 +66,17 @@ namespace Whispbot.Commands.Staff
                 return;
             }
 
+            var components = new ComponentBuilderV2()
+                .WithTextDisplay($"{results.Count} results{(results.Count > 5 ? $" showing 1-5" : "")} ({duration}ms):");
+
+            foreach (var result in results.Take(5))
+            {
+                components.WithContainer(new ContainerBuilder().WithTextDisplay($"```json\n{JsonConvert.SerializeObject(result, Formatting.Indented)}\n```"));
+            }
+
             await ctx.Reply(
-                new MessageBuilder
-                {
-                    components =
-                    [
-                        new TextDisplayBuilder($"{results.Count} results{(results.Count > 5 ? $" showing 1-5" : "")} ({duration}ms):"),
-                        ..results.Take(5).ToList().ConvertAll((o) => new ContainerBuilder(new TextDisplayBuilder($"```json\n{o.ToJson(true)}\n```")))
-                    ],
-                    flags = MessageFlags.IsComponentsV2
-                }
+                components: components.Build(),
+                flags: MessageFlags.ComponentsV2
             );
         }
     }

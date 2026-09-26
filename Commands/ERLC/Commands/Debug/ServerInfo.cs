@@ -4,8 +4,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 
-namespace Whispbot.Commands.ERLCCommands.Commands.Debug
+namespace Whispbot.Commands.ERLC.Commands.Debug
 {
     public class ServerInfo: ERLCCommand
     {
@@ -17,7 +18,7 @@ namespace Whispbot.Commands.ERLCCommands.Commands.Debug
         public override async Task ExecuteAsync(ERLCCommandContext ctx)
         {
             ERLCServerConfig server = ctx.server;
-            await ctx.Reply($"{{string.content.erlccommand.serverinfo:name={server.name},code={server.code},players={server.ingame_players-1}}}");
+            await ctx.Reply(ctx.String("erlc.server.summary", server.name ?? "Unknown", server.code ?? "unknown", (server.ingame_players - 1).ToString()));
         }
     }
 }

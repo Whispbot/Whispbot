@@ -1,29 +1,31 @@
+using Discord;
+using Discord.WebSocket;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Commands;
+using Whispbot.Extensions;
 using Whispbot.Tools;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
+using Whispbot.Tools.Disc;
 
 namespace Whispbot.Interactions
 {
     public static class Commands
     {
-        public static async Task Handle(Client client, Interaction interaction)
+        public static async Task Handle(DiscordShardedClient client, SocketInteraction rawInteraction)
         {
+            if (rawInteraction is not SocketSlashCommand interaction) return;
+
             var options = GetOptions(interaction, out var commandNames);
 
             var command = Autocomplete.GetCommand(commandNames);
             if (command is null)
             {
-                await interaction.Respond(
-                    new MessageBuilder { 
-                        content = $"Could not find the command '/{commandNames.Join(" ")}'...",
-                        flags = MessageFlags.Ephemeral
-                    }
+                await interaction.RespondAsync(
+                    $"Could not find the command '/{commandNames.Join(" ")}'...",
+                    ephemeral: true
                 );
                 return;
             }
@@ -36,14 +38,14 @@ namespace Whispbot.Interactions
             await command.ExecuteAsync(ctx);
         }
 
-        public static readonly Dictionary<CommandArgType, Func<Interaction, string, dynamic, Task<(CommandArgument?, string?)>>> argParsers = new () 
+        public static readonly Dictionary<CommandArgType, Func<SocketSlashCommand, string, dynamic, Task<(CommandArgument?, string?)>>> argParsers = new () 
         {
             { CommandArgType.User, UserArg },
             { CommandArgType.RobloxUser, RobloxUserArg },
             { CommandArgType.Duration, DurationArg }
         };
 
-        public static async Task<CommandArguments?> GetArguments(Interaction interaction, Command command, List<ApplicationCommandInteractionDataOption> options)
+        public static async Task<CommandArguments?> GetArguments(SocketSlashCommand interaction, Command command, List<SocketSlashCommandDataOption> options)
         {
             CommandArguments args = new();
 
@@ -52,15 +54,15 @@ namespace Whispbot.Interactions
                 var func = argParsers.GetValueOrDefault(option.type, Default);
                 if (func is null) continue;
 
-                var thisOpt = options.FirstOrDefault(o => o.name == option.name);
+                var thisOpt = options.FirstOrDefault(o => o.Name == option.name);
                 if (thisOpt is null) continue;
 
-                var result = await func(interaction, option.name, thisOpt.value); // why no work
+                var result = await func(interaction, option.name, thisOpt.Value);
                 var (arg, error) = ((CommandArgument?, string?))result;
 
                 if (error is not null)
                 {
-                    await interaction.Respond(new MessageBuilder { content = $"err: {error}", flags = MessageFlags.Ephemeral });
+                    await interaction.RespondAsync($"err: {error}", ephemeral: true);
                     return null;
                 }
                 else if (arg is not null)
@@ -72,40 +74,40 @@ namespace Whispbot.Interactions
             return args;
         }
 
-        public static async Task<(CommandArgument?, string?)> Default(Interaction interaction, string name, dynamic value)
+        public static async Task<(CommandArgument?, string?)> Default(SocketSlashCommand interaction, string name, dynamic value)
         {
             return (new(name, value), null);
         }
 
-        public static List<ApplicationCommandInteractionDataOption>? GetOptions(Interaction interaction, out List<string> names)
+        public static List<SocketSlashCommandDataOption>? GetOptions(SocketSlashCommand interaction, out List<string> names)
         {
-            var firstOption = interaction.data?.options?.FirstOrDefault();
-            if (firstOption is null) { names = [interaction.data?.name!]; return []; }
+            var firstOption = interaction.Data.Options.FirstOrDefault();
+            if (firstOption is null) { names = [interaction.Data.Name]; return []; }
 
-            if (firstOption.type == ApplicationCommandOptionType.SubCommandGroup || firstOption.type == ApplicationCommandOptionType.SubCommand)
+            if (firstOption.Type == ApplicationCommandOptionType.SubCommandGroup || firstOption.Type == ApplicationCommandOptionType.SubCommand)
             {
-                names = [interaction.data?.name!, firstOption.name!];
+                names = [interaction.Data.Name, firstOption.Name];
                 var data = GetOptions(firstOption, names, out names);
-                if (data is null) return firstOption.options;
+                if (data is null) return [..firstOption.Options];
                 else return data;
             }
             else
             {
-                names = [interaction.data?.name!, firstOption.name!];
+                names = [interaction.Data.Name, firstOption.Name];
                 return GetOptions(firstOption, names, out names);
             }
         }
 
-        public static List<ApplicationCommandInteractionDataOption>? GetOptions(ApplicationCommandInteractionDataOption option, List<string> names, out List<string> outNames)
+        public static List<SocketSlashCommandDataOption>? GetOptions(SocketSlashCommandDataOption option, List<string> names, out List<string> outNames)
         {
-            var opt = option.options?.FirstOrDefault();
+            var opt = option.Options?.FirstOrDefault();
             if (opt is null) { outNames = names; return null; }
 
-            if (opt.type == ApplicationCommandOptionType.SubCommandGroup || opt.type == ApplicationCommandOptionType.SubCommand)
+            if (opt.Type == ApplicationCommandOptionType.SubCommandGroup || opt.Type == ApplicationCommandOptionType.SubCommand)
             {
-                names.Add(opt.name ?? "what the sigma");
+                names.Add(opt.Name ?? "what the sigma");
                 var data = GetOptions(opt, names, out outNames);
-                if (data is null) return opt.options;
+                if (data is null) return [..opt.Options];
                 else return data;
             }
             else
@@ -115,17 +117,17 @@ namespace Whispbot.Interactions
             }
         }
 
-        public static async Task<(CommandArgument?, string?)> UserArg(Interaction interaction, string name, dynamic value)
+        public static async Task<(CommandArgument?, string?)> UserArg(SocketSlashCommand interaction, string name, dynamic value)
         {
             if (value is not string str) return (null, "Invalid user."); 
 
-            User? user = await Users.GetUserByString(str, 3, interaction.guild_id);
+            IUser? user = await Users.GetUserByString(str, 3, interaction.GuildId);
             if (user is null) return (null, $"Could not find that user.");
 
             return (new CommandArgument(name, user), null);
         }
 
-        public static async Task<(CommandArgument?, string?)> RobloxUserArg(Interaction interaction, string name, dynamic value)
+        public static async Task<(CommandArgument?, string?)> RobloxUserArg(SocketSlashCommand interaction, string name, dynamic value)
         {
             if (value is not string str) return (null, "Invalid Roblox user.");
 
@@ -135,7 +137,7 @@ namespace Whispbot.Interactions
             return (new CommandArgument(name, user), null);
         }
 
-        public static async Task<(CommandArgument?, string?)> DurationArg(Interaction interaction, string name, dynamic value)
+        public static async Task<(CommandArgument?, string?)> DurationArg(SocketSlashCommand interaction, string name, dynamic value)
         {
             if (value is not string str) return (null, "Invalid duration.");
 

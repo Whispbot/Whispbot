@@ -1,14 +1,14 @@
+using Discord;
 using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Databases;
+using Whispbot.Extensions;
 using Whispbot.Tools;
-using YellowMacaroni.Discord.Cache;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Commands.Roblox_Moderation
 {
@@ -29,14 +29,6 @@ namespace Whispbot.Commands.Roblox_Moderation
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
         {
-            if (ctx.UserId is null) return;
-
-            if (ctx.GuildId is null || ctx.Guild is null)
-            {
-                await ctx.Reply("{emoji.cross} {string.errors.general.guildonly}.");
-                return;
-            }
-
             if (!await WhispPermissions.CheckModuleMessage(ctx, Module.RobloxModeration)) return;
             if (!await WhispPermissions.CheckPermissionsMessage(ctx, BotPermissions.UseRobloxModerations)) return;
 
@@ -44,7 +36,7 @@ namespace Whispbot.Commands.Roblox_Moderation
 
             if (String.IsNullOrWhiteSpace(caseId))
             {
-                await ctx.Reply("{emoji.cross} {string.errors.rmcase.missingargs}.");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("rmod.case.errors.missing_arguments")}.");
                 return;
             }
 
@@ -63,7 +55,7 @@ namespace Whispbot.Commands.Roblox_Moderation
 
                 if (!isNum || intCaseId <= 0 || intCaseId >= 100_000)
                 {
-                    await ctx.Reply("{emoji.cross} {string.errors.rmcase.invalidid}");
+                    await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("rmod.case.errors.invalid_id")}");
                     return;
                 }
             }
@@ -71,33 +63,23 @@ namespace Whispbot.Commands.Roblox_Moderation
             List<RobloxModerationType> types = [..(await WhispCache.RobloxModerationTypes.Get(ctx.GuildId))?.Where(t => !t.is_deleted) ?? []];
             if (types.Count == 0)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.rmcase.notypes}.");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("rmod.case.errors.no_types")}.");
                 return;
             }
 
             await ctx.Reply(
-                new MessageBuilder
-                {
-                    components = [
-                        new ActionRowBuilder
-                        {
-                            components = [
-                                new StringSelectBuilder($"rm_edittype {ctx.UserId} {intCaseId}")
-                                {
-                                    placeholder = "Select new type",
-                                    options = [..types.Select(t => 
-                                        new StringSelectOption
-                                        {
-                                            label = t.name,
-                                            value = t.id.ToString(),
-                                            description = t.triggers.Count > 0 ? t.triggers.Join() : null
-                                        }
-                                    )]
-                                }
-                            ]
-                        }
-                    ]
-                }
+                components: new ComponentBuilder()
+                    .WithSelectMenu(
+                        customId: $"rm_edittype {ctx.UserId} {intCaseId}",
+                        placeholder: "Select new type",
+                        options: [..types.Select(t =>
+                            new SelectMenuOptionBuilder()
+                                .WithLabel(t.name)
+                                .WithValue(t.id.ToString())
+                                .WithDescription(t.triggers.Count > 0 ? t.triggers.Join(", ") : null)
+                        )]
+                    )
+                    .Build()
             );
         }
     }

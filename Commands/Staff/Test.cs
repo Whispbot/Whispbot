@@ -1,10 +1,12 @@
+using Newtonsoft.Json;
 using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using YellowMacaroni.Discord.Extentions;
+using Whispbot.Tools;
+using Whispbot.Tools.Bot;
 
 namespace Whispbot.Commands.Staff
 {
@@ -22,7 +24,9 @@ namespace Whispbot.Commands.Staff
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
         {
-            ctx.client.Disconnect();
+            var robloxUser = await Roblox.GetUserById("221782955");
+
+            await ctx.Reply($"{robloxUser?.CreateTime?.ToUnixTimeSeconds() ?? 0}\n```json\n{JsonConvert.SerializeObject(robloxUser, Formatting.Indented)}\n```");
         }
     }
 }

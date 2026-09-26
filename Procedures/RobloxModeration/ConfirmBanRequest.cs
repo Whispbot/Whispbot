@@ -1,3 +1,4 @@
+using Discord;
 using Newtonsoft.Json;
 using Serilog;
 using System;
@@ -5,14 +6,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Commands.Shifts;
 using Whispbot.Databases;
 using Whispbot.Extensions;
 using Whispbot.Tools;
-using Whispbot.Tools.Games.ERLC;
-using YellowMacaroni.Discord.Cache;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
+using Whispbot.Tools.Games.ERLCAPI;
 
 namespace Whispbot
 {
@@ -23,21 +22,20 @@ namespace Whispbot
         /// </summary>
         /// <param name="banRequest">The ban request to get the message for</param>
         /// <returns>The <see cref="Message"/> or null if failed to get appropriate data</returns>
-        public static async Task<Message?> GetBanRequestLogMessage(BanRequest banRequest)
+        public static async Task<ITextChannel?> GetBanRequestLogChannel(BanRequest banRequest)
         {
             if (banRequest.message_id is null) return null;
 
-            GuildConfig? guildConfig = await WhispCache.GuildConfig.Get(banRequest.guild_id.ToString());
+            GuildConfig? guildConfig = await WhispCache.GuildConfig.Get(banRequest.guild_id);
             if (guildConfig is null) return null;
 
-            long? logChannelId = guildConfig.roblox_moderation?.ban_request_channel_id;
+            ulong? logChannelId = guildConfig.roblox_moderation?.ban_request_channel_id;
             if (logChannelId is null) return null;
 
-            return new()
-            {
-                id = banRequest.message_id.ToString() ?? "",
-                channel_id = logChannelId.ToString() ?? ""
-            };
+            var guild = Config.client!.GetGuild(banRequest.guild_id);
+            if (guild == null) return null;
+
+            return guild.GetTextChannel(logChannelId.Value);
         }
 
         /// <summary>
@@ -47,10 +45,13 @@ namespace Whispbot
         /// <returns></returns>
         public static async Task PostModifyBanRequest(BanRequest banRequest)
         {
-            Message? logMessage = await GetBanRequestLogMessage(banRequest);
-            if (logMessage is null) return;
+            if (banRequest.message_id is null) return;
 
-            await logMessage.Edit(await GetBanRequestMessage(banRequest));
+            var logChannel = await GetBanRequestLogChannel(banRequest);
+            if (logChannel is null) return;
+
+            var (embed, components) = await GetBanRequestMessage(banRequest);
+            await logChannel.ModifyMessageAsync(banRequest.message_id.Value, m => { m.Embed = embed; m.Components = components; });
         }
 
         /// <summary>
@@ -60,10 +61,12 @@ namespace Whispbot
         /// <returns></returns>
         public static async Task PostRemoveBanRequest(BanRequest banRequest)
         {
-            Message? logMessage = await GetBanRequestLogMessage(banRequest);
-            if (logMessage is null) return;
+            if (banRequest.message_id is null) return;
 
-            await logMessage.Delete("Request completed");
+            var logChannel = await GetBanRequestLogChannel(banRequest);
+            if (logChannel is null) return;
+
+            await logChannel.DeleteMessageAsync(banRequest.message_id.Value);
         }
 
         /// <summary>
@@ -96,9 +99,9 @@ namespace Whispbot
         {
             var initialMessageUpdate = PostModifyBanRequest(banRequest);
 
-            var result = await ERLC.SendCommand(erlcServer, $":ban {banRequest.target_id}");
+            var result = await ERLCAPI.SendCommand(erlcServer, $":ban {banRequest.target_id}");
 
-            if (result?.error == ErrorCode.Unknown)
+            if (result?.error == ErrorCode.Nothing)
             {
                 await initialMessageUpdate;
                 await MarkAsBanned(banRequest.id, banRequest.guild_id, banRequest.moderator_id);
@@ -111,7 +114,7 @@ namespace Whispbot
                     SET status = FALSE, status_message = @1
                     WHERE id = @2
                     RETURNING *",
-                    [result?.error_message ?? "{string.errors.rmbr.unknownerror}", banRequest.id]
+                    [result?.error_message ?? Languages.Translator.Get(Whispbot.Languages.Language.EnglishUK, $"erlc.errors.api.{(result?.error ?? 0).ToString().ToLower()}"), banRequest.id]
                 );
                 await initialMessageUpdate;
 
@@ -126,11 +129,11 @@ namespace Whispbot
         /// <param name="guildId">The guild the ban request is from</param>
         /// <param name="moderatorId">The moderator who denied the ban request</param>
         /// <returns>(<see cref="BanRequest?"/>, <see cref="string?"/>) where item1 is the deleted ban request and item2 is the error if failed</returns>
-        public static async Task<(BanRequest?, string?)> DeleteBanRequest(long id, long guildId, long moderatorId)
+        public static async Task<(BanRequest?, string?)> DeleteBanRequest(ulong id, ulong guildId, ulong moderatorId)
         {
-            if (!await WhispPermissions.HasPermission(guildId.ToString(), moderatorId.ToString(), BotPermissions.ManageBanRequests))
+            if (!await WhispPermissions.HasPermission(guildId, moderatorId, BotPermissions.ManageBanRequests))
             {
-                return (null, "{string.errors.rmlog.noperms}");
+                return (null, Whispbot.Languages.Translator.Get(Whispbot.Languages.Language.EnglishUK, "rmod.log.errors.no_permissions"));
             }
 
             BanRequest? banRequest = Postgres.SelectFirst<BanRequest>(
@@ -143,10 +146,9 @@ namespace Whispbot
 
             if (banRequest is not null)
             {
-                _ = Task.Run(() => PostRemoveBanRequest(banRequest));
                 return (banRequest, null);
             }
-            return (null, "{string.errors.rmlog.logfailed}");
+            return (null, Whispbot.Languages.Translator.Get(Whispbot.Languages.Language.EnglishUK, "rmod.log.errors.failed"));
         }
 
         /// <summary>
@@ -156,28 +158,28 @@ namespace Whispbot
         /// <param name="guildId"></param>
         /// <param name="moderatorId"></param>
         /// <returns></returns>
-        public static async Task<(BanRequest?, string?)> MarkAsBanned(long id, long guildId, long moderatorId)
+        public static async Task<(BanRequest?, string?)> MarkAsBanned(ulong id, ulong guildId, ulong moderatorId)
         {
             // Makes sure the module is actually enabled
-            if (!(await WhispPermissions.CheckModule(guildId.ToString(), Commands.Module.RobloxModeration)).Item1) return (null, "{string.errors.rmlog.moduledisabled}");
+            if (!(await WhispPermissions.CheckModule(guildId, Commands.Module.RobloxModeration)).Item1) return (null, Whispbot.Languages.Translator.Get(Whispbot.Languages.Language.EnglishUK, "rmod.errors.module_disabled"));
 
             // Makes sure the moderator has permission to do this
-            if (!await WhispPermissions.HasPermission(guildId.ToString(), moderatorId.ToString(), BotPermissions.ManageBanRequests))
+            if (!await WhispPermissions.HasPermission(guildId, moderatorId, BotPermissions.ManageBanRequests))
             {
-                return (null, "{string.errors.rmlog.noperms}");
+                return (null, Whispbot.Languages.Translator.Get(Whispbot.Languages.Language.EnglishUK, "rmod.log.errors.no_permissions"));
             }
 
             // Get the ban type for the server 
-            List<RobloxModerationType>? types = await WhispCache.RobloxModerationTypes.Get(guildId.ToString());
+            List<RobloxModerationType>? types = await WhispCache.RobloxModerationTypes.Get(guildId);
             RobloxModerationType? banType = types?.FirstOrDefault(t => t.is_ban_type && !t.is_deleted);
             if (banType is null)
             {
-                return (null, "{string.errors.rmbr.nobantype}");
+                return (null, Whispbot.Languages.Translator.Get(Whispbot.Languages.Language.EnglishUK, "rmod.requests.errors.no_ban_type"));
             }
 
             // Transaction to make sure that both operations complete successfully
             using var transaction = Postgres.BeginTransaction();
-            if (transaction is null) return (null, "{string.errors.general.dbfailed}");
+            if (transaction is null) return (null, Whispbot.Languages.Translator.Get(Whispbot.Languages.Language.EnglishUK, "errors.dbfailed"));
 
             BanRequest? banRequest = Postgres.SelectFirst<BanRequest>(
                 @"
@@ -204,7 +206,7 @@ namespace Whispbot
 
                 return (banRequest, null);
             }
-            return (null, "{string.errors.rmlog.logfailed}");
+            return (null, Whispbot.Languages.Translator.Get(Whispbot.Languages.Language.EnglishUK, "rmod.log.errors.failed"));
         }
 
         /// <summary>
@@ -215,29 +217,29 @@ namespace Whispbot
         /// <param name="moderatorId">The moderator which approved the ban request</param>
         /// <param name="erlcServer">The server to send the command to</param>
         /// <returns>(<see cref="BanRequest?"/>, <see cref="string?"/>) where item1 is the ban request that has been approved and item2 is the error if failed</returns>
-        public static async Task<(BanRequest?, string?)> ApproveBanRequest(long id, long guildId, long moderatorId, ERLCServerConfig erlcServer)
+        public static async Task<(BanRequest?, string?)> ApproveBanRequest(ulong id, ulong guildId, ulong moderatorId, ERLCServerConfig erlcServer)
         {
             // Checks if the module is actually enabled
-            if (!(await WhispPermissions.CheckModule(guildId.ToString(), Commands.Module.RobloxModeration | Commands.Module.ERLC)).Item1) return (null, "{string.errors.rmlog.moduledisabled}");
+            if (!(await WhispPermissions.CheckModule(guildId, Commands.Module.RobloxModeration | Commands.Module.ERLC)).Item1) return (null, Whispbot.Languages.Translator.Get(Whispbot.Languages.Language.EnglishUK, "rmod.errors.module_disabled"));
 
-            if (erlcServer.api_key is null) return (null, "{string.errors.rmbr.noapikey}");
+            if (erlcServer.api_key is null) return (null, Whispbot.Languages.Translator.Get(Whispbot.Languages.Language.EnglishUK, "rmod.requests.errors.no_api_key"));
 
-            if (!await WhispPermissions.HasPermission(guildId.ToString(), moderatorId.ToString(), BotPermissions.ManageBanRequests))
+            if (!await WhispPermissions.HasPermission(guildId, moderatorId, BotPermissions.ManageBanRequests))
             {
-                return (null, "{string.errors.rmlog.noperms}");
+                return (null, Whispbot.Languages.Translator.Get(Whispbot.Languages.Language.EnglishUK, "rmod.log.errors.no_permissions"));
             }
 
             // Get the ban type for the server
-            List<RobloxModerationType>? types = await WhispCache.RobloxModerationTypes.Get(guildId.ToString());
+            List<RobloxModerationType>? types = await WhispCache.RobloxModerationTypes.Get(guildId);
             RobloxModerationType? banType = types?.FirstOrDefault(t => t.is_ban_type && !t.is_deleted);
             if (banType is null)
             {
-                return (null, "{string.errors.rmbr.nobantype}");
+                return (null, Whispbot.Languages.Translator.Get(Whispbot.Languages.Language.EnglishUK, "rmod.requests.errors.no_ban_type"));
             }
 
             if (erlcServer.allow_ban_requests != true)
             {
-                return (null, "{string.errors.rmbr.banrequestsdisabled}");
+                return (null, Whispbot.Languages.Translator.Get(Whispbot.Languages.Language.EnglishUK, "rmod.requests.errors.disabled"));
             }
 
             BanRequest? banRequest = Postgres.SelectFirst<BanRequest>(
@@ -254,7 +256,7 @@ namespace Whispbot
                 _ = Task.Run(() => SendBanRequestCommand(banRequest, erlcServer));
                 return (banRequest, null);
             }
-            return (null, "{string.errors.rmbr.alreadyapproved}");
+            return (null, Whispbot.Languages.Translator.Get(Whispbot.Languages.Language.EnglishUK, "rmod.requests.errors.already_approved"));
         }
     }
 }

@@ -4,12 +4,13 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Databases;
+using Whispbot.Extensions;
 using Whispbot.Tools;
-using Whispbot.Tools.Games.ERLC;
-using YellowMacaroni.Discord.Extentions;
+using Whispbot.Tools.Games.ERLCAPI;
 
-namespace Whispbot.Commands.ERLCCommands.Commands.Debug
+namespace Whispbot.Commands.ERLC.Commands.Debug
 {
     public class PMUsers: ERLCCommand
     {
@@ -20,23 +21,21 @@ namespace Whispbot.Commands.ERLCCommands.Commands.Debug
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(ERLCCommandContext ctx)
         {
-            if (ctx.GuildId is null || ctx.UserId is null) return;
-
             if (ctx.args.Count < 1)
             {
-                await ctx.Reply("{string.errors.erlccommand.pm.missinguser}");
+                await ctx.Reply($"{ctx.String("erlc.errors.pm_missing_user")}");
                 return;
             }
 
             if (ctx.args.Count < 2)
             {
-                await ctx.Reply("{string.errors.erlccommand.pm.missingmessage}");
+                await ctx.Reply($"{ctx.String("erlc.errors.pm_missing_message")}");
                 return;
             }
 
             if (!await WhispPermissions.HasPermission(ctx.GuildId, ctx.UserId, BotPermissions.ERLCAdmin | BotPermissions.ERLCOWner))
             {
-                await ctx.Reply("{string.errors.erlccommand.pm.nopermission}");
+                await ctx.Reply($"{ctx.String("erlc.errors.pm_no_permissions")}");
                 return;
             }
 
@@ -50,11 +49,11 @@ namespace Whispbot.Commands.ERLCCommands.Commands.Debug
             {
                 reciever = "@onduty";
 
-                List<Shift>? activeShifts = Postgres.Select<Shift>("SELECT * FROM shifts WHERE guild_id = @1 AND end_time IS NULL", [long.Parse(ctx.GuildId)]);
+                List<Shift>? activeShifts = Postgres.Select<Shift>("SELECT * FROM shifts WHERE guild_id = @1 AND end_time IS NULL", [ctx.GuildId]);
 
                 if (activeShifts != null)
                 {
-                    List<long> activeIds = activeShifts.Select(s => s.moderator_id).Distinct().ToList();
+                    List<ulong> activeIds = [.. activeShifts.Select(s => s.moderator_id).Distinct()];
                     List<UserConfig> userConfigs = WhispCache.UserConfig.FindMany((u,_) => activeIds.Contains(u.id));
                     if (userConfigs.Count < activeIds.Count)
                     {
@@ -64,7 +63,7 @@ namespace Whispbot.Commands.ERLCCommands.Commands.Debug
                             userConfigs.AddRange(otherConfigs);
                             foreach (var config in otherConfigs)
                             {
-                                WhispCache.UserConfig.Insert(config.id.ToString(), config);
+                                WhispCache.UserConfig.Insert(config.id, config);
                             }
                         }
                     }
@@ -85,10 +84,10 @@ namespace Whispbot.Commands.ERLCCommands.Commands.Debug
 
             if (pmUsers.Count == 0)
             {
-                await ctx.Reply("{string.errors.erlccommand.pm.nousers}");
+                await ctx.Reply($"{ctx.String("erlc.errors.pm_no_users")}");
             }
 
-            await ERLC.SendCommand(ctx.server, $":pm {pmUsers.Join(",")} {ctx.robloxUsername} to {reciever}: {ctx.args.Join(" ")}");
+            await ERLCAPI.SendCommand(ctx.server, $":pm {pmUsers.Join(",")} {ctx.robloxUsername} to {reciever}: {ctx.args.Join(" ")}");
         }
     }
 }

@@ -1,3 +1,4 @@
+using Discord;
 using Newtonsoft.Json;
 using Serilog;
 using System;
@@ -5,8 +6,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Databases;
-using YellowMacaroni.Discord.Core;
+using Whispbot.Languages;
+using Whispbot.Tools;
+using Whispbot.Tools.Disc;
 using static Whispbot.Tools.Roblox;
 
 namespace Whispbot.Commands.General
@@ -25,52 +29,47 @@ namespace Whispbot.Commands.General
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
         {
-            await ctx.Reply(new MessageBuilder() { content = "This is currently broken, use <https://beta.whisp.bot/user/@me> instead." });
-            return;
-
             if (ctx.User is null) return;
 
-            UserConfig? userConfig = await WhispCache.UserConfig.Get(ctx.User.id);
+            UserConfig? userConfig = await WhispCache.UserConfig.Get(ctx.UserId);
 
-            RobloxUser? robloxUser = userConfig?.roblox_id is not null ? Users.FromCache(userConfig.roblox_id.Value.ToString()) : null;
+            RobloxUser? robloxUser = userConfig?.roblox_id is not null ? Roblox.Users.FromCache(userConfig.roblox_id.Value.ToString()) : null;
 
             if (userConfig?.roblox_id is not null && robloxUser is null)
             {
-                await ctx.Reply(new MessageBuilder() { components = [new TextDisplayBuilder("{emoji.loading} {string.content.connections.fetchingroblox}...")], flags = MessageFlags.IsComponentsV2 });
+                await ctx.Reply(components: new ComponentBuilderV2().WithTextDisplay(new TextDisplayBuilder($"{ctx.Emoji("loading")} {ctx.String("connections.loading")}...")).Build(), flags: MessageFlags.ComponentsV2);
 
-                robloxUser = await GetUserById(userConfig.roblox_id.Value);
+                robloxUser = await GetUserById(userConfig.roblox_id.ToString()!);
             }
 
-            await ctx.EditResponse(GetConnectionsMessage(false, ctx.User.id, robloxUser));
+            await ctx.EditResponse(components: GetConnectionsMessage(false, ctx.UserId, robloxUser, ctx.Language), flags: MessageFlags.ComponentsV2);
         }
 
-        public static MessageBuilder GetConnectionsMessage(bool updating, string userId, RobloxUser? robloxUser)
+        public static MessageComponent GetConnectionsMessage(bool updating, ulong userId, RobloxUser? robloxUser, Language language)
         {
             bool roblox = robloxUser is not null;
 
-            return new MessageBuilder()
-            {
-                components = [
+            return new ComponentBuilderV2()
+                .WithContainer(
                     new ContainerBuilder()
-                    {
-                        components = [
-                            new TextDisplayBuilder("**{string.title.yourconnections}**"),
+                        .WithTextDisplay(language.Translate("connections.title"))
+                        .WithSection(
                             new SectionBuilder()
-                            .SetAccessory(
-                                new ButtonBuilder(roblox ? $"disconnect_roblox {userId}" : $"connection_roblox {userId}") { disabled = updating }.SetLabel(roblox ? "Disconnect" : "Connect").SetStyle(roblox ? ButtonStyle.Danger : ButtonStyle.Secondary))
-                            .SetComponents(
-                                robloxUser is not null ? [
-                                    new TextDisplayBuilder($"{{emoji.roblox}} **Roblox**"),
-                                    new TextDisplayBuilder($"> **@{robloxUser.name}** ({robloxUser.id})")
-                                ] : [
-                                    new TextDisplayBuilder("{emoji.roblox} *Not connected to Roblox.*")
-                                ]
-                            )
-                        ]
-                    }
-                ],
-                flags = MessageFlags.IsComponentsV2
-            };
+                                .WithAccessory(
+                                    roblox ? new ButtonBuilder(language.Translate("connections.disconnect"), $"disconnect_roblox {userId}", ButtonStyle.Secondary, isDisabled: updating)
+                                           : new ButtonBuilder(language.Translate("connections.connect"), null, ButtonStyle.Link, url: $"{Config.websiteUrl}/login/roblox", isDisabled: updating)
+                                )
+                                .WithComponents(
+                                    robloxUser is not null ? [
+                                        new TextDisplayBuilder($"{Emojis.Get("roblox")} **Roblox**"),
+                                        new TextDisplayBuilder($"> **@{robloxUser.name}** ({robloxUser.id})")
+                                    ] : [
+                                        new TextDisplayBuilder($"{Emojis.Get("roblox")} *{language.Translate("connections.errors.notconnected")}*")
+                                    ]
+                                )
+                        )
+                )
+                .Build();
         }
     }
 }

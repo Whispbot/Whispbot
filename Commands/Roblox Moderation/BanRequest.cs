@@ -1,13 +1,13 @@
+using Discord;
 using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Databases;
 using Whispbot.Tools;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Commands.Roblox_Moderation
 {
@@ -28,20 +28,12 @@ namespace Whispbot.Commands.Roblox_Moderation
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
         {
-            if (ctx.UserId is null) return;
-
-            if (ctx.GuildId is null || ctx.Guild is null)
-            {
-                await ctx.Reply("{emoji.cross} {string.errors.general.guildonly}.");
-                return;
-            }
-
             if (!await WhispPermissions.CheckModuleMessage(ctx, Module.RobloxModeration)) return;
             if (!await WhispPermissions.CheckPermissionsMessage(ctx, BotPermissions.UseBanRequests)) return;
 
             if (ctx.args.Count < 1)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.rmbr.missingargs}.");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("rmod.requests.errors.missing_arguments")}.");
                 return;
             }
 
@@ -49,7 +41,7 @@ namespace Whispbot.Commands.Roblox_Moderation
 
             if (types is null)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.rmlog.dbfailed}.");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("rmod.log.errors.database")}.");
                 return;
             }
 
@@ -57,7 +49,7 @@ namespace Whispbot.Commands.Roblox_Moderation
 
             if (!hasBanType)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.rmbr.nobantype}");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("rmod.requests.errors.no_ban_type")}");
                 return;
             }
 
@@ -65,7 +57,7 @@ namespace Whispbot.Commands.Roblox_Moderation
 
             if (ctx.GuildConfig?.roblox_moderation?.require_reason == true && string.IsNullOrWhiteSpace(reason))
             {
-                await ctx.Reply("{emoji.cross} {string.errors.rmlog.reasonrequired}");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("rmod.log.errors.reason_required")}");
                 return;
             }
 
@@ -73,54 +65,35 @@ namespace Whispbot.Commands.Roblox_Moderation
 
             if (user is null)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.rmlog.invaliduser}.");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("rmod.log.errors.invalid_user")}.");
                 return;
             }
 
             var (log, errormessage) = await Procedures.CreateBanRequest(
                 ctx.GuildId,
                 ctx.UserId,
-                user.id,
+                ulong.Parse(user.id),
                 reason ?? "*No reason provided.*"
             );
 
             if (log is not null)
             {
-                await ctx.Reply(new MessageBuilder
-                {
-                    embeds = [
-                        new EmbedBuilder
-                        {
-                            title = "{string.title.rmbr.logged}",
-                            description = "{emoji.tick} {string.success.rmbr}.",
-                            author = new EmbedAuthor
-                            {
-                                name = $"{(ctx.User?.global_name is not null ? ctx.User.global_name : $"@{ctx.User?.username ?? "unknown"}")}",
-                                icon_url = ctx.User?.avatar_url
-                            },
-                            thumbnail = new EmbedThumbnail
-                            {
-                                url = await Roblox.GetUserAvatar(user.id)
-                            },
-                            fields = [
-                                new EmbedField
-                                {
-                                    name = "{string.title.rmlog.user}",
-                                    value = $"{{emoji.user}} **@{user.name}** ({user.id})"
-                                },
-                                new EmbedField
-                                {
-                                    name = "{string.title.rmlog.reason}",
-                                    value = $"{{emoji.alignment}} {reason}"
-                                }
-                            ]
-                        }
-                    ]
-                });
+                await ctx.Reply(
+                    embed: new EmbedBuilder()
+                        .WithTitle($"{ctx.String("rmod.requests.title.logged")}")
+                        .WithDescription($"{ctx.Emoji("tick")} {ctx.String("rmod.requests.success")}")
+                        .WithAuthor(ctx.User.GlobalName ?? $"@{ctx.User.Username}", ctx.User.GetDisplayAvatarUrl())
+                        .WithThumbnailUrl(await Roblox.GetUserAvatar(user.id))
+                        .WithFields(
+                            new EmbedFieldBuilder() { Name = $"{ctx.String("rmod.log.field.user")}", Value = $"{ctx.Emoji("user")} **@{user.name}** ({user.id})" },
+                            new EmbedFieldBuilder() { Name = $"{ctx.String("rmod.log.field.reason")}", Value = $"{ctx.Emoji("alignment")} {reason}" }
+                        )
+                        .Build()
+                );
             }
             else
             {
-                await ctx.Reply("{emoji.cross} {string.errors}.");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("errors.general.unknown")}.");
             }
         }
     }

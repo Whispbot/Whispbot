@@ -1,4 +1,7 @@
-﻿using Microsoft.AspNetCore.Mvc.Formatters;
+﻿using Discord;
+using Discord.WebSocket;
+using Microsoft.AspNetCore.Mvc.Formatters;
+using Microsoft.Extensions.Logging;
 using Serilog;
 using System;
 using System.Collections.Generic;
@@ -7,31 +10,32 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Commands.Discord_Moderation;
-using Whispbot.Commands.ERLCCommands;
+using Whispbot.Commands.ERLC;
 using Whispbot.Commands.General;
 using Whispbot.Commands.Roblox_Moderation;
 using Whispbot.Commands.Shifts;
 using Whispbot.Commands.Staff;
 using Whispbot.Extensions;
+using Whispbot.Languages;
 using Whispbot.Tools;
-using YellowMacaroni.Discord.Cache;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
-using YellowMacaroni.Discord.Sharding;
+using Whispbot.Tools.Bot;
+using Whispbot.Tools.Disc;
+using Whispbot.Tools.Logging;
 
 namespace Whispbot.Commands
 {
-    public partial class CommandManager
+    public static class CommandManager
     {
-        public readonly List<Command> commands = [];
-        public readonly List<Command> staffCommands = [];
+        public static readonly List<Command> commands = [];
+        public static readonly List<Command> staffCommands = [];
 
-        public readonly Dictionary<string, RatelimitData> ratelimits = [];
+        public static readonly Dictionary<string, RatelimitData> ratelimits = [];
 
-        public readonly List<string> ignoreGuilds = [];
+        public static readonly List<ulong> ignoreGuilds = [];
 
-        public CommandManager()
+        public static void Init(DiscordShardedClient client)
         {
             #region Commands
             RegisterCommand(new Ping());
@@ -65,7 +69,6 @@ namespace Whispbot.Commands
             RegisterCommand(new ERLC_KillLogs());
             RegisterCommand(new ERLC_CommandLogs());
             RegisterCommand(new ERLC_ModCalls());
-            RegisterCommand(new ERLC_Banned());
             RegisterCommand(new ERLC_VSM());
 
             RegisterCommand(new Warn());
@@ -80,55 +83,68 @@ namespace Whispbot.Commands
 
             RegisterStaffCommand(new Test());
             RegisterStaffCommand(new SQL());
-            RegisterStaffCommand(new UpdateLanguages());
             RegisterStaffCommand(new AIRequest());
             RegisterStaffCommand(new ResolveError());
             RegisterStaffCommand(new GuildFeatureFlags());
             RegisterStaffCommand(new ViewColor());
-
+            RegisterStaffCommand(new ViewLanguages());
+            RegisterStaffCommand(new GuildVersion());
             RegisterStaffCommand(new Page());
             #endregion
 
-            Log.Debug($"Loaded {commands.Count} commands");
+            Logging.Log($"Loaded {commands.Count} commands");
+
+            client.MessageReceived += async (message) =>
+            {
+                await HandleMessage(client, message);
+            };
         }
 
-        public void RegisterCommand(Command command)
+        public static void RegisterCommand(Command command)
         {
             if (commands.Any(c => c.Name == command.Name)) return;
             commands.Add(command);
         }
 
-        public void RegisterStaffCommand(Command command)
+        public static void RegisterStaffCommand(Command command)
         {
             if (staffCommands.Any(c => c.Name == command.Name)) return;
             staffCommands.Add(command);
         }
 
-        private int? _maxLength = null;
-        public int MaxLength => _maxLength ??= commands.Max(c => c.Aliases.Max(a => a.Split(" ").Length));
+        private static int? _maxLength = null;
+        public static int MaxLength => _maxLength ??= commands.Max(c => c.Aliases.Max(a => a.Split(" ").Length));
 
-        public async Task HandleMessage(Client client, Message message)
+        private static List<string> _allowMentionCommands = ["ping"];
+
+        public static async Task HandleMessage(DiscordShardedClient client, SocketMessage rawMessage)
         {
-            if (ignoreGuilds.Contains(message.channel?.guild_id?.ToString() ?? "")) return;
-            if (message.webhook_id is not null) return; // Webhooks handled by ERLC command manager
-            if (message.author.bot ?? false) return; // Don't reply to bots
+            if (rawMessage is not SocketUserMessage message) return;
+            if (message.Source != MessageSource.User) return; // ignore bots/webhooks
+            if (message.Channel is IGuildChannel channel)
+            {
+                if (ignoreGuilds.Contains(channel.GuildId)) return;
+            }
+            else return; // only reply to guild messages
 
             using var messageTrace = Tracer.Start("Message");
+            DateTimeOffset start = DateTimeOffset.UtcNow;
 
             GuildConfig? guildConfig = null;
             using (Tracer.Start("GetGuildConfig"))
-                guildConfig = message.channel?.guild_id is not null ? await WhispCache.GuildConfig.Get(message.channel.guild_id) : null;
+                guildConfig = await WhispCache.GuildConfig.Get(channel.GuildId);
 
             string prefix = guildConfig?.prefix ?? Config.prefix;
-            string mention = $"<@{client.readyData?.user.id}>";
+            string mention = $"<@{client.CurrentUser.Id}>";
+            bool mentioned = false;
 
             string staffPrefix = Config.staffPrefix;
 
-            if (message.content.StartsWith(mention)) prefix = mention;
+            if (message.Content.StartsWith(mention)) { prefix = mention; mentioned = true; }
 
-            if (message.content.StartsWith(prefix, StringComparison.CurrentCultureIgnoreCase))
+            if (message.Content.StartsWith(prefix, StringComparison.CurrentCultureIgnoreCase))
             {
-                List<string> args = [.. message.content[prefix.Length..].Split(' ', StringSplitOptions.RemoveEmptyEntries)];
+                List<string> args = [.. message.Content[prefix.Length..].Split(' ', StringSplitOptions.RemoveEmptyEntries)];
                 string content = args.Join(" ");
 
                 Command? command = GetCommandByName(content, commands, out int length);
@@ -136,7 +152,29 @@ namespace Whispbot.Commands
 
                 if (command is null) return;
 
-                var (arguments, error) = await ArgParser.GetArguments(message, command, args);
+                if (guildConfig is null)
+                {
+                    await message.Channel.SendMessageAsync($"{Emojis.Get("cross")} {"errors.dbfailed".Translate(0)}.");
+                    return;
+                }
+
+                if (guildConfig.version != Config.EnvId)
+                {
+                    if (!mentioned || !_allowMentionCommands.Contains(command.Name.ToLower()))
+                    {
+                        if (mentioned)
+                        {
+                            await message.Channel.SendMessageAsync("errors.version".Translate(guildConfig.default_language ?? 0, guildConfig.version.ToString(), Config.EnvId.ToString()));
+                        }
+                        return;
+                    }
+                }
+
+                UserConfig? userConfig = null;
+                using (Tracer.Start("GetUserConfig"))
+                    userConfig = await WhispCache.UserConfig.Get(message.Author.Id);
+
+                var (arguments, error) = await ArgParser.GetArguments(message, $"{prefix}{(prefix == mention ? " " : "")}", command, args, userConfig?.language ?? guildConfig.default_language ?? 0);
                 if (error is not null)
                 {
                     await ArgParser.SendArgError(message, error);
@@ -147,44 +185,32 @@ namespace Whispbot.Commands
 
                 var ctx = new CommandContext(client, message, arguments!);
 
-                if (ctx.GuildConfig is null)
-                {
-                    await ctx.Reply("{emoji.cross} {string.errors.dbfailed}.");
-                    return;
-                }
-
-                if (ctx.GuildConfig.version != Config.EnvId) return;
-                
-                if (ctx.UserConfig?.ack_required ?? false)
-                {
-                    await ctx.Reply(Actions.GenerateAcknowledgeMessage(long.Parse(ctx.UserId ?? "0")));
-
-                    return;
-                }
-
                 if (await IsRatelimited(ctx, command)) return;
 
                 try
                 {
                     using (Tracer.Start("ExecuteCommand")) await command.ExecuteAsync(ctx);
+
+                    DateTimeOffset end = DateTimeOffset.UtcNow;
+                    LogCommand(ctx, command, end - start);
                 }
                 catch (Exception ex)
                 {
                     using var _ = Tracer.Start("LoggingError");
                     var id = SentrySdk.CaptureException(ex);
                     using var __ = Tracer.Start($"SendingErrorMessage: {id}");
-                    Log.Error($"An error occured while executing '{command.Name}'\nUser: @{ctx.User?.username} ({ctx.UserId})\nGuild: {ctx.Guild?.name} ({ctx.GuildId})\n\n", ex);
+                    Log.Error(ex, $"An error occured while executing '{command.Name}'\nUser: @{ctx.User.Username} ({ctx.UserId})\nGuild: {ctx.Guild.Name} ({ctx.GuildId})");
                     await SendErrorMessage(ctx, id);
                 }
             }
-            else if 
+            else if
             (
-                message.content.StartsWith(staffPrefix, StringComparison.CurrentCultureIgnoreCase)
+                message.Content.StartsWith(staffPrefix, StringComparison.CurrentCultureIgnoreCase)
                 //                          |   Support Server  |           ->         |     Member    |             ->           |  Has Staff Role?  |
-                && (DiscordCache.Guilds.Get("1096509172784300174").Result?.members.Get(message.author.id).Result?.roles?.Contains("1256333207599841435") ?? false)
+                && (client.GetGuild(1096509172784300174)?.GetUser(message.Author.Id)?.Roles?.Any(r => r.Id == 1256333207599841435) ?? false)
             )
             {
-                List<string> args = [.. message.content[staffPrefix.Length..].Split(' ', StringSplitOptions.RemoveEmptyEntries)];
+                List<string> args = [.. message.Content[staffPrefix.Length..].Split(' ', StringSplitOptions.RemoveEmptyEntries)];
                 string content = args.Join(" ");
 
                 Command? command = GetCommandByName(content, staffCommands, out int length);
@@ -192,7 +218,7 @@ namespace Whispbot.Commands
 
                 if (command is null) return;
 
-                var (arguments, error) = await ArgParser.GetArguments(message, command, args);
+                var (arguments, error) = await ArgParser.GetArguments(message, staffPrefix, command, args, 0);
                 if (error is not null)
                 {
                     await ArgParser.SendArgError(message, error);
@@ -203,7 +229,13 @@ namespace Whispbot.Commands
             }
         }
 
-        public Command? GetCommandByName(string name, List<Command> cmds, out int length)
+        public static void LogCommand(CommandContext ctx, Command command, TimeSpan duration)
+        {
+            Logging.Log(LogSeverity.Debug, "Commands", $"Executed '{command.Name}' in {Time.ConvertMillisecondsToString(duration.TotalMilliseconds, Small: true, RoundTo: 1)} for '@{ctx.User.Username}' ({ctx.UserId}) in '{ctx.Guild.Name}' ({ctx.GuildId})");
+            Stats.LogCommand(ctx, command, duration);
+        }
+
+        public static Command? GetCommandByName(string name, List<Command> cmds, out int length)
         {
             Command? command = null;
             int commandLength = 0;
@@ -240,20 +272,22 @@ namespace Whispbot.Commands
             }
         }
 
-        public async Task<bool> IsRatelimited(CommandContext ctx, Command command)
+        public static async Task<bool> IsRatelimited(CommandContext ctx, Command command)
         {
             if (command.Ratelimits.Count > 0) return false;
 
-            Message? message = ctx.message;
-            Interaction? interaction = ctx.interaction;
+            SocketMessage? message = ctx.message;
+            SocketInteraction? interaction = ctx.interaction;
 
             foreach (var rl in command!.Ratelimits)
             {
+                IGuildChannel? channel = message?.Channel as IGuildChannel;
+
                 string? rlk = rl.type switch
                 {
                     RateLimitType.Global => "global",
-                    RateLimitType.Guild => message?.channel?.guild_id ?? interaction?.guild_id ?? "global",
-                    RateLimitType.User => message?.author.id ?? interaction?.member?.user?.id,
+                    RateLimitType.Guild => (channel?.GuildId ?? interaction?.GuildId)?.ToString() ?? "global",
+                    RateLimitType.User => (message?.Author.Id ?? interaction?.User.Id)?.ToString(),
                     _ => "global"
                 };
 
@@ -274,7 +308,7 @@ namespace Whispbot.Commands
                 {
                     if (data.Remaining == 0 && data.Reset > DateTimeOffset.UtcNow)
                     {
-                        await ctx.Reply("{string.errors.ratelimited}".Process(ctx.Language, new Dictionary<string, string>() { { "reset", Time.ConvertMillisecondsToRelativeString(data.Reset.ToUnixTimeMilliseconds(), false, ", ", false, 1000) } }));
+                        await ctx.Reply("errors.ratelimited".Translate(ctx.Language, Time.ConvertMillisecondsToRelativeString(data.Reset.ToUnixTimeMilliseconds(), false, ", ", false, 1000)));
 
                         return true;
                     }
@@ -296,51 +330,35 @@ namespace Whispbot.Commands
             return false;
         }
 
-        public async Task SendErrorMessage(CommandContext ctx, SentryId id)
+        public static async Task SendErrorMessage(CommandContext ctx, SentryId id)
         {
-            await ctx.EditResponse(new MessageBuilder
-            {
-                components = [
-                    new ContainerBuilder
-                    {
-                        components = [
-                            new TextDisplayBuilder("## {string.title.error}"),
-                            new TextDisplayBuilder("{string.content.error}".Process(ctx.Language, new() { { "url", "<https://whisp.bot/support>" } })),
-                            new TextDisplayBuilder($"{{string.content.error.id}}:\n```\n{id}\n```"),
-                            new SectionBuilder
-                            {
-                                components = [
-                                    new TextDisplayBuilder("{string.content.error.feedback}")
-                                ],
-                                accessory = new ButtonBuilder
-                                {
-                                    label = "{string.content.error.feedback_button}",
-                                    custom_id = $"error_feedback {ctx.UserId} {id}",
-                                    style = ButtonStyle.Secondary
-                                }
-                            }
-                        ],
-                        accent = new(200, 69, 69)
-                    }
-                ],
-                flags = MessageFlags.IsComponentsV2
-            });
-        }
+            var components = new ComponentBuilderV2()
+                .WithContainer(
+                    new ContainerBuilder()
+                        .WithTextDisplay($"## {ctx.String("errors.message.title")}")
+                        .WithTextDisplay(ctx.String("errors.message.content"))
+                        .WithTextDisplay($"{ctx.String("errors.message.id")}:\n```\n{id}\n```")
+                        .WithSection(
+                            [
+                                new TextDisplayBuilder(ctx.String("errors.message.feedback"))
+                            ],
+                            new ButtonBuilder(
+                                ctx.String("errors.message.feedback.button"),
+                                $"error_feedback {ctx.UserId} {id}",
+                                style: ButtonStyle.Secondary
+                            )
+                        )
+                        .WithAccentColor(new(200, 69, 69))
+                )
+                .Build();
 
-        public void Attach(Client client)
-        {
-            client.MessageCreate += async (c, message) =>
+            if (!ctx.hasResponded)
             {
-                if (c is not Client client) return;
-                await HandleMessage(client, message);
-            };
-        }
-
-        public void Attach(ShardingManager manager)
-        {
-            foreach (Shard shard in manager.shards)
+                await ctx.Reply(components: components, flags: MessageFlags.ComponentsV2);
+            }
+            else
             {
-                Attach(shard.client);
+                await ctx.EditResponse(m => { m.Components = components; m.Flags = MessageFlags.ComponentsV2; });
             }
         }
 

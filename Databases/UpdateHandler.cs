@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using Discord;
+using Newtonsoft.Json;
 using Npgsql;
 using Sentry;
 using Serilog;
@@ -7,13 +8,20 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Tools;
-using static Whispbot.WhispCache;
+using Whispbot.Tools.Logging;
+using static Whispbot.Cache.WhispCache;
 
 namespace Whispbot.Databases
 {
     public static class UpdateHandler
     {
+        public static async Task LogEvent(NpgsqlNotificationEventArgs e)
+        {
+            Logging.Log(LogSeverity.Debug, "Database", $"Recieved Update ({e.Channel.ToUpper()})");
+        }
+
         public static async Task ListenForUpdates()
         {
             int i = 0;
@@ -26,7 +34,7 @@ namespace Whispbot.Databases
             using var conn = Postgres.GetConnection();
             if (conn is null)
             {
-                Log.Error("Notifcation listner connection failed");
+                Logging.Log(LogSeverity.Error, "Database", "Notification listener connection failed");
                 return;
             }
 
@@ -34,6 +42,8 @@ namespace Whispbot.Databases
             {
                 try
                 {
+                    await LogEvent(e);
+
                     if (e.Channel == "guild_update")
                     {
                         var data = JsonConvert.DeserializeObject<GuildUpdatePayload>(e.Payload);
@@ -42,73 +52,47 @@ namespace Whispbot.Databases
 
                         if (data.table == "guild_config" || data.table.StartsWith("module_", StringComparison.InvariantCultureIgnoreCase))
                         {
-                            GuildConfig? newConfig = await WhispCache.GuildConfig.Fetch(data.id.ToString());
+                            GuildConfig? newConfig = await WhispCache.GuildConfig.Fetch(data.id);
                             if (newConfig is null)
                             {
-                                WhispCache.GuildConfig.Remove(data.id.ToString());
+                                WhispCache.GuildConfig.Remove(data.id);
                             }
                         }
                         else if (data.table == "shift_types")
                         {
-                            List<ShiftType>? newTypes = await ShiftTypes.Fetch(data.id.ToString());
+                            List<ShiftType>? newTypes = await ShiftTypes.Fetch(data.id);
                         }
                         else if (data.table == "roblox_moderation_types")
                         {
-                            List<RobloxModerationType>? newTypes = await RobloxModerationTypes.Fetch(data.id.ToString());
+                            List<RobloxModerationType>? newTypes = await RobloxModerationTypes.Fetch(data.id);
                         }
                         else if (data.table == "erlc_servers")
                         {
-                            List<ERLCServerConfig>? newServers = await ERLCServerConfigs.Fetch(data.id.ToString());
+                            List<ERLCServerConfig>? newServers = await ERLCServerConfigs.Fetch(data.id);
                         }
                         else if (data.table == "permission_roles")
                         {
-                            List<PermissionRole>? newRoles = await WhispPermissions.permissionRoles.Fetch(data.id.ToString());
-                        }
-                    }
-                    else if (e.Channel == "language_update")
-                    {
-                        var data = JsonConvert.DeserializeObject<LanguageUpdatePayload>(e.Payload);
-
-                        if (data is null) return;
-
-                        if (data.op == "DELETE")
-                        {
-                            if (!Strings.LanguageStrings.TryGetValue(data.data.language, out Dictionary<string, string>? value)) return;
-                            value.Remove(data.data.key);
-                        }
-                        else
-                        {
-                            if (!Strings.LanguageStrings.TryGetValue(data.data.language, out var lang))
-                            {
-                                Strings.LanguageStrings.Add(data.data.language, []);
-                                lang = Strings.LanguageStrings[data.data.language];
-                            }
-
-                            lang.Remove(data.data.key);
-                            lang.Add(data.data.key, data.data.content);
+                            List<PermissionRole>? newRoles = await WhispPermissions.permissionRoles.Fetch(data.id);
                         }
                     }
                 }
                 catch (Exception ex)
                 {
                     SentrySdk.CaptureException(ex);
-                    Log.Error(ex, $"An error occured while updating data. ID: {ex}");
+                    Logging.Log(LogSeverity.Error, "Database", $"An error occurred while updating data. ID: {ex}", ex);
                 }
             };
 
             using var listenGuildUpdate = new NpgsqlCommand("LISTEN guild_update;", conn);
             listenGuildUpdate.ExecuteNonQuery();
 
-            using var listenLanguageUpdate = new NpgsqlCommand("LISTEN language_update", conn);
-            listenLanguageUpdate.ExecuteNonQuery();
-
+            Logging.Log(LogSeverity.Info, "Database", "Listening for database updates...");
             while (true) await conn.WaitAsync();
         }
 
 #pragma warning disable IDE1006
-        public record GuildUpdatePayload(long id, string table, string op);
+        public record GuildUpdatePayload(ulong id, string table, string op);
         public record ProofDeletePayload(string id, string guild_id, string extension);
-        public record LanguageUpdatePayload(Strings.DBLanguage data, string op);
 #pragma warning restore IDE1006
     }
 }

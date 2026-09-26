@@ -1,3 +1,5 @@
+using Discord;
+using Discord.WebSocket;
 using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Newtonsoft.Json;
 using Serilog;
@@ -8,14 +10,12 @@ using System.Resources;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Databases;
 using Whispbot.Tools;
-using Whispbot.Tools.Games.ERLC;
-using YellowMacaroni.Discord.Cache;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
+using Whispbot.Tools.Games.ERLCAPI;
 
-namespace Whispbot.Commands.ERLCCommands
+namespace Whispbot.Commands.ERLC
 {
     public class ERLC_Player : Command
     {
@@ -29,22 +29,14 @@ namespace Whispbot.Commands.ERLCCommands
             new ("user", "The Roblox user to look up.", CommandArgType.RobloxUser),
             new ("server", "The ERLC server to check. If not provided, the default will be used.", CommandArgType.ERLCServer, optional: true)
         ];
-        public override List<string> Schema => ["<user:ruser>", "<server:erlcserver?>"];
+        public override List<string> Schema => ["<user:string>", "<server:erlcserver?>"];
         public override List<string> Aliases => ["player", "erlc player"];
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
         {
-            if (ctx.User?.id is null) return;
-
-            if (ctx.GuildId is null) // Make sure ran in server
-            {
-                await ctx.Reply("{emoji.cross} {string.errors.general.guildonly}.");
-                return;
-            }
-
             if (ctx.args.Count < 1)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.erlcplayer.nouser}");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("erlc.player.errors.notfound")}");
                 return;
             }
 
@@ -55,7 +47,7 @@ namespace Whispbot.Commands.ERLCCommands
 
             if (servers is null || servers.Count == 0)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.erlcserver.notfound}");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("erlc.errors.noservers")}");
                 return;
             }
 
@@ -63,19 +55,19 @@ namespace Whispbot.Commands.ERLCCommands
 
             if (server is null)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.erlcserver.notfound}");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("erlc.errors.notfound")}");
                 return;
             }
 
-            string? playerData = await Commands.ERLCCommandUtils.GetUserFromPartialName(ctx.args.Get("ruser")?.GetString() ?? "", server);
+            string? playerData = await Commands.ERLCCommandUtils.GetUserFromPartialName(ctx.args.Get("user")?.GetString() ?? "", server);
 
             if (playerData is null)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.erlcplayer.notfound}");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("erlc.player.errors.notfound")}");
                 return;
             }
 
-            var data = await ERLC.GetERLCServer(ctx, server);
+            var data = await ERLCAPI.GetERLCServer(ctx, server);
             if (data is null) return;
 
             var player = data.Server?.Players?.Find(p => p.Player == playerData);
@@ -95,81 +87,80 @@ namespace Whispbot.Commands.ERLCCommands
 
             if (userConfig is not null && cachedUserConfig is null)
             {
-                WhispCache.UserConfig.Insert(userConfig.id.ToString(), userConfig);
+                WhispCache.UserConfig.Insert(userConfig.id, userConfig);
             }
 
-            Member? discordMember = userConfig is not null && ctx.Guild is not null ? 
-                await ctx.Guild.members.Get(userConfig.id.ToString()) : null;
+            SocketGuildUser? discordMember = userConfig is not null && ctx.Guild is not null ? ctx.Guild.GetUser(userConfig.id) : null;
 
             StringBuilder badges = new();
             switch (player.Permission)
             {
                 case "Server Owner":
-                    badges.Append("{emoji.owner}");
+                    badges.Append(ctx.Emoji("owner"));
                     break;
                 case "Server Co-Owner":
-                    badges.Append("{emoji.coowner}");
+                    badges.Append(ctx.Emoji("coowner"));
                     break;
                 case "Server Administrator":
-                    badges.Append("{emoji.administrator}");
+                    badges.Append(ctx.Emoji("administrator"));
                     break;
                 case "Server Moderator":
-                    badges.Append("{emoji.moderator}");
+                    badges.Append(ctx.Emoji("moderator"));
                     break;
                 case "Server Helper":
-                    badges.Append("{emoji.helper}");
+                    badges.Append(ctx.Emoji("helper"));
                     break;
             }
 
-            await ctx.EditResponse(new MessageBuilder
-            {
-                embeds = [
-                    new EmbedBuilder
-                    {
-                        title = "{string.title.erlcplayer}",
-                        thumbnail = new EmbedThumbnail
-                        {
-                            url = await Roblox.GetUserAvatar(playerData.Split(":")[1])
-                        },
-                        description = 
-                            $"{(badges.Length > 0 ? badges.ToString() + " " : "")}" + // Emojis representing badges
-                            $"**@{username}** ({userId})", // @YellowMacaroni (1231233)
-                        fields = [
-                           ..(discordMember is not null ? 
-                           new List<EmbedField>() { 
-                               new() 
-                               {
-                                   name = "{string.title.erlcplayer.discord}",
-                                   value = 
-                                    $"{{emoji.indiscord}}" +
-                                    $"{(discordMember.premium_since is not null ? "{emoji.booster}" : "")} " +
-                                    $"<@{discordMember.user?.id}> ({discordMember.user?.id})"
-                               }
-                           } : []),
-                           new EmbedField
-                           {
-                                name = "{string.title.erlcplayer.location}",
-                                value = $"{{string.content.erlcplayer.location:postal={player.Location.PostalCode},street={player.Location.StreetName}}}"
-                           },
-                           ..(vehicle is not null ?
-                           new List<EmbedField>() {
-                               new()
-                               {
-                                   name = "{string.title.erlcplayer.vehicle}",
-                                   value = 
-                                    $"**{{string.title.erlcplayer.vehiclename}}**: {vehicle.Name}\n" +
-                                    $"**{{string.title.erlcplayer.vehicletexture}}**: {vehicle.Texture ?? "{string.general.none}"}\n" +
-                                    $"**{{string.title.erlcplayer.vehiclecolor}}**: {vehicle.ColorName} ({vehicle.ColorHex.ToUpper()})"
-                               }
-                           } : [])
-                        ],
-                        footer = new EmbedFooter
-                        {
-                            text = Cache.GenerateFooter(data)
-                        }
-                    }
-                ]
-            });
+            await ctx.EditResponse(
+                text: "",
+                embed: new EmbedBuilder()
+                    .WithTitle(ctx.String("erlc.player.title"))
+                    .WithThumbnailUrl(await Roblox.GetUserAvatar(playerData.Split(':')[1]))
+                    .WithDescription(
+                        $"{(badges.Length > 0 ? badges.ToString() + " " : "")}" + // Emojis representing badges
+                        $"**@{username}** ({userId})" // @YellowMacaroni (1231233)
+                    )
+                    .WithFields(
+                        [
+                            ..(discordMember is not null ? 
+                                new List<EmbedFieldBuilder>() { 
+                                    new EmbedFieldBuilder()
+                                        .WithName(ctx.String("erlc.player.fields.discord"))
+                                        .WithValue(
+											$"{ctx.Emoji("indiscord")}" +
+											$"{(discordMember.PremiumSince is not null ? ctx.Emoji("booster") : "")} " +
+											$"<@{discordMember.Id}> ({discordMember.Id})"
+										)
+                               } : []),
+
+                            new EmbedFieldBuilder()
+                                .WithName(ctx.String("erlc.player.fields.location"))
+                                .WithValue(ctx.String(
+                                    "erlc.player.location",
+                                    player.Location.BuildingNumber,
+                                    player.Location.StreetName,
+                                    player.Location.PostalCode
+                                )),
+
+							..(vehicle is not null ?
+                                new List<EmbedFieldBuilder>() {
+									new EmbedFieldBuilder()
+										.WithName(ctx.String("erlc.player.fields.vehicle"))
+										.WithValue(ctx.String(
+											"erlc.player.vehicle",
+                                            vehicle.Name,
+                                            vehicle.Plate,
+                                            vehicle.Texture ?? ctx.String("erlc.player.vehicle.no_texture"),
+                                            vehicle.ColorName,
+                                            vehicle.ColorHex
+										))
+							   } : [])
+						]
+                    )
+                    .WithFooter(ERLCCache.GenerateFooter(ctx, data))
+                    .Build()
+            );
         }
     }
 }

@@ -1,11 +1,12 @@
-﻿using System;
+﻿using Discord;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Databases;
-using Whispbot.Tools.Discord;
-using YellowMacaroni.Discord.Core;
+using Whispbot.Tools.Disc;
 
 namespace Whispbot
 {
@@ -15,28 +16,28 @@ namespace Whispbot
         {
             if (modifiedCase?.message_id is not null)
             {
-                var config = await WhispCache.GuildConfig.Get(modifiedCase.guild_id.ToString());
+                var config = await WhispCache.GuildConfig.Get(modifiedCase.guild_id);
                 if (config is null) return;
 
                 var logChannelId = config.discord_moderation?.log_channel_id;
                 if (logChannelId is not null)
                 {
-                    var logMessage = new Message
-                    { // who has time to fetch a message if you can just pretend you did
-                        id = modifiedCase.message_id.ToString()!,
-                        channel_id = logChannelId.ToString()!
-                    };
-                    await logMessage.Edit(await GenerateLogMessage(modifiedCase));
+                    var guild = Config.client!.GetGuild(modifiedCase.guild_id);
+                    var channel = guild.GetTextChannel(logChannelId.Value);
+                    await channel.ModifyMessageAsync(modifiedCase.message_id.Value, async m =>
+                    {
+                        m.Embed = await GenerateLogEmbed(modifiedCase);
+                    });
                 }
             }
         }
 
-        public static async Task<DiscordModerationCase?> EditReason(Guild guild, int caseId, User moderator, string newReason)
+        public static async Task<DiscordModerationCase?> EditReason(IGuild guild, int caseId, IUser moderator, string newReason)
         {
             var canUpdateAny = await DiscordPermissions.HasPermissionOrAdmin(
                 guild, 
-                moderator.id, 
-                Permissions.ManageGuild
+                moderator.Id, 
+                GuildPermission.ManageGuild
             );
 
             DiscordModerationCase? modifiedCase = null;
@@ -54,7 +55,7 @@ namespace Whispbot
                     ) AND guild_id = @3
                     RETURNING *;
                     ",
-                    [newReason, long.Parse(moderator.id), long.Parse(guild.id)]
+                    [newReason, moderator.Id, guild.Id]
                 );
             }
             else if (caseId > 0)
@@ -66,7 +67,7 @@ namespace Whispbot
                     WHERE case_id = @3 AND guild_id = @4{(!canUpdateAny ? " AND moderator_id = @2" : "")}
                     RETURNING *;
                     ",
-                    [newReason, long.Parse(moderator.id), caseId, long.Parse(guild.id)]
+                    [newReason, moderator.Id, caseId, guild.Id]
                 );
             }
 

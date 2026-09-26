@@ -1,13 +1,15 @@
+using Discord;
+using Discord.WebSocket;
 using Serilog;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Databases;
+using Whispbot.Extensions;
 using Whispbot.Tools;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Commands.Shifts
 {
@@ -31,14 +33,6 @@ namespace Whispbot.Commands.Shifts
         {
             // !shift activity [duration] [requirement] [type]
 
-            if (ctx.UserId is null) return;
-
-            if (ctx.GuildId is null || ctx.Guild is null)
-            {
-                await ctx.Reply("{emoji.cross} {string.errors.general.guildonly}.");
-                return;
-            }
-
             if (!await WhispPermissions.CheckModuleMessage(ctx, Module.Shifts)) return;
             if (!await WhispPermissions.CheckPermissionsMessage(ctx, BotPermissions.ManageShifts)) return;
 
@@ -46,7 +40,7 @@ namespace Whispbot.Commands.Shifts
 
             if (types is null)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.clockin.dbfailed}."); // Database failed (does not mean no shift types)
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("shifts.errors.failed_get_types")}"); // Database failed (does not mean no shift types)
                 return;
             }
 
@@ -58,7 +52,7 @@ namespace Whispbot.Commands.Shifts
 
             if (ctx.args.Count > 2 && type is null)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.clockin.typenotfound}.");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("shifts.errors.type_not_found")}");
                 return;
             }
 
@@ -90,24 +84,24 @@ namespace Whispbot.Commands.Shifts
                 LEFT JOIN agg a ON a.moderator_id = m.moderator_id;
                 ",
                 [
-                    long.Parse(ctx.GuildId),
+                    ctx.GuildId,
                     duration.TotalMilliseconds,
-                    .. (type is not null ? new List<long> { type.id } : [])
+                    .. (type is not null ? new List<ulong> { type.id } : [])
                 ]
             );
 
             if (userActivities is null)
             {
-                await ctx.Reply("{emoji.warning} {string.errors.shiftactivity.dbfailed}");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("shifts.activity.errors.failed")}");
                 return;
             }
             if (userActivities.Count == 0)
             {
-                await ctx.Reply("{emoji.warning} {string.errors.shiftactivity.nodata}");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("shifts.activity.errors.none")}");
                 return;
             }
 
-            List<string> roles = [];
+            List<ulong> roles = [];
 
             if (type is not null && type.required_roles is not null)
             {
@@ -119,7 +113,7 @@ namespace Whispbot.Commands.Shifts
 
                 if (permissionRoles is null)
                 {
-                    await ctx.Reply("{emoji.warning} {string.errors.shiftactivity.dbfailed}");
+                    await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("shifts.activity.errors.failed_type")}");
                     return;
                 }
 
@@ -130,31 +124,34 @@ namespace Whispbot.Commands.Shifts
                 ];
             }
 
-            List<Member> members = await ctx.Guild.GetMembers(ctx.client, [.. userActivities.Select(ua => ua.moderator_id.ToString())], TimeSpan.FromSeconds(1));
+            List<SocketGuildUser> members = [.. userActivities.Select(ua => ctx.Guild.GetUser(ua.moderator_id))];
 
-            List<Member> eligibleMembers = [..members
-                .Where(m => m.roles is not null && roles.Any(r => m.roles.Contains(r)))
+            List<SocketGuildUser> eligibleMembers = [..members
+                .Where(m => m is not null && m.Roles.Any(r => roles.Contains(r.Id)))
             ];
 
             List<string> metRequirement = [];
             List<string> notMetRequirement = [];
 
-            List<ShiftUserActivity> activities = [.. userActivities.Where(u => eligibleMembers.Any(m => m.user?.id == u.moderator_id.ToString()))];
+            List<ShiftUserActivity> activities = [.. userActivities.Where(u => eligibleMembers.Any(m => m.Id == u.moderator_id))];
 
             List<Embed> embeds = [
                 new EmbedBuilder
                 {
-                    title = "{string.title.shiftactivity}",
-                    description = $"**{{string.title.shiftactivity.totalshifts}}**: {
-                        activities.Sum(u => u.shifts)
-                    }\n**{{string.title.shiftactivity.totalduration}}**: {
-                        Time.ConvertMillisecondsToString(activities.Sum(u => u.duration), ", ", false, 60000)
-                    }",
-                    footer = new EmbedFooter
+                    Title = ctx.String("shifts.activity.title"),
+                    Description = ctx.String("shifts.activity.content",
+                        activities.Sum(a => a.shifts).ToString(),
+                        Time.ConvertMillisecondsToString(activities.Sum(u => u.duration), ", ", false, 60000, ctx.Language)
+                    ),
+                    Footer = new EmbedFooterBuilder
                     {
-                        text = $"{{string.title.shiftactivity.duration}}: {Time.ConvertMillisecondsToString(duration.TotalMilliseconds, ", ", true)} | {{string.title.shiftactivity.requirement}}: {Time.ConvertMillisecondsToString(requirement.TotalMilliseconds, ", ", true)} | {{string.title.shiftactivity.type}}: {type?.name ?? "all"}"
+                        Text = ctx.String("shifts.activity.footer",
+                            Time.ConvertMillisecondsToString(duration.TotalMilliseconds, ", ", true, language: ctx.Language),
+                            Time.ConvertMillisecondsToString(requirement.TotalMilliseconds, ", ", true, language: ctx.Language),
+                            type?.name ?? ctx.String("phrase.all")
+                        )
                     }
-                }
+                }.Build()
             ];
 
             int metRequirementLength = 0;
@@ -189,33 +186,30 @@ namespace Whispbot.Commands.Shifts
                 }
             }
 
-            if (metRequirement.Count == 0) metRequirement.Add("*{string.content.shiftactivity.nobody}.*");
-            if (notMetRequirement.Count == 0) notMetRequirement.Add("*{string.content.shiftactivity.nobody}.*");
+            if (metRequirement.Count == 0) metRequirement.Add(ctx.String("shifts.activity.nobody"));
+            if (notMetRequirement.Count == 0) notMetRequirement.Add(ctx.String("shifts.activity.nobody"));
 
-            embeds = [
-                ..embeds,
-                ..metRequirement.Select((v) => new EmbedBuilder
-                {
-                    description = v,
-                    color = new Color(0, 150, 0).ToInt(),
-                }),
-                ..notMetRequirement.Select((v) => new EmbedBuilder
-                {
-                    description = v,
-                    color = new Color(150, 0, 0).ToInt(),
-                })
-            ];
-
-            await ctx.Reply(new MessageBuilder
-            {
-                embeds = embeds
-            });
+            await ctx.Reply(
+                embeds: [
+                    ..embeds,
+                    ..metRequirement.Select((v) => new EmbedBuilder
+                    {
+                        Description = v,
+                        Color = new Color(0, 150, 0),
+                    }.Build()),
+                    ..notMetRequirement.Select((v) => new EmbedBuilder
+                    {
+                        Description = v,
+                        Color = new Color(150, 0, 0),
+                    }.Build())
+                ]
+            );
         }
     }
 
     public class ShiftUserActivity
     {
-        public long moderator_id;
+        public ulong moderator_id;
         public double duration;
         public int shifts;
     }

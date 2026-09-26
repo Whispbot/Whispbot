@@ -4,36 +4,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Databases;
-using YellowMacaroni.Discord.Core;
 
 namespace Whispbot
 {
     public static partial class Procedures
     {
-        private static Dictionary<DiscordModerationType, string> ModerationTypeColours = new()
-        {
-            { DiscordModerationType.Warn, "#5555aa" },
-            { DiscordModerationType.Mute, "#" },
-            { DiscordModerationType.Kick, "#" },
-            { DiscordModerationType.Softban, "#" },
-            { DiscordModerationType.Ban, "#" }
-        };
-
-        /// <summary>
-        /// Generate a Discord message to send to a Discord server's log channel about a moderation action
-        /// </summary>
-        /// <param name="moderation">The moderation to use to generate the embed</param>
-        /// <returns><see cref="MessageBuilder"/> to be sent to the log channel</returns>
-        public static async Task<MessageBuilder> CreateDiscordModerationLogMessage(DiscordModeration moderation)
-        {
-            return new()
-            {
-                embeds = [
-
-                ]
-            };
-        }
-
         /// <summary>
         /// Insert a moderation action into the database and send the log messages to the log channel and moderated user
         /// </summary>
@@ -43,7 +18,7 @@ namespace Whispbot
         /// <param name="type">The type of moderation</param>
         /// <param name="reason">The reason for the moderation</param>
         /// <returns><see cref="DiscordModeration?"/> - will be null if failed to log</returns>
-        public static async Task<DiscordModeration?> LogDiscordModeration(long guild_id, long moderator_id, long target_id, DiscordModerationType type, string reason)
+        public static async Task<DiscordModeration?> LogDiscordModeration(ulong guild_id, ulong moderator_id, ulong target_id, DiscordModerationType type, string reason)
         {
             var moderation = Postgres.SelectFirst<DiscordModeration>($@"
                 INSERT INTO discord_moderations (guild_id, moderator_id, target_id, type, reason)
@@ -66,9 +41,9 @@ namespace Whispbot
         public static async Task<DiscordModeration?> LogDiscordModeration(string guild_id, string moderator_id, string target_id, DiscordModerationType type, string reason)
         { // Instead of converting to longs in the actual code, its cleaner to do it here
             return await LogDiscordModeration(
-                long.Parse(guild_id), 
-                long.Parse(moderator_id), 
-                long.Parse(target_id), 
+                ulong.Parse(guild_id), 
+                ulong.Parse(moderator_id), 
+                ulong.Parse(target_id), 
                 type, 
                 reason
             );
@@ -77,15 +52,15 @@ namespace Whispbot
         public class DiscordModeration
         {
             public int case_id;
-            public long guild_id;
-            public long moderator_id;
-            public long target_id;
+            public ulong guild_id;
+            public ulong moderator_id;
+            public ulong target_id;
             public DiscordModerationType type;
             public string reason = "";
             public DateTimeOffset created_at;
             public DateTimeOffset updated_at;
-            public long? updated_by;
-            public long? message_id;
+            public ulong? updated_by;
+            public ulong? message_id;
             public bool is_deleted;
         }
 

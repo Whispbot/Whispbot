@@ -6,9 +6,6 @@ using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Databases;
 using Whispbot.Tools;
-using YellowMacaroni.Discord.Cache;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Commands.Roblox_Moderation
 {
@@ -28,14 +25,6 @@ namespace Whispbot.Commands.Roblox_Moderation
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
         {
-            if (ctx.UserId is null) return;
-
-            if (ctx.GuildId is null || ctx.Guild is null)
-            {
-                await ctx.Reply("{emoji.cross} {string.errors.general.guildonly}.");
-                return;
-            }
-
             if (!await WhispPermissions.CheckModuleMessage(ctx, Module.RobloxModeration)) return;
             if (!await WhispPermissions.CheckPermissionsMessage(ctx, BotPermissions.UseRobloxModerations | BotPermissions.ManageRobloxModerations)) return;
 
@@ -43,7 +32,7 @@ namespace Whispbot.Commands.Roblox_Moderation
 
             if (String.IsNullOrWhiteSpace(caseId))
             {
-                await ctx.Reply("{emoji.cross} {string.errors.rmcase.missingargs}.");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("rmod.case.errors.missing_arguments")}.");
                 return;
             }
 
@@ -62,7 +51,7 @@ namespace Whispbot.Commands.Roblox_Moderation
 
                 if (!isNum || intCaseId <= 0 || intCaseId >= 100_000)
                 {
-                    await ctx.Reply("{emoji.cross} {string.errors.rmcase.invalidid}");
+                    await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("rmod.case.errors.invalid_id")}");
                     return;
                 }
             }
@@ -71,11 +60,11 @@ namespace Whispbot.Commands.Roblox_Moderation
 
             if (moderation is null)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.rmcase.notfound}");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("rmod.case.errors.not_found")}");
                 return;
             }
 
-            await ctx.Reply($"{{emoji.tick}} {{string.success.rmvoid:case={moderation.@case}}}");
+            await ctx.Reply($"{ctx.Emoji("tick")} {ctx.String("rmod.case.success.voided", moderation.@case.ToString())}");
         }
     }
 }

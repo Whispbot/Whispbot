@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Databases;
 
 namespace Whispbot.Tools.Bot
@@ -59,7 +60,7 @@ namespace Whispbot.Tools.Bot
             return flag.enabled;
         }
 
-        public static async Task<bool> CheckGuildFlag(string name, long guildId)
+        public static async Task<bool> CheckGuildFlag(string name, ulong guildId)
         {
             FeatureFlag? flag = await GetFlagByName(name);
             if (flag is null) return false;
@@ -77,14 +78,14 @@ namespace Whispbot.Tools.Bot
             }
             else
             {
-                GuildConfig? guildConfig = await WhispCache.GuildConfig.Get(guildId.ToString());
+                GuildConfig? guildConfig = await WhispCache.GuildConfig.Get(guildId);
                 if (guildConfig is null) return false;
 
                 return guildConfig.feature_flags.Contains(name);
             }
         }
 
-        public static async Task<bool> CheckUserFlag(string name, long userId)
+        public static async Task<bool> CheckUserFlag(string name, ulong userId)
         {
             FeatureFlag? flag = await GetFlagByName(name);
             if (flag is null) return false;
@@ -102,7 +103,7 @@ namespace Whispbot.Tools.Bot
             }
             else
             {
-                UserConfig? userConfig = await WhispCache.UserConfig.Get(userId.ToString());
+                UserConfig? userConfig = await WhispCache.UserConfig.Get(userId);
                 if (userConfig is null) return false;
 
                 return userConfig.feature_flags.Contains(name);

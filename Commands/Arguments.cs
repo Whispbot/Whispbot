@@ -1,12 +1,15 @@
-﻿using System;
+﻿using Discord;
+using Discord.WebSocket;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Whispbot.Extensions;
+using Whispbot.Languages;
 using Whispbot.Tools;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
+using Whispbot.Tools.Disc;
 
 namespace Whispbot.Commands
 {
@@ -27,10 +30,10 @@ namespace Whispbot.Commands
         public string name = name;
         public CommandArgType type = type;
         private readonly string? _stringValue;
-        private readonly User? _userValue;
+        private readonly IUser? _userValue;
         private readonly Roblox.RobloxUser? _robloxUser;
-        private readonly Channel? _channelValue;
-        private readonly Role? _roleValue;
+        private readonly IChannel? _channelValue;
+        private readonly IRole? _roleValue;
         private readonly int? _intValue;
         private readonly long? _longValue;
         private readonly TimeSpan? _durationValue;
@@ -43,15 +46,15 @@ namespace Whispbot.Commands
         {
             _robloxUser = value;
         }
-        public CommandArgument(string name, User value) : this(name, CommandArgType.User)
+        public CommandArgument(string name, IUser value) : this(name, CommandArgType.User)
         {
             _userValue = value;
         }
-        public CommandArgument(string name, Channel value) : this(name, CommandArgType.Channel)
+        public CommandArgument(string name, IChannel value) : this(name, CommandArgType.Channel)
         {
             _channelValue = value;
         }
-        public CommandArgument(string name, Role value) : this(name, CommandArgType.Role)
+        public CommandArgument(string name, IRole value) : this(name, CommandArgType.Role)
         {
             _roleValue = value;
         }
@@ -74,10 +77,10 @@ namespace Whispbot.Commands
         }
 
         public string? GetString() => _stringValue;
-        public User? GetUser() => _userValue;
+        public IUser? GetUser() => _userValue;
         public Roblox.RobloxUser? GetRobloxUser() => _robloxUser;
-        public Channel? GetChannel() => _channelValue;
-        public Role? GetRole() => _roleValue;
+        public IChannel? GetChannel() => _channelValue;
+        public IRole? GetRole() => _roleValue;
         public int? GetInt() => _intValue;
         public long? GetLong() => _longValue;
         public TimeSpan? GetDuration() => _durationValue;
@@ -85,14 +88,22 @@ namespace Whispbot.Commands
 
     public static partial class ArgParser
     {
-        private static readonly Dictionary<string, Func<Message, string, List<string>, bool, Task<(CommandArgument?, string?)>>> _argFunctions = new()
+        private static readonly Dictionary<string, Func<SocketMessage, string, List<string>, bool, Task<(CommandArgument?, string?)>>> _argFunctions = new()
         {
             { "user",       UserArg         },
             { "ruser",      RobloxUserArg   },
             { "duration",   DurationArg     }
         };
 
-        public static async Task<(CommandArguments?, string?)> GetArguments(Message message, Command command, List<string> args)
+        public static (string name, string value, bool isOptional) ParseArguments(string arg)
+        {
+            var match = CommandSchemaRegex().Match(arg);
+            if (!match.Success) throw new Exception($"Invalid argument schema: {arg}");
+
+            return (match.Groups[1].Value, match.Groups[2].Value, match.Groups[3].Value == "?");
+        }
+
+        public static async Task<(CommandArguments?, string?)> GetArguments(SocketMessage message, string prefix, Command command, List<string> args, Language lang)
         {
             var schema = command.Schema;
 
@@ -100,17 +111,20 @@ namespace Whispbot.Commands
 
             foreach (var arg in schema)
             {
-                var match = CommandSchemaRegex().Match(arg);
-                if (!match.Success) continue;
-
-                string name = match.Groups[1].Value;
-                string value = match.Groups[2].Value;
-                bool isOptional = match.Groups[3].Value == "?";
+                var (name, value, isOptional) = ParseArguments(arg);
 
                 if (args.Count == 0)
                 {
                     if (isOptional) continue;
-                    else return (null, $"Missing required argument '{name}'");
+                    else return (
+                        null, 
+                        "args.errors.missing".Translate(lang, name, $"{prefix}{command.Aliases.First()} {command.Schema?.Select(a =>
+                        {
+                            var (name, value, isOptional) = ParseArguments(a);
+
+                            return isOptional ? $"({name})" : name;
+                        }).Join(" ")}")
+                    );
                 }
 
                 var func = _argFunctions.GetValueOrDefault(value, DefaultArg);
@@ -126,13 +140,18 @@ namespace Whispbot.Commands
         [GeneratedRegex(@"<([^:]+):([^?]+)(\??)>")]
         private static partial Regex CommandSchemaRegex();
 
-        public static async Task SendArgError(Message message, string error)
+        public static async Task SendArgError(SocketMessage message, string error)
         {
-            if (message.channel is null) return;
-            await message.channel.Send($"err: {error}");
+            if (message.Channel is null) return;
+            await message.Channel.SendMessageAsync(
+                embed: new EmbedBuilder()
+                    .WithDescription(error)
+                    .WithColor(new Color(150, 50, 50))
+                    .Build()
+            );
         }
 
-        public static async Task<(CommandArgument?, string?)> DefaultArg(Message _, string name, List<string> args, bool isLast)
+        public static async Task<(CommandArgument?, string?)> DefaultArg(SocketMessage _, string name, List<string> args, bool isLast)
         {
             if (!isLast)
             {
@@ -148,18 +167,18 @@ namespace Whispbot.Commands
             }
         }
 
-        public static async Task<(CommandArgument?, string?)> UserArg(Message message, string name, List<string> args, bool isLast)
+        public static async Task<(CommandArgument?, string?)> UserArg(SocketMessage message, string name, List<string> args, bool isLast)
         {
             string arg = args[0];
             args.RemoveAt(0);
 
-            User? user = await Users.GetUserByString(arg, 3, message.channel?.guild_id);
+            IUser? user = await Users.GetUserByString(arg, 3, message.Channel is SocketTextChannel tc ? tc.Guild.Id : null);
             if (user is null) return (null, $"Could not find that user.");
 
             return (new CommandArgument(name, user), null);
         }
 
-        public static async Task<(CommandArgument?, string?)> RobloxUserArg(Message _, string name, List<string> args, bool isLast)
+        public static async Task<(CommandArgument?, string?)> RobloxUserArg(SocketMessage _, string name, List<string> args, bool isLast)
         { 
             string arg = args[0];
             args.RemoveAt(0);
@@ -170,7 +189,7 @@ namespace Whispbot.Commands
             return (new CommandArgument(name, user), null);
         }
 
-        public static async Task<(CommandArgument?, string?)> DurationArg(Message _, string name, List<string> args, bool isLast)
+        public static async Task<(CommandArgument?, string?)> DurationArg(SocketMessage _, string name, List<string> args, bool isLast)
         {
             string arg = args[0];
             args.RemoveAt(0);
@@ -182,7 +201,7 @@ namespace Whispbot.Commands
             return (new CommandArgument(name, duration), null);
         }
 
-        public static async Task<(CommandArgument?, string?)> DurationStringArg(Message _, string name, List<string> args, bool isLast)
+        public static async Task<(CommandArgument?, string?)> DurationStringArg(SocketMessage _, string name, List<string> args, bool isLast)
         {
             string arg = isLast ? args.Join(" ") : args[0];
             args.RemoveAt(0);

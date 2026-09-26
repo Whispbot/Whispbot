@@ -4,9 +4,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using YellowMacaroni.Discord.Extentions;
+using Whispbot.Extensions;
 
-namespace Whispbot.Commands.ERLCCommands.Commands.Moderation
+namespace Whispbot.Commands.ERLC.Commands.Moderation
 {
     public class EditReason : ERLCCommand
     {
@@ -17,17 +17,15 @@ namespace Whispbot.Commands.ERLCCommands.Commands.Moderation
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(ERLCCommandContext ctx)
         {
-            if (ctx.GuildId is null || ctx.UserId is null) return;
-
             if (ctx.args.Count < 1)
             {
-                await ctx.Reply("{string.errors.erlccommand.ermr.missingcase}.");
+                await ctx.Reply($"{ctx.String("erlc.errors.reason_missing_case")}.");
                 return;
             }
 
             if (ctx.args.Count < 2)
             {
-                await ctx.Reply("{string.errors.erlccommand.ermr.missingreason}.");
+                await ctx.Reply($"{ctx.String("erlc.errors.reason_missing_reason")}.");
                 return;
             }
 
@@ -48,13 +46,13 @@ namespace Whispbot.Commands.ERLCCommands.Commands.Moderation
 
                 if (!isNum)
                 {
-                    await ctx.Reply("{string.errors.rmcase.invalidid}.");
+                    await ctx.Reply($"{ctx.String("rmod.case.errors.invalid_id")}.");
                     return;
                 }
 
                 if (caseId <= 0 || caseId >= 100_000)
                 {
-                    await ctx.Reply("{string.errors.rmcase.invalidid}.");
+                    await ctx.Reply($"{ctx.String("rmod.case.errors.invalid_id")}.");
                     return;
                 }
 
@@ -64,11 +62,11 @@ namespace Whispbot.Commands.ERLCCommands.Commands.Moderation
 
             if (updatedModeration is null)
             {
-                await ctx.Reply("{string.errors.rmcase.notfound}.");
+                await ctx.Reply($"{ctx.String("rmod.case.errors.not_found")}.");
                 return;
             }
 
-            await ctx.Reply("{string.success.erlccommand.ermr.success}.");
+            await ctx.Reply($"{ctx.String("erlc.success.reason_updated")}.");
         }
     }
 }

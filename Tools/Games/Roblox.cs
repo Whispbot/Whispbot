@@ -6,8 +6,8 @@ using System.Linq;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
-using YellowMacaroni.Discord.Cache;
-using YellowMacaroni.Discord.Core;
+using Whispbot.Cache;
+using Whispbot.Tools.Logging;
 using static Microsoft.Extensions.Logging.EventSource.LoggingEventSource;
 
 namespace Whispbot.Tools
@@ -17,7 +17,7 @@ namespace Whispbot.Tools
         private static readonly HttpClient _client = new();
         private static bool _initialized = false;
 
-        public static readonly Collection<RobloxUser> Users = new(async (key, args) =>
+        public static readonly Collection<string, RobloxUser> Users = new(async (key) =>
         {
             return await GetUserById(key);
         });
@@ -169,7 +169,7 @@ namespace Whispbot.Tools
             {
                 foreach (var user in users)
                 {
-                    Users.Insert(user.id, user);
+                    userIds[user.name.ToLower()] = user.id;
                 }
             }
 
@@ -206,37 +206,15 @@ namespace Whispbot.Tools
 
         public class RobloxUser
         {
-            [JsonConverter(typeof(RobloxUserConverter))]
             public string id = "1";
             public string name = "";
             public string? displayName = null;
             public string? about = null;
-            public DateTimeOffset? createTime = DateTimeOffset.MinValue;
+            public string? createTime = null;
             public string? locale = "";
             public bool? premium = false;
-        }
 
-        public class RobloxUserConverter: JsonConverter
-        {
-            public override bool CanConvert(Type objectType)
-            {
-                return objectType == typeof(string);
-            }
-
-            public override object? ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
-            {
-                if (reader.TokenType == JsonToken.Null)
-                    return null;
-
-                var token = JToken.Load(reader);
-
-                return token.ToString();
-            }
-
-            public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
-            {
-                writer.WriteValue(value);
-            }
+            public DateTimeOffset? CreateTime => createTime is not null ? DateTimeOffset.Parse(createTime) : null;
         }
 
         public class FromUsername

@@ -6,9 +6,8 @@ using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Databases;
 using Whispbot.Extensions;
+using Whispbot.Tools.Disc;
 using Whispbot.Tools.Infra;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Commands.Staff
 {
@@ -29,26 +28,26 @@ namespace Whispbot.Commands.Staff
             string? title = ctx.args.Get("content")?.GetString()?.Split("::")?[0]; // >page title::description
             if (string.IsNullOrEmpty(title))
             {
-                await ctx.Reply("{emoji.cross} Please provide a reason.");
+                await ctx.Reply($"{ctx.Emoji("cross")} Please provide a reason.");
                 return;
             }
 
             string? description = ctx.args.Get("content")!.GetString()!.Split("::").Skip(1).Join(" ");
-            description += $"\n\nSent by @{ctx.User?.username} ({ctx.UserId})"; // Sign page to avoid annoying fucks abusing
+            description += $"\n\nSent by @{ctx.User.Username} ({ctx.UserId})"; // Sign page to avoid annoying fucks abusing
 
-            var (message, _) = await ctx.Reply("{emoji.loading} Sending page...");
+            await ctx.Reply($"{ctx.Emoji("loading")} Sending page...");
 
             var page = await Incident.TriggerEscalation(title, description); // Trigger page
 
-            if (message is null) return; // Cant edit message, just return
             if (page.Item2 is not null)
             {
-                await message.Edit("{emoji.cross} Failed to send page.".Process());
+                await ctx.EditResponse(m => m.Content = $"{Emojis.Get("cross")} Failed to send page.");
             }
             else if (page.Item1 is not null)
             {
                 int numFailed = 0; // Stop updating data if either its failing to get data or everyone has acked
-                await message.Edit(GetMessageData(page.Item1.escalation, DateTimeOffset.UtcNow, false, ref numFailed, out bool _));
+                bool shouldStop = false;
+                await ctx.EditResponse(m => m.Content = GetMessageData(page.Item1.escalation, DateTimeOffset.UtcNow, false, ref numFailed, out bool _));
 
                 DateTimeOffset firstUpdate = DateTimeOffset.UtcNow;
                 while ((DateTime.UtcNow - firstUpdate).TotalSeconds < 360) // 6 minutes should be enough time to ack or fail
@@ -59,7 +58,7 @@ namespace Whispbot.Commands.Staff
 
                     if (escalation.Item1 is not null)
                     {
-                        await message.Edit(GetMessageData(escalation.Item1.escalation, firstUpdate, false, ref numFailed, out bool shouldStop));
+                        await ctx.EditResponse(m => m.Content = GetMessageData(escalation.Item1.escalation, firstUpdate, false, ref numFailed, out bool shouldStop));
                         if (shouldStop) return; // Everyone has acked
                     }
                     else numFailed++;
@@ -68,11 +67,11 @@ namespace Whispbot.Commands.Staff
                 Thread.Sleep(5000);
 
                 var finalEscalation = await Incident.GetEscalation(page.Item1.escalation.id);
-                if (finalEscalation.Item1 is not null) await message.Edit(GetMessageData(finalEscalation.Item1.escalation, firstUpdate, true, ref numFailed, out bool _));
+                if (finalEscalation.Item1 is not null) await ctx.EditResponse(m => m.Content = GetMessageData(finalEscalation.Item1.escalation, firstUpdate, true, ref numFailed, out shouldStop));
             }
         }
 
-        private MessageBuilder GetMessageData(Incident.IncidentEscalationData escalation, DateTimeOffset firstSent, bool finalUpdate, ref int numFailed, out bool shouldStop)
+        private static string GetMessageData(Incident.IncidentEscalationData escalation, DateTimeOffset firstSent, bool finalUpdate, ref int numFailed, out bool shouldStop)
         {
             StringBuilder users = new();
             Dictionary<string, bool> userAck = [];
@@ -110,7 +109,7 @@ namespace Whispbot.Commands.Staff
                 users.AppendLine($"> {{{(acked ? "emoji.tick" : finalUpdate ? "emoji.cross" : "emoji.loading")}}} {(acked ? "Acknowledged by" : finalUpdate ? "Unable to reach" : "Waiting for")} {user.name} (`{user.email}`)");
             }
 
-            return new MessageBuilder($"{{emoji.tick}} Sent page successfully.\n{users}\n-# Sent <t:{firstSent.ToUnixTimeSeconds()}:R>, updated <t:{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}:R>".Process());
+            return $"{Emojis.Get("tick")} Sent page successfully.\n{users}\n-# Sent <t:{firstSent.ToUnixTimeSeconds()}:R>, updated <t:{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}:R>";
         }
     }
 }

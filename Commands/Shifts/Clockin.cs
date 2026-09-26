@@ -1,12 +1,12 @@
+using Discord;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Databases;
 using Whispbot.Tools;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
 
 namespace Whispbot.Commands.Shifts
 {
@@ -26,14 +26,6 @@ namespace Whispbot.Commands.Shifts
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
         {
-            if (ctx.User?.id is null) return;
-
-            if (ctx.GuildId is null) // Make sure ran in server
-            {
-                await ctx.Reply("{emoji.cross} {string.errors.general.guildonly}.");
-                return;
-            }
-
             if (!await WhispPermissions.CheckModuleMessage(ctx, Module.Shifts)) return;
             if (!await WhispPermissions.CheckPermissionsMessage(ctx, BotPermissions.UseShifts)) return;
 
@@ -41,7 +33,7 @@ namespace Whispbot.Commands.Shifts
 
             if (types is null)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.clockin.dbfailed}."); // Database failed (does not mean no shift types)
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("shifts.errors.failed_get_types")}"); // Database failed (does not mean no shift types)
                 return;
             }
 
@@ -50,24 +42,23 @@ namespace Whispbot.Commands.Shifts
 
             if (type is null)
             {
-                await ctx.Reply("{emoji.cross} {string.errors.clockin.typenotfound}.");
+                await ctx.Reply($"{ctx.Emoji("cross")} {ctx.String("shifts.errors.type_not_found")}");
                 return;
             }
 
-            (Shift?, string?) result = await Procedures.Clockin(long.Parse(ctx.GuildId), long.Parse(ctx.User.id), type);
+            (Shift?, string?) result = await Procedures.Clockin(ctx.GuildId, ctx.UserId, type);
 
             await ctx.Reply(
-                new MessageBuilder()
-                {
-                    embeds = [
-                        new EmbedBuilder()
-                        {
-                            color = result.Item1 is not null ? (int)(new Color(0, 150, 0)) : null,
-                            description = $"{(result.Item1 is not null ? "{emoji.clockedin}" : "{emoji.cross}")} {result.Item2 ?? (result.Item1 is null ? "{string.errors.clockin.failed}" : $"{{string.success.clockin}} '{type.name}'")}.",
-                            footer = result.Item1 is not null ? new EmbedFooter() { text = $"ID: {result.Item1.id}" } : null
-                        }
-                    ]
-                }
+                embed: new EmbedBuilder()
+                    .WithDescription(
+                        $"{ctx.Emoji(result.Item1 is not null ? "clockedin" : "cross")} " +
+                        $"{(result.Item1 is null ?
+                            ctx.String(result.Item2 is not null ? $"shifts.clockin.errors.{result.Item2}" : "shifts.clockin.errors.failed") :
+                            ctx.String("shifts.clockin.success", type.name))}"
+                    )
+                    .WithFooter(result.Item1 is not null ? new EmbedFooterBuilder().WithText($"ID: {result.Item1.id}") : null)
+                    .WithColor(result.Item1 is not null ? new Color(0, 150, 0) : Color.Default)
+                    .Build()
             );
         }
     }

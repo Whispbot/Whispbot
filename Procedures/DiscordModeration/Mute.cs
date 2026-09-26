@@ -1,11 +1,11 @@
-﻿using System;
+﻿using Discord;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Tools;
-using Whispbot.Tools.Discord;
-using YellowMacaroni.Discord.Core;
+using Whispbot.Tools.Disc;
 
 namespace Whispbot
 {
@@ -15,33 +15,28 @@ namespace Whispbot
         {
             if (context.DurationSeconds > 3600 * 24 * 28)
             {
-                return "{string.errors.dm.toolong}";
+                return Whispbot.Languages.Translator.Get(Whispbot.Languages.Language.EnglishUK, "dmod.errors.duration_too_long");
             }
 
             if (context.DurationSeconds < 10)
             {
-                return "{string.errors.dm.tooshort}";
+                return Whispbot.Languages.Translator.Get(Whispbot.Languages.Language.EnglishUK, "dmod.errors.duration_too_short");
             }
 
-            Member? member = await context.Guild!.members.Get(context.TargetUser!.id);
-            if (member is null) return "{string.errors.dm.nomember}";
+            IGuildUser? member = await context.Guild!.GetUserAsync(context.TargetUser!.Id);
+            if (member is null) return Whispbot.Languages.Translator.Get(Whispbot.Languages.Language.EnglishUK, "dmod.errors.no_member");
 
             //if (member.communication_disabled_until is not null && DateTimeOffset.Parse(member.communication_disabled_until) > DateTimeOffset.UtcNow)
             //{
-            //    return "{string.errors.dm.alreadytimedout}";
+            //    return Whispbot.Languages.Translator.Get(Whispbot.Languages.Language.EnglishUK, "dmod.errors.already_timed_out");
             //}
 
-            if (DiscordPermissions.HasPermission(member, Permissions.Administrator))
+            if (DiscordPermissions.HasPermission(member,  GuildPermission.Administrator))
             {
-                return "{string.errors.dm.hasadmin}";
+                return Whispbot.Languages.Translator.Get(Whispbot.Languages.Language.EnglishUK, "dmod.errors.target_admin");
             }
 
-            var error = await member.Timeout(DateTimeOffset.UtcNow + TimeSpan.FromSeconds((double)context.DurationSeconds!), context.Reason);
-
-            if (error is not null)
-            {
-                return "{string.errors.dm.failed_mute}";
-            }
+             await member.SetTimeOutAsync(TimeSpan.FromSeconds((double)context.DurationSeconds!), new RequestOptions { AuditLogReason = context.Reason });
 
             return null;
         }

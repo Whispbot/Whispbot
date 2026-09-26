@@ -1,10 +1,10 @@
-﻿using System;
+﻿using Discord;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Tools;
-using YellowMacaroni.Discord.Core;
 
 namespace Whispbot
 {
@@ -12,12 +12,7 @@ namespace Whispbot
     {
         public static async Task<string?> Unban(Context context)
         {
-            var error = await context.Guild!.UnbanUser(context.TargetUser!.id, context.Reason!);
-
-            if (error is not null)
-            {
-                return "{string.errors.dm.failed}";
-            }
+            await context.Guild!.RemoveBanAsync(context.TargetUser!.Id, new RequestOptions { AuditLogReason = context.Reason! });
 
             return null;
         }

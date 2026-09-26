@@ -1,3 +1,5 @@
+using Discord;
+using Discord.WebSocket;
 using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Newtonsoft.Json;
 using Serilog;
@@ -8,13 +10,13 @@ using System.Resources;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.Tasks;
+using Whispbot.Cache;
 using Whispbot.Databases;
 using Whispbot.Tools;
-using Whispbot.Tools.Games.ERLC;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
+using Whispbot.Tools.Disc;
+using Whispbot.Tools.Games.ERLCAPI;
 
-namespace Whispbot.Commands.ERLCCommands
+namespace Whispbot.Commands.ERLC
 {
     public class ERLC_Players: Command
     {
@@ -37,28 +39,20 @@ namespace Whispbot.Commands.ERLCCommands
         public override List<string> Usage => [];
         public override async Task ExecuteAsync(CommandContext ctx)
         {
-            if (ctx.User?.id is null) return;
-
-            if (ctx.GuildId is null) // Make sure ran in server
-            {
-                await ctx.Reply("{emoji.cross} {string.errors.general.guildonly}.");
-                return;
-            }
-
             if (!await WhispPermissions.CheckModuleMessage(ctx, Module.ERLC)) return;
 
             ERLCServerConfig? server = await ERLCDatabase.TryGetServer(ctx);
             if (server is null) return;
 
-            var response = await ERLC.GetERLCServer(ctx, server);
+            var response = await ERLCAPI.GetERLCServer(ctx, server);
             if (response is null) return;
             var players = response?.Server?.Players;
 
             if (players is not null)
             {
-                List<long> playerIds = [.. players.Select(p => long.Parse(p.Player.Split(":")[1]))];
+                List<ulong> playerIds = [.. players.Select(p => ulong.Parse(p.Player.Split(":")[1]))];
                 List<UserConfig> userConfigs = await Users.GetConfigsFromRobloxIds(playerIds);
-                List<Member>? members = await Users.GetMembersFromConfigs(userConfigs, ctx);
+                List<SocketGuildUser>? members = await Users.GetMembersFromConfigs(userConfigs, ctx);
 
                 Dictionary<string, StringBuilder> teams = [];
 
@@ -77,18 +71,26 @@ namespace Whispbot.Commands.ERLCCommands
                         UserConfig? userConfig = userConfigs?.FirstOrDefault(uc => uc.roblox_id.ToString() == playerId);
                         if (userConfig is not null)
                         {
-                            Member? member = members?.FirstOrDefault(m => m.user?.id == userConfig.id.ToString());
+                            SocketGuildUser? member = members?.FirstOrDefault(m => m.Id == userConfig.id);
                             if (member is not null)
                             {
                                 // 2 = booster, 1 = member, 0 = not in server
-                                return member.premium_since is not null ? 2 : 1;
+                                return member.PremiumSince is not null ? 2 : 1;
                             }
                         }
                         return 0;
                     })
                     .ThenBy(p => p.Player)];
 
-                foreach (var player in players)
+                var OWNER = ctx.Emoji("owner");
+                var COOWNER = ctx.Emoji("coowner");
+                var ADMIN = ctx.Emoji("administrator");
+				var MODERATOR = ctx.Emoji("moderator");
+				var HELPER = ctx.Emoji("helper");
+				var INDISCORD = ctx.Emoji("indiscord");
+				var BOOSTER = ctx.Emoji("booster");
+
+				foreach (var player in players)
                 {
                     StringBuilder? team = teams.GetValueOrDefault(player.Team);
                     if (team is null)
@@ -106,31 +108,31 @@ namespace Whispbot.Commands.ERLCCommands
                     switch (player.Permission)
                     {
                         case "Server Owner":
-                            flags.Append("{emoji.owner}");
+                            flags.Append(OWNER);
                             break;
                         case "Server Co-Owner":
-                            flags.Append("{emoji.coowner}");
+                            flags.Append(COOWNER);
                             break;
                         case "Server Administrator":
-                            flags.Append("{emoji.administrator}");
+                            flags.Append(ADMIN);
                             break;
                         case "Server Moderator":
-                            flags.Append("{emoji.moderator}");
+                            flags.Append(MODERATOR);
                             break;
                         case "Server Helper":
-                            flags.Append("{emoji.helper}");
+                            flags.Append(HELPER);
                             break;
                     }
 
                     UserConfig? userConfig = userConfigs?.FirstOrDefault(uc => uc.roblox_id.ToString() == id);
                     if (userConfig is not null)
                     {
-                        Member? member = members?.FirstOrDefault(m => m.user?.id == userConfig.id.ToString());
+                        SocketGuildUser? member = members?.FirstOrDefault(m => m.Id == userConfig.id);
                         if (member is not null)
                         {
-                            flags.Append("{emoji.indiscord}");
+                            flags.Append(INDISCORD);
 
-                            if (member.premium_since is not null) flags.Append("{emoji.booster}");
+                            if (member.PremiumSince is not null) flags.Append(BOOSTER);
                         }
                     }
                     
@@ -138,24 +140,18 @@ namespace Whispbot.Commands.ERLCCommands
                 }
 
                 await ctx.EditResponse(
-                    new MessageBuilder()
-                    {
-                        content = "",
-                        embeds = [
-                            new EmbedBuilder
-                            {
-                                title = $"{{string.title.erlcserver.players}} [{players.Count}]",
-                                description = teams.Count == 0 ? "{string.errors.erlcserver.empty}" : null,
-                                fields = [.. teams.ForAll((kvp) => new EmbedField() { name = $"{kvp.Key} [{players.Sum(p=> p.Team == kvp.Key ? 1 : 0 )}]", value = kvp.Value.ToString(), inline = false })],
-                                footer = new EmbedFooter { text = Cache.GenerateFooter(response!) }
-                            }
-                        ]
-                    }
+                    text: "",
+                    embed: new EmbedBuilder()
+                        .WithTitle($"{ctx.String("erlc.players.title")} [{players.Count}/{response!.Server!.MaxPlayers}]")
+                        .WithDescription(teams.Count == 0 ? $"{ctx.String("erlc.players.errors.none")}" : null)
+                        .WithFields(teams.Select((kvp) => new EmbedFieldBuilder() { Name = $"{kvp.Key} [{players.Sum(p => p.Team == kvp.Key ? 1 : 0)}]", Value = kvp.Value.ToString(), IsInline = false }))
+                        .WithFooter(ERLCCache.GenerateFooter(ctx, response!))
+                        .Build()
                 );
             }
             else
             {
-                await ctx.EditResponse($"{{emoji.cross}} [{response?.error}] {response?.error_message ?? "An unknown error occured"}.");
+                await ctx.EditResponse(response.GenerateErrorMessage(ctx));
             }
         }
     }

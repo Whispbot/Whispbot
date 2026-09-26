@@ -1,3 +1,4 @@
+using Discord.WebSocket;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -5,9 +6,6 @@ using System.Text;
 using System.Threading.Tasks;
 using Whispbot.Databases;
 using Whispbot.Tools.Bot;
-using YellowMacaroni.Discord.Cache;
-using YellowMacaroni.Discord.Core;
-using YellowMacaroni.Discord.Extentions;
 using static Whispbot.Tools.Bot.FeatureFlags;
 
 namespace Whispbot.Commands.Staff
@@ -42,7 +40,7 @@ namespace Whispbot.Commands.Staff
                 sb.AppendLine("**Guild Manual Flags:**");
                 foreach (var flag in flags)
                 {
-                    sb.AppendLine($"{(flag.enabled ? "{emoji.clockedin}" : "{emoji.clockedout}")} {flag.name}: {flag.description}");
+                    sb.AppendLine($"{(flag.enabled ? Whispbot.Tools.Disc.Emojis.Get("clockedin") : Whispbot.Tools.Disc.Emojis.Get("clockedout"))} {flag.name}: {flag.description}");
                 }
 
                 await ctx.Reply(sb.ToString());
@@ -61,7 +59,7 @@ namespace Whispbot.Commands.Staff
                 sb.AppendLine("**Enabled Flags:**");
                 foreach (var flag in flags)
                 {
-                    sb.AppendLine($"{(flag.enabled ? "{emoji.clockedin}" : "{emoji.clockedout}")} {flag.name}");
+                    sb.AppendLine($"{(flag.enabled ? Whispbot.Tools.Disc.Emojis.Get("clockedin") : Whispbot.Tools.Disc.Emojis.Get("clockedout"))} {flag.name}");
                 }
 
                 await ctx.Reply(sb.ToString());
@@ -77,9 +75,9 @@ namespace Whispbot.Commands.Staff
                     return;
                 }
 
-                Guild? guild = await DiscordCache.Guilds.Get(guildId!);
+                SocketGuild guild = Config.client!.GetGuild(ulong.Parse(guildId!));
 
-                await ctx.Reply($"Feature flag `{flagName}` {(flag.status == 1 ? "enabled" : "disabled")} for `{guild?.name ?? "unknown guild"}`.");
+                await ctx.Reply($"Feature flag `{flagName}` {(flag.status == 1 ? "enabled" : "disabled")} for `{guild?.Name ?? "unknown guild"}`.");
             }
         }
     }
