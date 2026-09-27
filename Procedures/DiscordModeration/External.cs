@@ -40,7 +40,12 @@ namespace Whispbot
                     var before = data.Before.TimedOutUntil;
                     var after = data.After.TimedOutUntil;
 
-                    if (after is null)
+                    if (before == after)
+                    {
+                        // Change was not mute/unmute
+                        return;
+                    }
+                    else if (after is null)
                     {
                         mType = DiscordModerationType.Unmute;
                     }
