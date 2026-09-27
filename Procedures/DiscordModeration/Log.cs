@@ -209,7 +209,7 @@ namespace Whispbot
                 ) // Fuck locales
                 .AddField(Whispbot.Languages.Translator.Get(Whispbot.Languages.Language.EnglishUK, "dmod.log.field.reason"), log.reason)
                 .WithColor(type.Item3)
-                .WithFooter($"{lang.Translate("dmod.success.case_id")}: {log.case_id}")
+                .WithFooter($"{lang.Translate("dmod.success.case_id", log.case_id)}")
                 .Build();
         }
 
