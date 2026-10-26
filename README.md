@@ -25,7 +25,7 @@ such as our API.
 ![License](https://licensebuttons.net/l/by-nc-sa/3.0/88x31.png)\
 Whisp is licensed under the Attribution-NonCommercial-ShareAlike (CC BY-NC-SA) license.
 This license allows for the copy, distribution, and creation of adaptations of the material for non-commercial purposes,
-as long as the proper attribution is given to the origional creator and any adaptations are licensed under the same terms.
+as long as the proper attribution is given to the original creator and any adaptations are licensed under the same terms.
 
 The CC BY-NC-SA license requires the following elements:
 
