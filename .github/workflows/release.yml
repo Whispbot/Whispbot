@@ -1,0 +1,54 @@
+name: Release Whispbot
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  validate-tag:
+    if: github.event.created && !github.event.deleted
+    runs-on: ubuntu-latest
+    outputs:
+      matches: ${{ steps.tag.outputs.matches }}
+    steps:
+      - name: Check release tag
+        id: tag
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF_NAME" =~ ^v([0-9]+).([0-9]+).([0-9]+)$ ]]; then
+            echo 'matches=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'matches=false' >> "$GITHUB_OUTPUT"
+          fi
+
+  deploy:
+    needs: validate-tag
+    if: needs.validate-tag.outputs.matches == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out tagged code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '26'
+
+      - name: Install Railway CLI
+        run: npm install --global @railway/cli@5.49.1
+
+      - name: Release Whispbot
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        shell: bash
+        run: |
+          : "${RAILWAY_TOKEN:?RAILWAY_TOKEN not set}"
+          railway up --ci --service Whispbot --message "Release Whispbot version $GITHUB_REF_NAME"
