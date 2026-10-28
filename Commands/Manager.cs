@@ -206,10 +206,11 @@ namespace Whispbot.Commands
             else if
             (
                 message.Content.StartsWith(staffPrefix, StringComparison.CurrentCultureIgnoreCase)
-                //                          |   Support Server  |           ->         |     Member    |             ->           |  Has Staff Role?  |
-                && (client.GetGuild(1096509172784300174)?.GetUser(message.Author.Id)?.Roles?.Any(r => r.Id == 1256333207599841435) ?? false)
             )
             {
+                var userConfig = await WhispCache.UserConfig.Get(message.Author.Id);
+                if (userConfig is null || !userConfig.IsStaff) return;
+
                 List<string> args = [.. message.Content[staffPrefix.Length..].Split(' ', StringSplitOptions.RemoveEmptyEntries)];
                 string content = args.Join(" ");
 

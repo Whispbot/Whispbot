@@ -12,6 +12,7 @@ using Whispbot.Commands;
 using Whispbot.Databases;
 using Whispbot.Languages;
 using Whispbot.Tools;
+using Whispbot.Tools.Bot;
 using Whispbot.Tools.Logging;
 
 namespace Whispbot.Cache
@@ -199,6 +200,10 @@ namespace Whispbot.Cache
         public DateTimeOffset created_at = DateTimeOffset.MinValue;
         public Language? language = 0;
         public bool ack_required = false;
+
+        public ulong? role = null;
+        public StaffRole? StaffRole => Staff.Roles.FirstOrDefault(r => r.Id == role);
+        public bool IsStaff => StaffRole is not null && Staff.IsStaff(StaffRole);
 
         public List<string> feature_flags = [];
     }
