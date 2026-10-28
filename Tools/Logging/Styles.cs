@@ -6,7 +6,7 @@ namespace Whispbot.Tools.Logging
 {
     public static class LogStyles
     {
-        private static readonly string _escape = Config.isDev ? "\u001b" : "\\u001b";
+        private const string _escape = "\u001b";
 
         public static string Get(params int[] colours)
         {
