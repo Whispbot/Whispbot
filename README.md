@@ -1,14 +1,14 @@
-<p align="center">
-    <img src="Whispbot.ico" alt="Whispbot Logo">
-</p>
-
+<p align="center"><img src="Whispbot.ico" alt="Whispbot Logo" height="64"></p>
 <h1 align="center">Whispbot</h1>
-<p align="center">Whispbot is a bot designed with speed and effortless customisation in mind.</p>
 
-[![Version](https://img.shields.io/github/v/tag/Whispbot/Whispbot?label=version)](https://github.com/Whispbot/Whispbot/tags)
-[![Build](https://img.shields.io/github/actions/workflow/status/Whispbot/Whispbot/release.yml)](https://github.com/Whispbot/Whispbot/actions/workflows/release.yml)
-[![CodeFactor](https://www.codefactor.io/repository/github/whispbot/whispbot/badge)](https://www.codefactor.io/repository/github/whispbot/whispbot)
-[![WhispStatus](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fstatus.whisp.bot%2Fsummary.json&query=page.status&label=status&color=%7B%22UP%22%3A%20%22%2300aa00%22%2C%22UNDERMAINTENANCE%22%3A%22%230000aa%22%2C%22HASISSUES%22%3A%22%23aa0000%22%7D%5Bpage.status%5D&cacheSeconds=60&link=https%3A%2F%2Fstatus.whisp.bot)](https://status.whisp.bot)
+<section id="badges" align="center">
+    <a href="https://github.com/Whispbot/Whispbot/tags"><img src="https://img.shields.io/github/v/tag/Whispbot/Whispbot?label=version"></a>
+    <a href="https://github.com/Whispbot/Whispbot/actions/workflows/release.yml"><img src="https://img.shields.io/github/actions/workflow/status/Whispbot/Whispbot/release.yml?label=build"></a>
+    <a href="https://www.codefactor.io/repository/github/whispbot/whispbot"><img src="https://www.codefactor.io/repository/github/whispbot/whispbot/badge"></a>
+    <a href="https://status.whisp.bot"><img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fstatus.whisp.bot%2Fsummary.json&query=page.status&label=status&color=%7B%22UP%22%3A%20%22%2300aa00%22%2C%22UNDERMAINTENANCE%22%3A%22%230000aa%22%2C%22HASISSUES%22%3A%22%23aa0000%22%7D%5Bpage.status%5D&cacheSeconds=60&link=https%3A%2F%2Fstatus.whisp.bot"></a>
+</section>
+
+<p align="center">Whispbot is a bot designed with speed and effortless customisation in mind.</p>
 
 ## Links
 
