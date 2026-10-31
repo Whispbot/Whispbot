@@ -17,6 +17,7 @@ using Whispbot.Commands.General;
 using Whispbot.Commands.Roblox_Moderation;
 using Whispbot.Commands.Shifts;
 using Whispbot.Commands.Staff;
+using Whispbot.Databases;
 using Whispbot.Extensions;
 using Whispbot.Languages;
 using Whispbot.Tools;
@@ -173,6 +174,20 @@ namespace Whispbot.Commands
                 UserConfig? userConfig = null;
                 using (Tracer.Start("GetUserConfig"))
                     userConfig = await WhispCache.UserConfig.Get(message.Author.Id);
+
+                if (userConfig is not null)
+                {
+                    if (
+                        userConfig.username != message.Author.Username ||
+                        userConfig.avatar != message.Author.AvatarId
+                    )
+                    {
+                        Postgres.Execute(
+                            @"UPDATE user_config SET username = @1, avatar = @2 WHERE id = @3",
+                            [message.Author.Username, message.Author.AvatarId, userConfig.id]
+                        );
+                    }
+                }
 
                 var (arguments, error) = await ArgParser.GetArguments(message, $"{prefix}{(prefix == mention ? " " : "")}", command, args, userConfig?.language ?? guildConfig.default_language ?? 0);
                 if (error is not null)
