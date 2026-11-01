@@ -57,7 +57,16 @@ namespace Whispbot.Commands.Shifts
                             StringBuilder sb = new();
                             foreach (var shift in g)
                             {
-                                sb.AppendLine($"> <@{shift.moderator_id}> - {Time.ConvertMillisecondsToString((DateTimeOffset.UtcNow - shift.start_time).TotalMilliseconds, ", ", true, 60000, ctx.Language)}");
+                                var line = $"> <@{shift.moderator_id}> - {Time.ConvertMillisecondsToString((DateTimeOffset.UtcNow - shift.start_time).TotalMilliseconds, ", ", true, 60000, ctx.Language)}";
+                                if (sb.Length + line.Length > 1000)
+                                {
+                                    sb.AppendLine($"... and {g.Count() - sb.ToString().Split('\n').Length + 1} more");
+                                    break;
+                                }
+                                else
+                                {
+                                    sb.AppendLine(line);
+                                }
                             }
                             return new EmbedFieldBuilder
                             {
