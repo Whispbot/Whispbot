@@ -76,11 +76,11 @@ namespace Whispbot.Cache
 
             if (existingRecord is not null) return existingRecord;
 
-            var user = await Config.client!.GetUserAsync(key, Discord.CacheMode.AllowDownload, Discord.RequestOptions.Default);
+            var user = await Config.client!.Rest.GetUserAsync(key);
 
             return Postgres.SelectFirst<UserConfig>(
-                @"INSERT INTO user_config (id, username, avatar) VALUES (@1) RETURNING *;",
-                [key, user.Username, user.AvatarId]
+                @"INSERT INTO user_config (id, username, avatar, banner) VALUES (@1, @2, @3, @4) RETURNING *;",
+                [key, user.Username, user.AvatarId, user.BannerId]
             );
         });
 
@@ -202,6 +202,7 @@ namespace Whispbot.Cache
         public ulong id = 0;
         public string username = default!;
         public string? avatar = null;
+        public string? banner = null;
         public ulong? roblox_id = null;
         public DateTimeOffset created_at = DateTimeOffset.MinValue;
         public Language? language = 0;
