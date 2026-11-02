@@ -79,8 +79,8 @@ namespace Whispbot.Cache
             var user = await Config.client!.Rest.GetUserAsync(key);
 
             return Postgres.SelectFirst<UserConfig>(
-                @"INSERT INTO user_config (id, username, avatar, banner) VALUES (@1, @2, @3, @4) RETURNING *;",
-                [key, user.Username, user.AvatarId, user.BannerId]
+                @"INSERT INTO user_config (id, username, nickname, avatar, banner) VALUES (@1, @2, @3, @4, @5) RETURNING *;",
+                [key, user.Username, user.GlobalName, user.AvatarId, user.BannerId]
             );
         });
 
@@ -201,6 +201,7 @@ namespace Whispbot.Cache
     {
         public ulong id = 0;
         public string username = default!;
+        public string? nickname = null;
         public string? avatar = null;
         public string? banner = null;
         public ulong? roblox_id = null;

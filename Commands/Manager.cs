@@ -179,12 +179,13 @@ namespace Whispbot.Commands
                 {
                     if (
                         userConfig.username != message.Author.Username ||
-                        userConfig.avatar != message.Author.AvatarId
+                        userConfig.avatar != message.Author.AvatarId ||
+                        userConfig.nickname != message.Author.GlobalName
                     )
                     {
                         Postgres.Execute(
-                            @"UPDATE user_config SET username = @1, avatar = @2 WHERE id = @3",
-                            [message.Author.Username, message.Author.AvatarId, userConfig.id]
+                            @"UPDATE user_config SET username = @1, avatar = @2, nickname = @3 WHERE id = @4",
+                            [message.Author.Username, message.Author.AvatarId, message.Author.GlobalName, userConfig.id]
                         );
                     }
                 }
